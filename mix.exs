@@ -15,7 +15,7 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      applications: [:logger, :gproc, :cowboy, :plug] 
+      applications: [:logger, :cowboy, :plug] 
     ]
   end
 
@@ -30,12 +30,11 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:poison, "~> 3.0"},                     # json library
       {:cowboy, "1.0.0"},                     # http library
-      {:plug, "~> 1.0"},                   # http wrapper for cowboy
+      {:plug, "~> 1.0"},                      # http wrapper for cowboy
       {:httpoison, "~> 0.4.3", only: :test},  # test framework for http library
-      {:meck, "~> 0.8.2", only: :test}        # mocking library
-      # crypto library need for bencode stuff
+      {:meck, "~> 0.8.2", only: :test},       # mocking library
+      {:bento, "~> 0.9.2"}                    # bencoder...
     ]
   end
 end
