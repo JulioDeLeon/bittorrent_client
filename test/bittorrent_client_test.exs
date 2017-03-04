@@ -7,10 +7,10 @@ defmodule BittorrentClientTest do
     assert 1 + 1 == 2
   end
 
-  @opts AppRouter.init({})
+  @opts BittorrentRouter.init({})
   test "returns Pong" do
     conn = conn(:get, "/ping")
-    conn = AppRouter.call(conn, @opts)
+    conn = BittorrentRouter.call(conn, @opts)
 
 	assert conn.state == :sent
     assert conn.status == 200

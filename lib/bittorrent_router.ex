@@ -5,7 +5,7 @@ defmodule BittorrentRouter do
   plug :dispatch
   
   get "/ping" do
-    send_resp(conn, 200, "ping")
+    send_resp(conn, 200, "pong")
   end
 
   match _ do

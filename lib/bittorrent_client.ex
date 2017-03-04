@@ -1,9 +1,9 @@
 defmodule BittorrentClient do
   use Application
-  
+
   def start(_type, _args) do
     import Supervisor.Spec
-    
+
     children = [
       Plug.Adapters.Cowboy.child_spec(:http, BittorrentRouter, [], [port: 4000])
     ]
