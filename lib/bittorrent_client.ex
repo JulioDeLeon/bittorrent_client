@@ -5,7 +5,7 @@ defmodule BittorrentClient do
     import Supervisor.Spec
 
     children = [
-      Plug.Adapters.Cowboy.child_spec(:http, BittorrentRouter, [], [port: 4000])
+      Plug.Adapters.Cowboy.child_spec(:http, BittorrentClient.Router, [], [port: 4000])
     ]
 
     opts = [strategy: :one_for_one, name: BittorrentClient.Supervisor]
