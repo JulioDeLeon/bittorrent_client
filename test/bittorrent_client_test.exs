@@ -12,8 +12,10 @@ defmodule BittorrentClientTest do
     conn = conn(:get, "/ping")
     conn = BittorrentClient.Router.call(conn, @opts)
 
-	assert conn.state == :sent
+	  assert conn.state == :sent
     assert conn.status == 200
     assert conn.resp_body == "pong"
   end
+
+  # create test for post and put request
 end

@@ -8,13 +8,6 @@ defmodule BittorrentClient.Router do
   plug :match
   plug :dispatch
 
-  defp parse(conn, opts \\ []) do
-    opts = opts
-           |> Keyword.put_new(:parsers, [:json])
-           |> Keyword.put_new(:json_decoder, Poison)
-    Plug.Parsers.call(conn, Plug.Parsers.init(opts))
-  end
-
   get "/ping" do
     send_resp(conn, 200, "pong")
   end
@@ -26,11 +19,22 @@ defmodule BittorrentClient.Router do
   end
 
   # simple post request example
+  # this can only hanlde JSON payloads
   post "/requestPost" do
-    conn = parse(conn, Plug.Parsers.JSON)
-    id = conn.params["id"]
-    IO.puts Enum.join(["The body params: ", inspect conn.body_params])
-    send_resp(conn, 200, "hit\n")
+    conn = Plug.Conn.fetch_query_params(conn)
+    # Once the payload is parsed, can kick off and handle things accordingly
+    term = conn.params["term"]
+    IO.puts Enum.join(["Received the following term: ", term])
+    send_resp(conn, 200, Enum.join(["Returning: ", term, "\n"]))
+  end
+
+  # example of a put request
+  put "/requestPut" do
+    conn = Plug.Conn.fetch_query_params(conn)
+    # Once the payload is parsed, can kick off and handle things accordingly
+    term = conn.params["term"]
+    IO.puts Enum.join(["Received the following term: ", term])
+    send_resp(conn, 200, Enum.join(["Returning: ", term, "\n"]))
   end
 
   match _ do
