@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Router do 
+defmodule BittorrentClient.Web do 
   use Plug.Router
 
   plug Plug.Logger
