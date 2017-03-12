@@ -35,7 +35,8 @@ defmodule BittorrentClient.Mixfile do
       {:httpoison, "~> 0.4.3", only: :test},  # test framework for http library
       {:meck, "~> 0.8.2", only: :test},       # mocking library
       {:bento, "~> 0.9.2"},                    # bencoder...
-      {:hackney, "~> 1.6", override: true}
+      {:hackney, "~> 1.6", override: true},
+      {:gproc, "~> 0.5"}
     ]
   end
 end
