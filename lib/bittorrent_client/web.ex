@@ -37,7 +37,15 @@ defmodule BittorrentClient.Web do
     send_resp(conn, 200, Enum.join(["Returning: ", term, "\n"]))
   end
 
+  @api_root "/api/v1"
+
+  get "#{@api_root}/:id/status" when byte_size(id) > 3 do
+    IO.puts Enum.join(["Received the following ID: ", id])
+    send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
+  end
+
   match _ do
     send_resp(conn, 404, "oops")
   end
+
 end
