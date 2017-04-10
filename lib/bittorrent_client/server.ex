@@ -1,7 +1,6 @@
 defmodule BittorrentClient.Server do
   use GenServer
 
-  # start_link
   def start_link(db_dir, name) do
     IO.puts "Starting BTC server for #{name}"
     GenServer.start_link(
@@ -10,6 +9,15 @@ defmodule BittorrentClient.Server do
       name: {:global, {:btc_server, name}}
     )
   end
+
+  def init(name) do
+    {:ok, {name}}
+  end
+
+  def whereis(name) do
+    :global.whereis_name({:btc_server, name})
+  end
+
   def list_current_torrents(serverName) do
     IO.puts "Entered list_current_torrents"
     GenServer.call(serverName, {:list_current_torrents, []})
@@ -31,6 +39,6 @@ defmodule BittorrentClient.Server do
       "Successful call to list torrent"
     }
   end
- 
+
   # handle_cast
 end
