@@ -20,7 +20,7 @@ defmodule BittorrentClient.Server do
 
   def list_current_torrents(serverName) do
     IO.puts "Entered list_current_torrents"
-    GenServer.call(serverName, {:list_current_torrents, []})
+    GenServer.call(:global.whereis_name({:btc_server, serverName}), {:list_current_torrents})
   end
 
   def add_new_torrent(torrentFile) do
@@ -32,12 +32,9 @@ defmodule BittorrentClient.Server do
   end
 
   # handle_call
-  def handle_call({:list_current_torrents}, _, {serverName}) do
-    {
-      :reply,
-      :ok,
-      {serverName}
-    }
+  def handle_call({:list_current_torrents}, _from, {db, serverName}) do
+    {:reply, :ok, serverName}
+                 #do things here
   end
 
   # handle_cast
