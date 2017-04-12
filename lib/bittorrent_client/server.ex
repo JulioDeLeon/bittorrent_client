@@ -23,19 +23,30 @@ defmodule BittorrentClient.Server do
     GenServer.call(:global.whereis_name({:btc_server, serverName}), {:list_current_torrents})
   end
 
-  def add_new_torrent(torrentFile) do
+  def add_new_torrent(serverName, torrentFile) do
     IO.puts "Entered add_new_torrent #{torrentFile}"
+    GenServer.call(:global.whereis_name({:btc_server, serverName}), {:add_new_torrent, torrentFile})
   end
 
-  def delete_torrent_by_id(id) do
+  def delete_torrent_by_id(serverName, id) do
     IO.puts "Entered delete_torrent_by id #{id}"
+    GenServer.call(:global.whereis_name({:btc_server, serverName}), {:delete_by_id, id})
   end
 
   # handle_call
   def handle_call({:list_current_torrents}, _from, {db, serverName}) do
-    {:reply, :ok, serverName}
-                 #do things here
+    # you can also do stuff before and case the reply afterworkds
+    {:reply, IO.puts("Your server name: #{serverName}"), {db, serverName}}
+   # {status, actions, new state}
   end
 
-  # handle_cast
+  def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName}) do
+    {:reply, IO.puts("The file path you have passed: #{torrentFile}"), {db, serverName}}
+  end
+
+  def handle_call({:delete_by_id, id}, _from, {db, serverName}) do
+    {:reply, IO.puts("The id of torrent to be deleted: #{id}"), {db, serverName}}
+  end
+
+  # handle_cast (asynchronous)
 end
