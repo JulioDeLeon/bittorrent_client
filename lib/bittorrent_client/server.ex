@@ -35,22 +35,19 @@ defmodule BittorrentClient.Server do
 
   # handle_call
   def handle_call({:list_current_torrents}, _from, {db, serverName, torrents}) do
-    # you can also do stuff before and case the reply afterworkds
-    IO.inspect Map.to_list(torrents)
-    {:reply, IO.puts("Your server name: #{serverName}"), {db, serverName, torrents}}
+    {:reply, torrents, {db, serverName, torrents}}
    # {status, actions, new state}
   end
 
   def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName, torrents}) do
     random_id =:rand.uniform(1000)
-    IO.inspect Map.keys(torrents)
-    Map.put(torrents, random_id, {"torrentFile", "init"})
-    IO.inspect Map.keys(torrents)
-    {:reply, IO.puts("The file path you have passed: #{torrentFile}"), {db, serverName, torrents}}
+    torrents = Map.put(torrents, random_id, {"torrentFile", "init"})
+    {:reply, torrents, {db, serverName, torrents}}
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
-    {:reply, IO.puts("The id of torrent to be deleted: #{id}"), {db, serverName, torrents}}
+    torrents = Map.delete(torrents, id)
+    {:reply, torrents, {db, serverName, torrents}}
   end
 
   # handle_cast (asynchronous)
