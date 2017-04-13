@@ -18,6 +18,5 @@ erl_crash.dump
 
 *.swp
 
-*.lock
 
 \.\#*
