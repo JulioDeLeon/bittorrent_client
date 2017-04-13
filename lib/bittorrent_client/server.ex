@@ -5,13 +5,13 @@ defmodule BittorrentClient.Server do
     IO.puts "Starting BTC server for #{name}"
     GenServer.start_link(
       __MODULE__,
-      {db_dir, name},
+      {db_dir, name, Map.new()},
       name: {:global, {:btc_server, name}}
     )
   end
 
-  def init({db_dir, name}) do
-    {:ok, {db_dir, name}}
+  def init({db_dir, name, torrent_map}) do
+    {:ok, {db_dir, name, torrent_map}}
   end
 
   def whereis(name) do
@@ -34,18 +34,23 @@ defmodule BittorrentClient.Server do
   end
 
   # handle_call
-  def handle_call({:list_current_torrents}, _from, {db, serverName}) do
+  def handle_call({:list_current_torrents}, _from, {db, serverName, torrents}) do
     # you can also do stuff before and case the reply afterworkds
-    {:reply, IO.puts("Your server name: #{serverName}"), {db, serverName}}
+    IO.inspect Map.to_list(torrents)
+    {:reply, IO.puts("Your server name: #{serverName}"), {db, serverName, torrents}}
    # {status, actions, new state}
   end
 
-  def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName}) do
-    {:reply, IO.puts("The file path you have passed: #{torrentFile}"), {db, serverName}}
+  def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName, torrents}) do
+    random_id =:rand.uniform(1000)
+    IO.inspect Map.keys(torrents)
+    Map.put(torrents, random_id, {"torrentFile", "init"})
+    IO.inspect Map.keys(torrents)
+    {:reply, IO.puts("The file path you have passed: #{torrentFile}"), {db, serverName, torrents}}
   end
 
-  def handle_call({:delete_by_id, id}, _from, {db, serverName}) do
-    {:reply, IO.puts("The id of torrent to be deleted: #{id}"), {db, serverName}}
+  def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
+    {:reply, IO.puts("The id of torrent to be deleted: #{id}"), {db, serverName, torrents}}
   end
 
   # handle_cast (asynchronous)
