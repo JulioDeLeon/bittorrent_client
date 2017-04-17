@@ -34,9 +34,10 @@ defmodule BittorrentClient.Mixfile do
       {:plug, "~> 1.0"},                      # http wrapper for cowboy
       {:httpoison, "~> 0.4.3", only: :test},  # test framework for http library
       {:meck, "~> 0.8.2", only: :test},       # mocking library
-      {:bento, "~> 0.9.2"},                    # bencoder...
+      {:bento, "~> 0.9.2"},                   # bencoder...
       {:hackney, "~> 1.6", override: true},
-      {:gproc, "~> 0.5"}
+      {:gproc, "~> 0.5"},					  # global process registry
+      {:credo, "~> 0.7", only: [:dev, :test]} # code quality tool
     ]
   end
 end
