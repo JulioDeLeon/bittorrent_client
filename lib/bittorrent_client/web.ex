@@ -1,5 +1,9 @@
-defmodule BittorrentClient.Web do 
+defmodule BittorrentClient.Web do
+  @moduledoc """
+  Web module defines the RESTful api to interact with BittorrentClient
+  """
   use Plug.Router
+  alias Plug.Conn, as: Conn
 
   plug Plug.Logger
   plug Plug.Parsers, parsers: [:urlencoded, :json],
@@ -21,7 +25,7 @@ defmodule BittorrentClient.Web do
   # simple post request example
   # this can only hanlde JSON payloads
   post "/requestPost" do
-    conn = Plug.Conn.fetch_query_params(conn)
+    conn = Conn.fetch_query_params(conn)
     # Once the payload is parsed, can kick off and handle things accordingly
     term = conn.params["term"]
     IO.puts Enum.join(["Received the following term: ", term])
@@ -30,7 +34,7 @@ defmodule BittorrentClient.Web do
 
   # example of a put request
   put "/requestPut" do
-    conn = Plug.Conn.fetch_query_params(conn)
+    conn = Conn.fetch_query_params(conn)
     # Once the payload is parsed, can kick off and handle things accordingly
     term = conn.params["term"]
     IO.puts Enum.join(["Received the following term: ", term])

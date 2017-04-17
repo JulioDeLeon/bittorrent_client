@@ -1,4 +1,7 @@
 defmodule BittorrentClient.ServerSupervisor do
+  @moduledoc """
+  ServerSupervisor supervises BittorrentClient Server
+  """
   use Supervisor
 
   # can take args
@@ -9,9 +12,10 @@ defmodule BittorrentClient.ServerSupervisor do
 
   def init([]) do
     children = [
-      worker(BittorrentClient.Server, ["./", "GenericName"], id: {:server,"GenericName"})
+      worker(BittorrentClient.Server, ["./", "GenericName"], id: {:server, "GenericName"})
     ]
 
     supervise(children, strategy: :one_for_one)
   end
+
 end
