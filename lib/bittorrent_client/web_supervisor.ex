@@ -9,7 +9,7 @@ defmodule BittorrentClient.WebSupervisor do
 
     IO.puts "Starting Web Supervisor"
     children = [
-      Cowboy.child_spec(:http, BittorrentClient.Web, [], [port: 4000])
+      Cowboy.child_spec(:http, BittorrentClient.Web, [], [port: 8080])
     ]
 
     opts = [strategy: :one_for_one, name: BittorrentClient.WebSupervisor]

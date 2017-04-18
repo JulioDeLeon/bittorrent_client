@@ -48,6 +48,30 @@ defmodule BittorrentClient.Web do
     send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
   end
 
+  post "#{@api_root}/add/file" do
+    conn = Conn.fetch_query_params(conn)
+    filename = conn.params["filename"]
+    IO.puts "Received the following filename: #{filename}"
+	{status, data} = BittorrentClient.Server.add_new_torrent("GenericName", filename)
+    case status do
+      :ok -> send_resp(conn, 200, data)
+      :error -> send_resp(conn, 400, data)
+      _ -> send_resp(conn, 500, "Don't know what happened")
+    end
+  end
+
+  post "#{@api_root}/remove/id" do
+    conn = Conn.fetch_query_params(conn)
+    id = conn.params["id"]
+    IO.puts "Received the following filename: #{id}"
+	{status, data} = BittorrentClient.Server.delete_torrent_by_id("GenericName", id)
+    case status do
+      :ok -> send_resp(conn, 200, data)
+      :error -> send_resp(conn, 400, data)
+      _ -> send_resp(conn, 500, "Don't know what happened")
+    end
+  end
+
   match _ do
     send_resp(conn, 404, "oops")
   end

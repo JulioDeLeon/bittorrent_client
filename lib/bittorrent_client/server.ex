@@ -64,18 +64,18 @@ defmodule BittorrentClient.Server do
 
     if not Map.has_key?(torrents, id) do
       torrents = Map.put(torrents, id, {torrentFile, "init"})
-      {:reply, torrents, {db, serverName, torrents}}
+      {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, "That torrent already exist", {db, serverName, torrents}}
+      {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"}, {db, serverName, torrents}}
     end
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
       torrents = Map.delete(torrents, id)
-      {:reply, torrents, {db, serverName, torrents}}
+      {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, "Bad ID was given", {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
   end
 
