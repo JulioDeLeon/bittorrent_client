@@ -12,36 +12,11 @@ defmodule BittorrentClient.Web do
   plug :match
   plug :dispatch
 
+  @api_root "/api/v1"
+
   get "/ping" do
     send_resp(conn, 200, "pong")
   end
-
-  # simple example of a request parameter
-  get "/request/:id" when byte_size(id) >= 3 do
-    IO.puts Enum.join(["Received the following ID: ", id])
-    send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
-  end
-
-  # simple post request example
-  # this can only hanlde JSON payloads
-  post "/requestPost" do
-    conn = Conn.fetch_query_params(conn)
-    # Once the payload is parsed, can kick off and handle things accordingly
-    term = conn.params["term"]
-    IO.puts Enum.join(["Received the following term: ", term])
-    send_resp(conn, 200, Enum.join(["Returning: ", term, "\n"]))
-  end
-
-  # example of a put request
-  put "/requestPut" do
-    conn = Conn.fetch_query_params(conn)
-    # Once the payload is parsed, can kick off and handle things accordingly
-    term = conn.params["term"]
-    IO.puts Enum.join(["Received the following term: ", term])
-    send_resp(conn, 200, Enum.join(["Returning: ", term, "\n"]))
-  end
-
-  @api_root "/api/v1"
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
     IO.puts Enum.join(["Received the following ID: ", id])
@@ -60,7 +35,7 @@ defmodule BittorrentClient.Web do
     end
   end
 
-  post "#{@api_root}/remove/id" do
+  delete "#{@api_root}/remove/id" do
     conn = Conn.fetch_query_params(conn)
     id = conn.params["id"]
     IO.puts "Received the following filename: #{id}"
@@ -70,6 +45,17 @@ defmodule BittorrentClient.Web do
       :error -> send_resp(conn, 400, data)
       _ -> send_resp(conn, 500, "Don't know what happened")
     end
+  end
+
+  get "#{@api_root}/all" do
+  	{_, data} = BittorrentClient.Server.list_current_torrents("GenericName")
+    put_resp_content_type(conn, "application/json")
+    send_resp(conn, 200, Poison.encode!(data))
+  end
+
+  delete "#{@api_root}/remove/all" do
+	{_, _} = BittorrentClient.Server.delete_all_torrents("GenericName")
+    send_resp(conn, 200, "All torrents deleted")
   end
 
   match _ do

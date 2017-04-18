@@ -53,7 +53,7 @@ defmodule BittorrentClient.Server do
   end
 
   def handle_call({:list_current_torrents}, _from, {db, serverName, torrents}) do
-    {:reply, torrents, {db, serverName, torrents}}
+    {:reply, {:ok, torrents}, {db, serverName, torrents}}
    # {status, actions, new state}
   end
 
@@ -63,7 +63,7 @@ defmodule BittorrentClient.Server do
     |> Base.encode32
 
     if not Map.has_key?(torrents, id) do
-      torrents = Map.put(torrents, id, {torrentFile, "init"})
+      torrents = Map.put(torrents, id, %{"file" => torrentFile, "status" =>"init"})
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
       {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"}, {db, serverName, torrents}}
@@ -90,6 +90,6 @@ defmodule BittorrentClient.Server do
 
   def handle_call({:delete_all}, _from, {db, serverName, torrents}) do
     torrents = Map.drop(torrents, Map.keys(torrents))
-    {:reply, torrents, {db, serverName, torrents}}
+    {:reply, {:ok, torrents}, {db, serverName, torrents}}
   end
 end
