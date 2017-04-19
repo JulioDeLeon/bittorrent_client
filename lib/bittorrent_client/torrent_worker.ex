@@ -12,7 +12,7 @@ defmodule BittorrentClient.TorrentWorker do
 
     GenServer.start_link(
       __MODULE__,
-      torrentMetadata,
+      {torrentMetadata},
       name: {:global, {:btc_torrentworker, filename}}
     )
   end
@@ -25,8 +25,24 @@ defmodule BittorrentClient.TorrentWorker do
     :global.whereis_name({:btc_torrentworker, name})
   end
 
+  def getTorrentMetaData(name) do
+    IO.puts "Torrent metadata for #{name}"
+    GenServer.call(:global.whereis_name({:btc_torrentworker, name}),
+      {:get_metadata})
+  end
+
+  def handle_call({:get_metadata}, _from, {metadata}) do
+    {:reply, {:ok, metadata}, {metadata}}
+  end
+
   defp createTrackerRequest(url, params) do
    	urlParams = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
     URI.encode(url <> "?" <> Enum.join(urlParams, "&"))
+  end
+
+  defp connectToTracker(name) do
+    metadata = getTorrentMetaData(name)
+    url = createTrackerRequest(metadata.announce, {"peer_id" => "-ET0001-",
+                                                   "" => ""})
   end
 end
