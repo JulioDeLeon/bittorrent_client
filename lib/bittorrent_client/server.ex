@@ -15,8 +15,11 @@ defmodule BittorrentClient.Server do
   end
 
   def init({db_dir, name, torrent_map}) do
+    # load from database into table
     {:ok, {db_dir, name, torrent_map}}
   end
+
+  # on terminate flush table
 
   def whereis(name) do
     :global.whereis_name({:btc_server, name})
@@ -40,7 +43,7 @@ defmodule BittorrentClient.Server do
       {:delete_by_id, id})
   end
 
-  def update_torrent_status_by_id(serverName, id, status) do
+  def update_torrent_status_by_id(serverName, id, status) d{:reply, "Bad ID was given", {db, serverName, torrents}}o
     IO.puts "Entered update_torrent_status_by_id"
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:update_by_id, id, status})

@@ -5,12 +5,10 @@ defmodule BittorrentClient do
   """
   alias BittorrentClient.ServerSupervisor, as: ServerSupervisor
   alias BittorrentClient.WebSupervisor, as: WebSupervisor
-  alias BittorrentClient.Database, as: Database
 
   def start(_type, _args) do
     ServerSupervisor.start_link()
     WebSupervisor.start_link()
-    Database.start_link("./")
   end
 
   def stop(_) do
