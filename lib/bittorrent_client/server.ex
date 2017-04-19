@@ -43,7 +43,7 @@ defmodule BittorrentClient.Server do
       {:delete_by_id, id})
   end
 
-  def update_torrent_status_by_id(serverName, id, status) d{:reply, "Bad ID was given", {db, serverName, torrents}}o
+  def update_torrent_status_by_id(serverName, id, status) do
     IO.puts "Entered update_torrent_status_by_id"
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:update_by_id, id, status})

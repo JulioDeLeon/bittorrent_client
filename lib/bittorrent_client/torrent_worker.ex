@@ -42,7 +42,6 @@ defmodule BittorrentClient.TorrentWorker do
 
   defp connectToTracker(name) do
     metadata = getTorrentMetaData(name)
-    url = createTrackerRequest(metadata.announce, {"peer_id" => "-ET0001-",
-                                                   "" => ""})
+    url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
   end
 end
