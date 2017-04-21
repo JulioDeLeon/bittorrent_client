@@ -4,7 +4,7 @@ defmodule BittorrentClient.TorrentWorker do
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings. 
   """
 
-  def start_link(filename) do
+  def start_link(id, filename) do
     IO.puts "Starting torrent worker for #{filename}"
 	torrentMetadata = filename
     |> File.read!()
@@ -13,7 +13,7 @@ defmodule BittorrentClient.TorrentWorker do
     GenServer.start_link(
       __MODULE__,
       {torrentMetadata},
-      name: {:global, {:btc_torrentworker, filename}}
+      name: {:global, {:btc_torrentworker, id}}
     )
   end
 
@@ -21,13 +21,13 @@ defmodule BittorrentClient.TorrentWorker do
     {:ok, torrentMetadata}
   end
 
-  def whereis(name) do
-    :global.whereis_name({:btc_torrentworker, name})
+  def whereis(id) do
+    :global.whereis_name({:btc_torrentworker, id})
   end
 
-  def getTorrentMetaData(name) do
-    IO.puts "Torrent metadata for #{name}"
-    GenServer.call(:global.whereis_name({:btc_torrentworker, name}),
+  def getTorrentMetaData(id) do
+    IO.puts "Torrent metadata for #{id}"
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_metadata})
   end
 
@@ -40,8 +40,8 @@ defmodule BittorrentClient.TorrentWorker do
     URI.encode(url <> "?" <> Enum.join(urlParams, "&"))
   end
 
-  defp connectToTracker(name) do
-    metadata = getTorrentMetaData(name)
+  defp connectToTracker(id) do
+    metadata = getTorrentMetaData(id)
     url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
   end
 end
