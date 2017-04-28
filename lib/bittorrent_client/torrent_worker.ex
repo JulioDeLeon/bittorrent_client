@@ -4,8 +4,8 @@ defmodule BittorrentClient.TorrentWorker do
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings. 
   """
 
-  def start_link(id, filename) do
-    IO.puts "Starting torrent worker for #{filename}"
+  def start_link({id, filename}) do
+    IO.puts "Starting Torrent worker for #{filename}"
 	torrentMetadata = filename
     |> File.read!()
     |> Bento.torrent!()

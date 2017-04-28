@@ -66,8 +66,13 @@ defmodule BittorrentClient.Server do
     |> Base.encode32
 
     if not Map.has_key?(torrents, id) do
-      torrents = Map.put(torrents, id, %{"file" => torrentFile, "status" =>"init"})
-      {:reply, {:ok, id}, {db, serverName, torrents}}
+      {status, childpid} = BittorrentClient.TorrentSupervisor.start_child({id, torrentFile})
+      if status == :error do
+        {:reply, {:error, "Failed to start torrent for #{torrentFile}"}, {db, serverName, torrents}}
+      else
+        torrents = Map.put(torrents, id, %{"file" => torrentFile, "pid" => childpid, "status" => "init"})
+        {:reply, {:ok, id}, {db, serverName, torrents}}
+      end
     else
       {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"}, {db, serverName, torrents}}
     end
@@ -84,7 +89,7 @@ defmodule BittorrentClient.Server do
 
   def handle_call({:update_by_id, id, status}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      torrents = Map.update!(torrents, id, fn {file, _} -> {file, status} end)
+      torrents = Map.update!(torrents, id, fn {file, pid, _} -> {file, pid, status} end)
       {:reply, torrents, {db, serverName, torrents}}
     else
       {:reply, "Bad ID was given", {db, serverName, torrents}}
