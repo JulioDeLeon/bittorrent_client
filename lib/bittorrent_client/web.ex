@@ -12,6 +12,8 @@ defmodule BittorrentClient.Web do
   plug :match
   plug :dispatch
 
+  alias BittorrentClient.Server, as: Server
+
   @api_root "/api/v1"
 
   get "/ping" do
@@ -27,7 +29,7 @@ defmodule BittorrentClient.Web do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
     IO.puts "Received the following filename: #{filename}"
-	{status, data} = BittorrentClient.Server.add_new_torrent("GenericName", filename)
+    {status, data} = Server.add_new_torrent("GenericName", filename)
     case status do
       :ok -> send_resp(conn, 200, data)
       :error -> send_resp(conn, 400, data)
@@ -39,7 +41,7 @@ defmodule BittorrentClient.Web do
     conn = Conn.fetch_query_params(conn)
     id = conn.params["id"]
     IO.puts "Received the following filename: #{id}"
-	{status, data} = BittorrentClient.Server.delete_torrent_by_id("GenericName", id)
+    {status, data} = Server.delete_torrent_by_id("GenericName", id)
     case status do
       :ok -> send_resp(conn, 200, data)
       :error -> send_resp(conn, 400, data)
@@ -48,13 +50,13 @@ defmodule BittorrentClient.Web do
   end
 
   get "#{@api_root}/all" do
-  	{_, data} = BittorrentClient.Server.list_current_torrents("GenericName")
+  	{_, data} = Server.list_current_torrents("GenericName")
     put_resp_content_type(conn, "application/json")
     send_resp(conn, 200, Poison.encode!(data))
   end
 
   delete "#{@api_root}/remove/all" do
-	{_, _} = BittorrentClient.Server.delete_all_torrents("GenericName")
+    {_, _} = Server.delete_all_torrents("GenericName")
     send_resp(conn, 200, "All torrents deleted")
   end
 

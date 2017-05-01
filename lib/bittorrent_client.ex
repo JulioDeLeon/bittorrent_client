@@ -10,7 +10,7 @@ defmodule BittorrentClient do
   def start(_type, _args) do
     ServerSupervisor.start_link()
     WebSupervisor.start_link()
-	TorrentSupervisor.start_link()
+    TorrentSupervisor.start_link()
   end
 
   def stop(_) do

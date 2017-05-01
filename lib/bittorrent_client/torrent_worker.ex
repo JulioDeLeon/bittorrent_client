@@ -6,19 +6,19 @@ defmodule BittorrentClient.TorrentWorker do
 
   def start_link({id, filename}) do
     IO.puts "Starting Torrent worker for #{filename}"
-	torrentMetadata = filename
+    torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
 
     GenServer.start_link(
       __MODULE__,
-      {torrentMetadata},
+      {torrent_metadata},
       name: {:global, {:btc_torrentworker, id}}
     )
   end
 
-  def init(torrentMetadata) do
-    {:ok, torrentMetadata}
+  def init(torrent_metadata) do
+    {:ok, torrent_metadata}
   end
 
   def whereis(id) do
@@ -36,8 +36,8 @@ defmodule BittorrentClient.TorrentWorker do
   end
 
   defp createTrackerRequest(url, params) do
-   	urlParams = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
-    URI.encode(url <> "?" <> Enum.join(urlParams, "&"))
+   	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
+    URI.encode(url <> "?" <> Enum.join(url_params, "&"))
   end
 
   defp connectToTracker(id) do
