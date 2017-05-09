@@ -9,7 +9,7 @@ defmodule BittorrentClient.TorrentWorker do
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
-
+    File.close(filename)
     GenServer.start_link(
       __MODULE__,
       {torrent_metadata},
@@ -31,7 +31,17 @@ defmodule BittorrentClient.TorrentWorker do
       {:get_metadata})
   end
 
+  def closeFile(id) do
+    IO.puts "Closing file for #{id}"
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:close_file})
+  end
+
   def handle_call({:get_metadata}, _from, {metadata}) do
+    {:reply, {:ok, metadata}, {metadata}}
+  end
+
+  def handle_call({:close_file}, _from, {metadata}) do
     {:reply, {:ok, metadata}, {metadata}}
   end
 

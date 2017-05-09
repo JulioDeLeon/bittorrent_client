@@ -5,6 +5,7 @@ defmodule BittorrentClient.Server do
   control to torrent handlers and database modules
   """
   alias BittorrentClient.TorrentSupervisor, as: TorrentSupervisor
+  alias BittorrentClient.TorrentData, as: TorrentData
 
   def start_link(db_dir, name) do
     IO.puts "Starting BTC server for #{name}"
@@ -73,7 +74,7 @@ defmodule BittorrentClient.Server do
          {db, serverName, torrents}}
       else
           torrents = Map.put(torrents, id,
-            %{"file" => torrentFile, "pid" => childpid, "status" => "init"})
+            %TorrentData{file: torrentFile, id: id, pid: childpid, status: "init"})
         {:reply, {:ok, id}, {db, serverName, torrents}}
       end
     else
@@ -94,7 +95,7 @@ defmodule BittorrentClient.Server do
   def handle_call({:update_by_id, id, status}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
       torrents = Map.update!(torrents, id,
-        fn {file, pid, _} -> {file, pid, status} end)
+        fn dataPoint -> %TorrentData{dataPoint | status: status} end)
       {:reply, torrents, {db, serverName, torrents}}
     else
       {:reply, "Bad ID was given", {db, serverName, torrents}}

@@ -7,7 +7,7 @@ defmodule BittorrentClient do
   alias BittorrentClient.WebSupervisor, as: WebSupervisor
   alias BittorrentClient.TorrentSupervisor, as: TorrentSupervisor
 
-  def start(_type, _args) do
+  def start(_type \\ [], _args \\ []) do
     ServerSupervisor.start_link()
     WebSupervisor.start_link()
     TorrentSupervisor.start_link()
