@@ -2,12 +2,13 @@ defmodule BittorrentClient.WebSupervisor do
   @moduledoc """
   WebSupervisor supervises the Web module of BittorrentClient
   """
+  require Logger
   alias Plug.Adapters.Cowboy, as: Cowboy
 
   def start_link do
     #import Supervisor.Spec
 
-    IO.puts "Starting Web Supervisor"
+    Logger.info "Starting Web Supervisor"
     children = [
       Cowboy.child_spec(:http, BittorrentClient.Web, [], [port: 8080])
     ]

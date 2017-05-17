@@ -3,9 +3,10 @@ defmodule BittorrentClient.TorrentWorker do
   @moduledoc """
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings. 
   """
+  require Logger
 
   def start_link({id, filename}) do
-    IO.puts "Starting Torrent worker for #{filename}"
+    Logger.info "Starting Torrent worker for #{filename}"
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
@@ -26,13 +27,13 @@ defmodule BittorrentClient.TorrentWorker do
   end
 
   def getTorrentMetaData(id) do
-    IO.puts "Torrent metadata for #{id}"
+    Logger.info "Torrent metadata for #{id}"
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_metadata})
   end
 
   def closeFile(id) do
-    IO.puts "Closing file for #{id}"
+    Logger.info "Closing file for #{id}"
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:close_file})
   end

@@ -18,8 +18,10 @@ use Mix.Config
 #
 # Or configure a 3rd-party app:
 #
-#     config :logger, level: :info
-#
+config :logger, :console,
+  format: "$time [$level] $message\n",
+  colors: [info: :green, warn: :yellow, error: :red],
+  level: :info
 
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment

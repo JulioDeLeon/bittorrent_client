@@ -4,6 +4,7 @@ defmodule BittorrentClient.Web do
   """
   use Plug.Router
   alias Plug.Conn, as: Conn
+  require Logger
 
   plug Plug.Logger
   plug Plug.Parsers, parsers: [:urlencoded, :json],
@@ -21,14 +22,14 @@ defmodule BittorrentClient.Web do
   end
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
-    IO.puts Enum.join(["Received the following ID: ", id])
+    Logger.info Enum.join(["Received the following ID: ", id])
     send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
   end
 
   post "#{@api_root}/add/file" do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
-    IO.puts "Received the following filename: #{filename}"
+    Logger.info "Received the following filename: #{filename}"
     {status, data} = Server.add_new_torrent("GenericName", filename)
     case status do
       :ok -> send_resp(conn, 200, data)
@@ -40,7 +41,7 @@ defmodule BittorrentClient.Web do
   delete "#{@api_root}/remove/id" do
     conn = Conn.fetch_query_params(conn)
     id = conn.params["id"]
-    IO.puts "Received the following filename: #{id}"
+    Logger.info "Received the following filename: #{id}"
     {status, data} = Server.delete_torrent_by_id("GenericName", id)
     case status do
       :ok -> send_resp(conn, 200, data)

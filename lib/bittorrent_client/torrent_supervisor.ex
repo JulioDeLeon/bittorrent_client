@@ -3,9 +3,11 @@ defmodule BittorrentClient.TorrentSupervisor do
   Torrent Supervisor will supervise torrent handler threads dynamically.
   """
   use Supervisor
+  require Logger
+
   # start_link
   def start_link do
-    IO.puts "Starting Torrent Supervisor"
+    Logger.info "Starting Torrent Supervisor"
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 

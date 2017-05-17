@@ -3,10 +3,11 @@ defmodule BittorrentClient.ServerSupervisor do
   ServerSupervisor supervises BittorrentClient Server
   """
   use Supervisor
+  require Logger
 
   # can take args
   def start_link do
-    IO.puts "Starting Server Supervisor"
+    Logger.info "Starting Server Supervisor"
     Supervisor.start_link(__MODULE__, [])
   end
 
