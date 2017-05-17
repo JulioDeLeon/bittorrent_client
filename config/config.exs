@@ -20,7 +20,7 @@ use Mix.Config
 #
 config :logger, :console,
   format: "$time [$level] $message\n",
-  colors: [info: :green, warn: :yellow, error: :red],
+  colors: [warn: :yellow, error: :red],
   level: :info
 
 # It is also possible to import configuration files, relative to this
