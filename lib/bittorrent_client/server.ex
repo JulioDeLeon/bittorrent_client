@@ -68,9 +68,10 @@ defmodule BittorrentClient.Server do
     id = torrentFile
     |> fn x -> :crypto.hash(:md5, x) end.()
     |> Base.encode32
-
+    Logger.debug "add_new_torrent Generated #{id}"
     if not Map.has_key?(torrents, id) do
       {status, childpid} = TorrentSupervisor.start_child({id, torrentFile})
+      Logger.debug "add_new_torrent Status: #{status}"
       if status == :error do
         {:reply, {:error, "Failed to start torrent for #{torrentFile}"},
          {db, serverName, torrents}}
@@ -86,7 +87,11 @@ defmodule BittorrentClient.Server do
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
+    Logger.debug "Entered delete_by_id"
     if Map.has_key?(torrents, id) do
+      torrentData = Map.get(torrents, id)
+      Logger.debug "TorrentData: #{inspect torrentData}"
+      TorrentSupervisor.terminate_child(torrentData.pid)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else

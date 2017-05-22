@@ -10,7 +10,6 @@ defmodule BittorrentClient.TorrentWorker do
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
-    File.close(filename)
     GenServer.start_link(
       __MODULE__,
       {torrent_metadata},
@@ -20,6 +19,10 @@ defmodule BittorrentClient.TorrentWorker do
 
   def init(torrent_metadata) do
     {:ok, torrent_metadata}
+  end
+
+  def terminate(reason, _state) do
+    Logger.info "terminating #{inspect self}: #{inspect reason}"
   end
 
   def whereis(id) do
@@ -32,17 +35,7 @@ defmodule BittorrentClient.TorrentWorker do
       {:get_metadata})
   end
 
-  def closeFile(id) do
-    Logger.info "Closing file for #{id}"
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:close_file})
-  end
-
   def handle_call({:get_metadata}, _from, {metadata}) do
-    {:reply, {:ok, metadata}, {metadata}}
-  end
-
-  def handle_call({:close_file}, _from, {metadata}) do
     {:reply, {:ok, metadata}, {metadata}}
   end
 
@@ -52,7 +45,7 @@ defmodule BittorrentClient.TorrentWorker do
   end
 
   defp connectToTracker(id) do
-    metadata = getTorrentMetaData(id)
+    metadata = getTorrentMetaData(idimport Supervisor.Spec)
     url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
   end
 end

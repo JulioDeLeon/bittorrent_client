@@ -21,7 +21,7 @@ use Mix.Config
 config :logger, :console,
   format: "$time [$level] $message\n",
   colors: [warn: :yellow, error: :red],
-  level: :info
+  level: :debug
 
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment
