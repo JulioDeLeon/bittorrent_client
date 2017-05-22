@@ -1,9 +1,10 @@
-defmodule BittorrentClient.TorrentSupervisor do
+defmodule BittorrentClient.Torrent.Supervisor do
   @moduledoc """
   Torrent Supervisor will supervise torrent handler threads dynamically.
   """
   use Supervisor
   require Logger
+  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
 
   # start_link
   def start_link do
@@ -12,7 +13,7 @@ defmodule BittorrentClient.TorrentSupervisor do
   end
 
   def init(_) do
-    supervise([worker(BittorrentClient.TorrentWorker, [])],
+    supervise([worker(TorrentWorker, [])],
       strategy: :simple_one_for_one)
   end
 

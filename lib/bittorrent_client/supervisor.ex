@@ -4,9 +4,9 @@ defmodule BittorrentClient.Supervisor do
   """
   use Supervisor
 
-  alias BittorrentClient.ServerSupervisor, as: ServerSupervisor
-  alias BittorrentClient.WebSupervisor, as: WebSupervisor
-  alias BittorrentClient.TorrentSupervisor, as: TorrentSupervisor
+  alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
+  alias BittorrentClient.Web.Supervisor, as: WebSupervisor
+  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
 
   def start_link do
     Supervisor.start_link(__MODULE__, :ok)

@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Web do
+defmodule BittorrentClient.Web.Router do
   @moduledoc """
   Web module defines the RESTful api to interact with BittorrentClient
   """
@@ -13,7 +13,7 @@ defmodule BittorrentClient.Web do
   plug :match
   plug :dispatch
 
-  alias BittorrentClient.Server, as: Server
+  alias BittorrentClient.Server.Worker, as: Server
 
   @api_root "/api/v1"
 

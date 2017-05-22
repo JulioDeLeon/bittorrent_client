@@ -1,4 +1,4 @@
-defmodule BittorrentClient.TorrentWorker do
+defmodule BittorrentClient.Torrent.Worker do
   use GenServer
   @moduledoc """
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings. 

@@ -1,12 +1,12 @@
-defmodule BittorrentClient.Server do
+defmodule BittorrentClient.Server.Worker do
   use GenServer
   require Logger
   @moduledoc """
   BittorrentClient Server handles calls to add or remove new torrents to be handle,
   control to torrent handlers and database modules
   """
-  alias BittorrentClient.TorrentSupervisor, as: TorrentSupervisor
-  alias BittorrentClient.TorrentData, as: TorrentData
+  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
+  alias BittorrentClient.Torrent.Data, as: TorrentData
 
   def start_link(db_dir, name) do
     #Logger.info "Starting BTC server for #{name}"
@@ -89,9 +89,9 @@ defmodule BittorrentClient.Server do
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
     Logger.debug "Entered delete_by_id"
     if Map.has_key?(torrents, id) do
-      torrentData = Map.get(torrents, id)
-      Logger.debug "TorrentData: #{inspect torrentData}"
-      TorrentSupervisor.terminate_child(torrentData.pid)
+      torrent_data = Map.get(torrents, id)
+      Logger.debug "TorrentData: #{inspect torrent_data}"
+      TorrentSupervisor.terminate_child(torrent_data.pid)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
