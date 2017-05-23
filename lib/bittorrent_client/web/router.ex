@@ -22,14 +22,14 @@ defmodule BittorrentClient.Web.Router do
   end
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
-    Logger.info Enum.join(["Received the following ID: ", id])
+    Logger.info fn -> "Received the following ID: #{id}" end
     send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
   end
 
   post "#{@api_root}/add/file" do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
-    Logger.info "Received the following filename: #{filename}"
+    Logger.info fn -> "Received the following filename: #{filename}" end
     {status, data} = Server.add_new_torrent("GenericName", filename)
     case status do
       :ok -> send_resp(conn, 200, data)
@@ -41,7 +41,7 @@ defmodule BittorrentClient.Web.Router do
   delete "#{@api_root}/remove/id" do
     conn = Conn.fetch_query_params(conn)
     id = conn.params["id"]
-    Logger.info "Received the following filename: #{id}"
+    Logger.info fn -> "Received the following filename: #{id}" end
     {status, data} = Server.delete_torrent_by_id("GenericName", id)
     case status do
       :ok -> send_resp(conn, 200, data)

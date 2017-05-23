@@ -1,8 +1,8 @@
 defmodule BittorrentClient.Torrent.Worker do
-  use GenServer
   @moduledoc """
-  TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings. 
+  TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
+  use GenServer
   require Logger
 
   def start_link({id, filename}) do

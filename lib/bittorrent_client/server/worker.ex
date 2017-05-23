@@ -1,10 +1,10 @@
 defmodule BittorrentClient.Server.Worker do
-  use GenServer
-  require Logger
   @moduledoc """
   BittorrentClient Server handles calls to add or remove new torrents to be handle,
   control to torrent handlers and database modules
   """
+  use GenServer
+  require Logger
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Torrent.Data, as: TorrentData
 
