@@ -7,9 +7,7 @@ defmodule BittorrentClient.Web.Supervisor do
   alias BittorrentClient.Web.Router, as: Router
 
   def start_link do
-    #import Supervisor.Spec
-
-    Logger.info "Starting Web Supervisor"
+    Logger.info fn -> "Starting Web Supervisor" end
     children = [
       Cowboy.child_spec(:http, Router, [], [port: 8080])
     ]

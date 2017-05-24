@@ -7,7 +7,7 @@ defmodule BittorrentClient.Server.Supervisor do
   alias BittorrentClient.Server.Worker, as: Server
   # can take args
   def start_link do
-    Logger.info "Starting Server Supervisor"
+    Logger.info fn -> "Starting Server Supervisor" end
     Supervisor.start_link(__MODULE__, [])
   end
 

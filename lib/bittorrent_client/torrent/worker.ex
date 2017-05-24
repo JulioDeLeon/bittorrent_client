@@ -6,7 +6,7 @@ defmodule BittorrentClient.Torrent.Worker do
   require Logger
 
   def start_link({id, filename}) do
-    Logger.info "Starting Torrent worker for #{filename}"
+    Logger.info fn -> "Starting Torrent worker for #{filename}" end
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
@@ -22,7 +22,7 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def terminate(reason, _state) do
-    Logger.info "terminating #{inspect self}: #{inspect reason}"
+    Logger.info fn -> "terminating #{inspect self}: #{inspect reason}" end
   end
 
   def whereis(id) do
@@ -30,7 +30,7 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def getTorrentMetaData(id) do
-    Logger.info "Torrent metadata for #{id}"
+    Logger.info fn -> "Torrent metadata for #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_metadata})
   end

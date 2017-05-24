@@ -9,8 +9,7 @@ defmodule BittorrentClient.Server.Worker do
   alias BittorrentClient.Torrent.Data, as: TorrentData
 
   def start_link(db_dir, name) do
-    #Logger.info "Starting BTC server for #{name}"
-    Logger.info "Starting BTC server for #{name}"
+    Logger.info fn -> "Starting BTC server for #{name}" end
     GenServer.start_link(
       __MODULE__,
       {db_dir, name, Map.new()},
@@ -30,31 +29,31 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def list_current_torrents(serverName) do
-    Logger.info "Entered list_current_torrents"
+    Logger.info fn -> "Entered list_current_torrents" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:list_current_torrents})
   end
 
   def add_new_torrent(serverName, torrentFile) do
-    Logger.info "Entered add_new_torrent #{torrentFile}"
+    Logger.info fn -> "Entered add_new_torrent #{torrentFile}" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:add_new_torrent, torrentFile})
   end
 
   def delete_torrent_by_id(serverName, id) do
-    Logger.info "Entered delete_torrent_by id #{id}"
+    Logger.info fn -> "Entered delete_torrent_by id #{id}" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:delete_by_id, id})
   end
 
   def update_torrent_status_by_id(serverName, id, status) do
-    Logger.info "Entered update_torrent_status_by_id"
+    Logger.info fn -> "Entered update_torrent_status_by_id" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:update_by_id, id, status})
   end
 
   def delete_all_torrents(serverName) do
-    Logger.info "Entered delete_all_torrents"
+    Logger.info fn -> "Entered delete_all_torrents" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:delete_all})
   end
@@ -68,10 +67,10 @@ defmodule BittorrentClient.Server.Worker do
     id = torrentFile
     |> fn x -> :crypto.hash(:md5, x) end.()
     |> Base.encode32
-    Logger.debug "add_new_torrent Generated #{id}"
+    Logger.debug fn -> "add_new_torrent Generated #{id}" end
     if not Map.has_key?(torrents, id) do
       {status, childpid} = TorrentSupervisor.start_child({id, torrentFile})
-      Logger.debug "add_new_torrent Status: #{status}"
+      Logger.debug fn -> "add_new_torrent Status: #{status}" end
       if status == :error do
         {:reply, {:error, "Failed to start torrent for #{torrentFile}"},
          {db, serverName, torrents}}
@@ -87,10 +86,10 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
-    Logger.debug "Entered delete_by_id"
+    Logger.debug fn -> "Entered delete_by_id" end
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
-      Logger.debug "TorrentData: #{inspect torrent_data}"
+      Logger.debug fn -> "TorrentData: #{inspect torrent_data}" end
       TorrentSupervisor.terminate_child(torrent_data.pid)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}

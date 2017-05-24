@@ -8,7 +8,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
 
   # start_link
   def start_link do
-    Logger.info "Starting Torrent Supervisor"
+    Logger.info fn -> "Starting Torrent Supervisor" end
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -18,7 +18,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def start_child({torrent_id, filename}) do
-    Logger.debug "Adding torrent id for: #{torrent_id} for #{__MODULE__}"
+    Logger.info fn -> "Adding torrent id for: #{torrent_id} for #{__MODULE__}" end
     Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
   end
 
