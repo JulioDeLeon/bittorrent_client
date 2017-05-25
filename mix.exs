@@ -37,8 +37,9 @@ defmodule BittorrentClient.Mixfile do
       {:meck, "~> 0.8.2", only: :test},       # mocking library
       {:bento, "~> 0.9.2"},                   # bencoder...
       {:hackney, "~> 1.6", override: true},
-      {:gproc, "~> 0.5"},					  # global process registry
-      {:credo, "~> 0.7", only: [:dev, :test]} # code quality tool
+      {:gproc, "~> 0.5"},					            # global process registry
+      {:credo, "~> 0.7", only: [:dev, :test]}, # code quality tool
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
   end
 end
