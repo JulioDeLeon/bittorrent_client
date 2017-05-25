@@ -16,6 +16,8 @@ defmodule BittorrentClient.Mixfile do
   def application do
     [
       applications: [:logger, :cowboy, :plug, :gproc],
+      env: [key_file: [],
+            cert_file: []],
       mod: {BittorrentClient, []}
     ]
   end

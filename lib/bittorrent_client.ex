@@ -7,7 +7,7 @@ defmodule BittorrentClient do
     BittorrentClient.Supervisor.start_link
   end
 
-  def stop do
+  def stop(_) do
     Application.stop(__MODULE__)
   end
 end
