@@ -1,6 +1,6 @@
 # BittorrentClient
 
-**TODO: Add description**
+**Bittorrent client written in Elixir for personal use**
 
 ## Installation
 
