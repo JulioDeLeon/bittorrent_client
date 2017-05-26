@@ -10,6 +10,7 @@ defmodule BittorrentClient.Torrent.Worker do
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
+    Logger.debug fn -> "Metadata: #{inspect torrent_metadata}" end
     GenServer.start_link(
       __MODULE__,
       {torrent_metadata},
@@ -21,8 +22,10 @@ defmodule BittorrentClient.Torrent.Worker do
     {:ok, torrent_metadata}
   end
 
-  def terminate(reason, _state) do
-    Logger.info fn -> "terminating #{inspect self}: #{inspect reason}" end
+  def terminate(id, reason, _state) do
+    pid = whereis(id)
+    Logger.info fn -> "terminating #{inspect pid}: #{inspect reason}" end
+    # terminate the given pid
   end
 
   def whereis(id) do
@@ -45,7 +48,21 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   defp connectToTracker(id) do
-    metadata = getTorrentMetaData(idimport Supervisor.Spec)
+    metadata = getTorrentMetaData(id)
     url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
+  end
+
+  defp createInitialTrackerParams(metadata) do
+    %{
+      "peer_id" => Application.fetch_env!(:BittorrentClient, :peer_id),
+      "compact" => Application.fetch_env!(:BittorrentClient, :compact),
+      "port" => Application.fetch_env!(:BittorrentClient, :port),
+      "uploaded" => 0,
+      "downloaded" => 0,
+      # TODO: get left
+      "left" => metadata["info"]["length"],
+      # TODO: get info_hash
+      "info_hash" => "#{:crypto.hash(:sha, metadata["info"])}"
+    }
   end
 end
