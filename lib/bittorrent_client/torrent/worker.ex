@@ -4,6 +4,7 @@ defmodule BittorrentClient.Torrent.Worker do
   """
   use GenServer
   require Logger
+  alias BittorrentClient.Torrent.Data, as: TorrentData
 
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
@@ -11,15 +12,17 @@ defmodule BittorrentClient.Torrent.Worker do
     |> File.read!()
     |> Bento.torrent!()
     Logger.debug fn -> "Metadata: #{inspect torrent_metadata}" end
+    torrent_data = parseMetadata(torrent_metadata)
+    Logger.debug fn -> "Data: #{inspect torrent_data}" end
     GenServer.start_link(
       __MODULE__,
-      {torrent_metadata},
+      {torrent_metadata, torrent_data},
       name: {:global, {:btc_torrentworker, id}}
     )
   end
 
-  def init(torrent_metadata) do
-    {:ok, torrent_metadata}
+  def init(torrent_metadata, torrent_data) do
+    {:ok, {torrent_metadata, torrent_data}}
   end
 
   def terminate(id, reason, _state) do
@@ -32,14 +35,14 @@ defmodule BittorrentClient.Torrent.Worker do
     :global.whereis_name({:btc_torrentworker, id})
   end
 
-  def getTorrentMetaData(id) do
+  def getTorrentData(id) do
     Logger.info fn -> "Torrent metadata for #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_metadata})
+      {:get_data})
   end
 
-  def handle_call({:get_metadata}, _from, {metadata}) do
-    {:reply, {:ok, metadata}, {metadata}}
+  def handle_call({:get_data}, _from, {metadata, data}) do
+    {:reply, {:ok, {metadata, data}}, {metadata, data}}
   end
 
   defp createTrackerRequest(url, params) do
@@ -50,6 +53,7 @@ defmodule BittorrentClient.Torrent.Worker do
   defp connectToTracker(id) do
     metadata = getTorrentMetaData(id)
     url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
+    Logger.debug "url created: #{url}"
   end
 
   defp createInitialTrackerParams(metadata) do
@@ -64,5 +68,9 @@ defmodule BittorrentClient.Torrent.Worker do
       # TODO: get info_hash
       "info_hash" => "#{:crypto.hash(:sha, metadata["info"])}"
     }
+  end
+
+  defp parseMetadata(meta_data) do
+    %TorrentData{}
   end
 end

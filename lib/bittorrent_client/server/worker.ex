@@ -6,6 +6,7 @@ defmodule BittorrentClient.Server.Worker do
   use GenServer
   require Logger
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
+  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Torrent.Data, as: TorrentData
 
   def start_link(db_dir, name) do
@@ -75,8 +76,7 @@ defmodule BittorrentClient.Server.Worker do
         {:reply, {:error, "Failed to start torrent for #{torrentFile}"},
          {db, serverName, torrents}}
       else
-          torrents = Map.put(torrents, id,
-            %TorrentData{file: torrentFile, id: id, pid: childpid, status: "init"})
+          torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
           {:reply, {:ok, id}, {db, serverName, torrents}}
       end
     else
