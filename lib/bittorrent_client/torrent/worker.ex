@@ -53,13 +53,12 @@ defmodule BittorrentClient.Torrent.Worker do
   def connectToTracker(id) do
     {status, {meta_data, data}} = getTorrentData(id)
     url = createTrackerRequest(meta_data.announce, %{"peer_id" => "-ET0001-"})
-    Logger.debug "url created: #{url}"
+    Logger.debug fn -> "url created: #{url}" end
   end
 
   defp createInitialData(id, file, metadata) do
-    Logger.debug "Creating initial data for #{id}"
     hash = :crypto.hash(:sha, "#{inspect metadata.info}")
-    ret = %TorrentData{
+    %TorrentData{
       id: id,
       pid: self(),
       file: file,
@@ -77,8 +76,6 @@ defmodule BittorrentClient.Torrent.Worker do
       key: Application.fetch_env!(:bittorrent_client, :key),
       trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
     }
-    Logger.debug "returning #{inspect ret}"
-    ret
   end
 
   defp parseMetadata(meta_data) do
