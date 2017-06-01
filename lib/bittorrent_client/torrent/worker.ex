@@ -12,7 +12,7 @@ defmodule BittorrentClient.Torrent.Worker do
     |> File.read!()
     |> Bento.torrent!()
     Logger.debug fn -> "Metadata: #{inspect torrent_metadata}" end
-    torrent_data = parseMetadata(torrent_metadata)
+    torrent_data = createInitialData(id, filename, torrent_metadata)
     Logger.debug fn -> "Data: #{inspect torrent_data}" end
     GenServer.start_link(
       __MODULE__,
@@ -50,24 +50,35 @@ defmodule BittorrentClient.Torrent.Worker do
     URI.encode(url <> "?" <> Enum.join(url_params, "&"))
   end
 
-  defp connectToTracker(id) do
-    metadata = getTorrentMetaData(id)
-    url = createTrackerRequest(metadata.announce, %{"peer_id" => "-ET0001-"})
+  def connectToTracker(id) do
+    {status, {meta_data, data}} = getTorrentData(id)
+    url = createTrackerRequest(meta_data.announce, %{"peer_id" => "-ET0001-"})
     Logger.debug "url created: #{url}"
   end
 
-  defp createInitialTrackerParams(metadata) do
-    %{
-      "peer_id" => Application.fetch_env!(:BittorrentClient, :peer_id),
-      "compact" => Application.fetch_env!(:BittorrentClient, :compact),
-      "port" => Application.fetch_env!(:BittorrentClient, :port),
-      "uploaded" => 0,
-      "downloaded" => 0,
-      # TODO: get left
-      "left" => metadata["info"]["length"],
-      # TODO: get info_hash
-      "info_hash" => "#{:crypto.hash(:sha, metadata["info"])}"
+  defp createInitialData(id, file, metadata) do
+    Logger.debug "Creating initial data for #{id}"
+    hash = :crypto.hash(:sha, "#{inspect metadata.info}")
+    ret = %TorrentData{
+      id: id,
+      pid: self(),
+      file: file,
+      event: "started",
+      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+      compact: Application.fetch_env!(:bittorrent_client, :compact),
+      port: Application.fetch_env!(:bittorrent_client, :port),
+      uploaded: 0,
+      downloaded: 0,
+      left: metadata.info.length,
+      info_hash: hash,
+      no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
+      ip: Application.fetch_env!(:bittorrent_client, :ip),
+      numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+      key: Application.fetch_env!(:bittorrent_client, :key),
+      trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
     }
+    Logger.debug "returning #{inspect ret}"
+    ret
   end
 
   defp parseMetadata(meta_data) do

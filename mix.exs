@@ -20,7 +20,12 @@ defmodule BittorrentClient.Mixfile do
             cert_file: [],
             peer_id: [],
             compact: [],
-            port: []],
+            port: [],
+            no_peer_id: [],
+            ip: [],
+            numwant: [],
+            key: [],
+            trackerid: []],
       mod: {BittorrentClient, []}
     ]
   end
