@@ -41,19 +41,33 @@ defmodule BittorrentClient.Torrent.Worker do
       {:get_data})
   end
 
+  def connectToTracker(id) do
+    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+      GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      	{:connect_to_tracker})
+  end
+
   def handle_call({:get_data}, _from, {metadata, data}) do
     {:reply, {:ok, {metadata, data}}, {metadata, data}}
   end
 
-  defp createTrackerRequest(url, params) do
-   	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
-    URI.encode(url <> "?" <> Enum.join(url_params, "&"))
+  def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
+	# this will change overtime
+    unwanted_params = [:__struct__, :status, :id, :pid, :file, :trackerid, :key, :ip]
+    params = List.foldl(unwanted_params, data, fn elem, acc -> Map.delete(acc, elem) end)
+    url = createTrackerRequest(metadata.announce, params)
+    Logger.debug fn -> "url created: #{url}" end
+    # connect to tracker, respond based on what the http response is
+    # change state of data, example would be changing event from started to completed/stopped
+    # the response may return a json/object which can be parsed in a map
+    # foldl the returned map to change state of data
+    {:reply, :ok, {metadata, data}}
   end
 
-  def connectToTracker(id) do
-    {status, {meta_data, data}} = getTorrentData(id)
-    url = createTrackerRequest(meta_data.announce, %{"peer_id" => "-ET0001-"})
-    Logger.debug fn -> "url created: #{url}" end
+  # UTILITY
+  defp createTrackerRequest(url, params) do
+   	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}" 
+    URI.encode(url <> "?" <> Enum.join(url_params, "&"))
   end
 
   defp createInitialData(id, file, metadata) do
