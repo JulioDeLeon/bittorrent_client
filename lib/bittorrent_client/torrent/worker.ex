@@ -53,7 +53,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
 	# this will change overtime
-    unwanted_params = [:__struct__, :status, :id, :pid, :file, :trackerid, :key, :ip]
+    unwanted_params = [:__struct__, :status, :id, :pid, :file, :trackerid, :key, :ip, :no_peer_id]
     params = List.foldl(unwanted_params, data, fn elem, acc -> Map.delete(acc, elem) end)
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
@@ -71,25 +71,36 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   defp createInitialData(id, file, metadata) do
-    hash = :crypto.hash(:sha, "#{inspect metadata.info}")
-    %TorrentData{
-      id: id,
-      pid: self(),
-      file: file,
-      event: "started",
-      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-      compact: Application.fetch_env!(:bittorrent_client, :compact),
-      port: Application.fetch_env!(:bittorrent_client, :port),
-      uploaded: 0,
-      downloaded: 0,
-      left: metadata.info.length,
-      info_hash: hash,
-      no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
-      ip: Application.fetch_env!(:bittorrent_client, :ip),
-      numwant: Application.fetch_env!(:bittorrent_client, :numwant),
-      key: Application.fetch_env!(:bittorrent_client, :key),
-      trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
-    }
+    {check, info} = metadata.info
+    |> Map.from_struct
+    |> Map.delete(:md5sum)
+    |> Map.delete(:private)
+    |> Bento.encode
+    if check == :error do
+      Logger.debug fn -> "Failed to extract info from metadata" end
+      %TorrentData{}
+    else
+      hash = :crypto.hash(:sha, info)
+      Logger.debug fn -> "Hash created: #{hash}" end
+      %TorrentData{
+        id: id,
+        pid: self(),
+        file: file,
+        event: "started",
+        peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+        compact: Application.fetch_env!(:bittorrent_client, :compact),
+        port: Application.fetch_env!(:bittorrent_client, :port),
+        uploaded: 0,
+        downloaded: 0,
+        left: metadata.info.length,
+        info_hash: hash,
+        no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
+        ip: Application.fetch_env!(:bittorrent_client, :ip),
+        numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+        key: Application.fetch_env!(:bittorrent_client, :key),
+        trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
+      }
+    end
   end
 
   defp parseMetadata(meta_data) do
