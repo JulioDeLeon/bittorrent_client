@@ -7,7 +7,7 @@ defmodule BittorrentClientTest do
     assert 1 + 1 == 2
   end
 
-  @opts BittorrentClient.Web.init({})
+  @opts BittorrentClient.Web.Router.init({})
   test "returns Pong" do
     conn = conn(:get, "/ping")
     conn = BittorrentClient.Web.call(conn, @opts)
@@ -21,3 +21,18 @@ defmodule BittorrentClientTest do
 end
 
 # 934994	374.234654	192.168.0.15	130.239.18.159	HTTP	333	GET /announce?compact=0&downloaded=0&event=started&info_hash=%A2L%157%84%DBE4F%B3%C3%16%04m%5C%F6x%E1%DC%A5&left=660602880&no_peer_id=0&numwant=0&peer_id=-ET0001-&port=6969&uploaded=0 HTTP/1.1
+
+
+
+# 139	32.479680465	192.168.0.3	130.239.18.159	HTTP	424
+# GET /announce?
+# info_hash=%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e
+# peer_id=-TR2920-vmsfkar3g5jk&port=51413
+# uploaded=0
+# downloaded=0
+# left=1193803776
+# numwant=80
+# key=675f12e1
+# compact=1
+# supportcrypto=1
+# event=started HTTP/1.1
