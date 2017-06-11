@@ -70,7 +70,7 @@ defmodule BittorrentClient.Server.Worker do
     |> Base.encode32
     Logger.debug fn -> "add_new_torrent Generated #{id}" end
     if not Map.has_key?(torrents, id) do
-      {status, childpid} = TorrentSupervisor.start_child({id, torrentFile})
+      {status, _} = TorrentSupervisor.start_child({id, torrentFile})
       Logger.debug fn -> "add_new_torrent Status: #{status}" end
       if status == :error do
         {:reply, {:error, "Failed to start torrent for #{torrentFile}"},

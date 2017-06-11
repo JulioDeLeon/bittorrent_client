@@ -72,10 +72,10 @@ defmodule BittorrentClient.Torrent.Worker do
 
   defp createInitialData(id, file, metadata) do
     {check, info} = metadata.info
-    |> Map.from_struct
+    |> Map.from_struct()
     |> Map.delete(:md5sum)
     |> Map.delete(:private)
-    |> Bento.encode
+    |> Bento.encode()
     if check == :error do
       Logger.debug fn -> "Failed to extract info from metadata" end
       %TorrentData{}
@@ -101,9 +101,5 @@ defmodule BittorrentClient.Torrent.Worker do
         trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
       }
     end
-  end
-
-  defp parseMetadata(meta_data) do
-    %TorrentData{}
   end
 end
