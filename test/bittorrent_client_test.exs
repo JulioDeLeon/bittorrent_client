@@ -39,6 +39,7 @@ defmodule BittorrentClientTest do
   end
 end
 
+# Pcap info when using Transmission
 # 139	32.479680465	192.168.0.3	130.239.18.159	HTTP	424
 # GET /announce?
 # info_hash=%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e
@@ -51,3 +52,13 @@ end
 # compact=1
 # supportcrypto=1
 # event=started HTTP/1.1
+
+# Test output
+# 1) test compute info hash (BittorrentClientTest)
+#    test/bittorrent_client_test.exs:21
+#    Assertion with == failed
+#    code:  hash == expected
+#    left:  "%EA]%F1%C9h%AB_%16X%A4%E9%CD.%15%D4%ED%DE%EF%ED%1E"
+#    right: "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
+#    stacktrace:
+#      test/bittorrent_client_test.exs:37: (test)
