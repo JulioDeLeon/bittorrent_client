@@ -94,7 +94,7 @@ defmodule BittorrentClient.Server.Worker do
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
+      {:reply, :error, "Bad ID was given", {db, serverName, torrents}}
     end
   end
 
