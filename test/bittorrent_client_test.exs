@@ -32,9 +32,12 @@ defmodule BittorrentClientTest do
       assert false
     else
       hash = :crypto.hash(:sha, info)
-      |> URI.encode()
-      |> String.Casing.downcase()
+#      |> URI.encode()
+#      |> String.Casing.downcase()
+      |> Base.encode16()
       expected = "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
+      |> URI.decode()
+      |> Base.encode16()
       assert hash == expected
     end
   end

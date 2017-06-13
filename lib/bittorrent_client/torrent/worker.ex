@@ -3,6 +3,7 @@ defmodule BittorrentClient.Torrent.Worker do
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
   use GenServer
+  require HTTPoison
   require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
 
@@ -52,15 +53,17 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
-	# this will change overtime
     unwanted_params = [:__struct__, :status, :id, :pid, :file, :trackerid, :key, :ip, :no_peer_id]
     params = List.foldl(unwanted_params, data, fn elem, acc -> Map.delete(acc, elem) end)
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
+    resp = Httpoison.get(url)
+    Logger.log fn -> "Response from tracker: #{inspect resp}" end
     # change state of data, example would be changing event from started to completed/stopped
-    # the response may return a json/object which can be parsed in a map
-    # foldl the returned map to change state of data
+    # response returns a text/plain object
+    # update data
+    # check state on table to see if requested to stop
     {:reply, :ok, {metadata, data}}
   end
 
@@ -81,7 +84,6 @@ defmodule BittorrentClient.Torrent.Worker do
       %TorrentData{}
     else
       hash = :crypto.hash(:sha, info)
-      Logger.debug fn -> "Hash created: #{hash}" end
       %TorrentData{
         id: id,
         pid: self(),

@@ -15,7 +15,7 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      applications: [:logger, :cowboy, :plug, :gproc],
+      applications: [:logger, :cowboy, :plug, :gproc, :httpoison],
       env: [key_file: [],
             cert_file: [],
             peer_id: [],
@@ -41,13 +41,13 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:cowboy, "1.0.0"},                     # http library
-      {:plug, "~> 1.0"},                      # http wrapper for cowboy
-      {:httpoison, "~> 0.4.3", only: :test},  # test framework for http library
-      {:meck, "~> 0.8.2", only: :test},       # mocking library
-      {:bento, "~> 0.9.2"},                   # bencoder...
+      {:cowboy, "1.0.0"},                      # http library
+      {:plug, "~> 1.0"},                       # http wrapper for cowboy
+      {:httpoison, "~> 0.11.1"},                # framework for http library
+      {:meck, "~> 0.8.2", only: :test},        # mocking library
+      {:bento, "~> 0.9.2"},                    # bencoder...
       {:hackney, "~> 1.6", override: true},
-      {:gproc, "~> 0.5"},					            # global process registry
+      {:gproc, "~> 0.5"},					             # global process registry
       {:credo, "~> 0.7", only: [:dev, :test]}, # code quality tool
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
