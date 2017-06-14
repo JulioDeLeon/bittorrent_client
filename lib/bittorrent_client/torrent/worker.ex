@@ -58,8 +58,8 @@ defmodule BittorrentClient.Torrent.Worker do
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
-    resp = Httpoison.get(url)
-    Logger.log fn -> "Response from tracker: #{inspect resp}" end
+    resp = HTTPoison.get(url)
+    Logger.debug fn -> "Response from tracker: #{inspect resp}" end
     # change state of data, example would be changing event from started to completed/stopped
     # response returns a text/plain object
     # update data
