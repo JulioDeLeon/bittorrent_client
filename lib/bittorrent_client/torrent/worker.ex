@@ -61,8 +61,9 @@ defmodule BittorrentClient.Torrent.Worker do
                        :trackerid,
                        :key,
                        :ip,
-                       :no_peer_id]
-    params = List.foldl(unwanted_params.from_struct, data,
+                       :no_peer_id,
+                       :__struct__ ]
+    params = List.foldl(unwanted_params, data,
       fn elem, acc -> Map.delete(acc, elem) end)
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
