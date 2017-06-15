@@ -53,8 +53,17 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
-    unwanted_params = [:__struct__, :status, :id, :pid, :file, :trackerid, :key, :ip, :no_peer_id]
-    params = List.foldl(unwanted_params, data, fn elem, acc -> Map.delete(acc, elem) end)
+    # these have not been implemented yet
+    unwanted_params = [:status,
+                       :id,
+                       :pid,
+                       :file,
+                       :trackerid,
+                       :key,
+                       :ip,
+                       :no_peer_id]
+    params = List.foldl(unwanted_params.from_struct, data,
+      fn elem, acc -> Map.delete(acc, elem) end)
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
@@ -69,7 +78,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   # UTILITY
   defp createTrackerRequest(url, params) do
-   	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}" 
+   	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
     URI.encode(url <> "?" <> Enum.join(url_params, "&"))
   end
 
