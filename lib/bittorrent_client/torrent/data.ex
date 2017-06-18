@@ -2,7 +2,7 @@ defmodule BittorrentClient.Torrent.Data do
   @moduledoc """
   Torrent data defines struct which will represent relavent torrent worker information to be passed between processes
   """
-  @derive {Poison.Encoder, except: [:pid]}
+  @derive {Poison.Encoder, except: [:pid, :tracker_info]}
   defstruct [:id,
              :pid,
              :file,
@@ -19,6 +19,7 @@ defmodule BittorrentClient.Torrent.Data do
              :ip,
              :numwant,
              :key,
-             :trackerid
+             :trackerid,
+             :tracker_info
             ]
 end

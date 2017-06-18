@@ -6,6 +6,7 @@ defmodule BittorrentClient.Torrent.Worker do
   require HTTPoison
   require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
+  alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
 
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
@@ -59,6 +60,7 @@ defmodule BittorrentClient.Torrent.Worker do
                        :pid,
                        :file,
                        :trackerid,
+                       :tracker_info,
                        :key,
                        :ip,
                        :no_peer_id,
@@ -68,19 +70,41 @@ defmodule BittorrentClient.Torrent.Worker do
     url = createTrackerRequest(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
-    resp = HTTPoison.get(url)
-    Logger.debug fn -> "Response from tracker: #{inspect resp}" end
-    # change state of data, example would be changing event from started to completed/stopped
-    # response returns a text/plain object
-    # update data
-    # check state on table to see if requested to stop
-    {:reply, :ok, {metadata, data}}
+    {status, resp} = HTTPoison.get(url)
+    case status do
+      :error ->
+        {:reply, :error, {metadata, data}}
+      _ ->
+        Logger.debug fn -> "Response from tracker: #{inspect resp}" end
+        # response returns a text/plain object
+        {status, tracker_info} = parseTrackerResponse(resp.body)
+        case status do
+          :error -> {:reply, :error, {metadata, data}}
+          _ ->
+          # update data
+          # change state of data, example would be changing event from started to completed/stopped
+            {:reply, :ok, {metadata, Map.put(data, :tracker_info, tracker_info)}}
+        end
+    end
   end
 
   # UTILITY
   defp createTrackerRequest(url, params) do
    	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
     URI.encode(url <> "?" <> Enum.join(url_params, "&"))
+  end
+
+  defp parseTrackerResponse(body) do
+    {status, track_resp} = Bento.decode(body)
+    case status do
+      :error -> {:error, %TrackerInfo{}}
+      _ ->
+        {:ok, %TrackerInfo{
+            interval: track_resp["interval"],
+            peers: track_resp["peers"],
+            peers6: track_resp["peers6"]
+         }}
+    end
   end
 
   defp createInitialData(id, file, metadata) do
@@ -110,7 +134,8 @@ defmodule BittorrentClient.Torrent.Worker do
         ip: Application.fetch_env!(:bittorrent_client, :ip),
         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
         key: Application.fetch_env!(:bittorrent_client, :key),
-        trackerid: Application.fetch_env!(:bittorrent_client, :trackerid)
+        trackerid: Application.fetch_env!(:bittorrent_client, :trackerid),
+        tracker_info: %TrackerInfo{}
       }
     end
   end
