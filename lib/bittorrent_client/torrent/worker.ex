@@ -72,18 +72,19 @@ defmodule BittorrentClient.Torrent.Worker do
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url)
     case status do
-      :error ->
-        {:reply, :error, {metadata, data}}
+      :error -> {:reply, :error, {metadata, data}}
       _ ->
         Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
         {status, tracker_info} = parseTrackerResponse(resp.body)
         case status do
-          :error -> {:reply, :error, {metadata, data}}
+          :error -> {:reply, :error, {metadata, Map.put(data, :status, "failed")}}
           _ ->
           # update data
-          # change state of data, example would be changing event from started to completed/stopped
-            {:reply, :ok, {metadata, Map.put(data, :tracker_info, tracker_info)}}
+            updated_data =  data
+            |> Map.put(:tracker_info, tracker_info)
+            |> Map.put(:status, "started")
+            {:reply, :ok, {metadata, updated_data}}
         end
     end
   end

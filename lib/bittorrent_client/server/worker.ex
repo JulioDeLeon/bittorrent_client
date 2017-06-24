@@ -41,6 +41,12 @@ defmodule BittorrentClient.Server.Worker do
       {:add_new_torrent, torrentFile})
   end
 
+  def connect_torrent_to_tracker(serverName, id) do
+    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}).
+      {:connect_to_tracker, id})
+  end
+
   def delete_torrent_by_id(serverName, id) do
     Logger.info fn -> "Entered delete_torrent_by id #{id}" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
@@ -73,11 +79,11 @@ defmodule BittorrentClient.Server.Worker do
       {status, _} = TorrentSupervisor.start_child({id, torrentFile})
       Logger.debug fn -> "add_new_torrent Status: #{status}" end
       if status == :error do
-        {:reply, {:error, "Failed to start torrent for #{torrentFile}"},
+        {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
          {db, serverName, torrents}}
       else
-          torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
-          {:reply, {:ok, id}, {db, serverName, torrents}}
+          updated_torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
+          {:reply, {:ok, id}, {db, serverName, updated_torrents}}
       end
     else
         {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"},
@@ -94,6 +100,23 @@ defmodule BittorrentClient.Server.Worker do
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
+      {:reply, :error, "Bad ID was given", {db, serverName, torrents}}
+    end
+  end
+
+  def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
+    if Map.has_key?(torrents, id) do
+      {status, _} = TorrentWorker.connectToTracker(id)
+      case status do
+        :error ->
+          Logger.warn fn -> "#{id} failed to connect to tracker" end
+          {:reply, :error, {db, serverName, torrents}}
+        _ ->
+          Logger fn -> "#{id} connected to tracker" end
+          updated_torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
+          {:reply, :ok, {db, serverName, updated_torrents}}
+      end
+   else
       {:reply, :error, "Bad ID was given", {db, serverName, torrents}}
     end
   end
