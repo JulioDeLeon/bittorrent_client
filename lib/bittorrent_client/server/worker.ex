@@ -43,8 +43,14 @@ defmodule BittorrentClient.Server.Worker do
 
   def connect_torrent_to_tracker(serverName, id) do
     Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}).
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:connect_to_tracker, id})
+  end
+
+  def get_torrent_info_by_id(serverName, id) do
+    Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:get_info_by_id, id})
   end
 
   def delete_torrent_by_id(serverName, id) do
@@ -67,7 +73,6 @@ defmodule BittorrentClient.Server.Worker do
 
   def handle_call({:list_current_torrents}, _from, {db, serverName, torrents}) do
     {:reply, {:ok, torrents}, {db, serverName, torrents}}
-    # {status, actions, new state}
   end
 
   def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName, torrents}) do
@@ -82,7 +87,8 @@ defmodule BittorrentClient.Server.Worker do
         {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
          {db, serverName, torrents}}
       else
-          updated_torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
+          updated_torrents = Map.put(torrents, id,
+            TorrentWorker.getTorrentData(id))
           {:reply, {:ok, id}, {db, serverName, updated_torrents}}
       end
     else
@@ -112,8 +118,9 @@ defmodule BittorrentClient.Server.Worker do
           Logger.warn fn -> "#{id} failed to connect to tracker" end
           {:reply, :error, {db, serverName, torrents}}
         _ ->
-          Logger fn -> "#{id} connected to tracker" end
-          updated_torrents = Map.put(torrents, id, TorrentWorker.getTorrentData(id))
+          Logger.debug fn -> "#{id} connected to tracker" end
+          updated_torrents = Map.put(torrents, id,
+            TorrentWorker.getTorrentData(id))
           {:reply, :ok, {db, serverName, updated_torrents}}
       end
    else
