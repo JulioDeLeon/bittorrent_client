@@ -23,8 +23,6 @@ defmodule BittorrentClient.Server.Worker do
     {:ok, {db_dir, name, torrent_map}}
   end
 
-  # on terminate flush table
-
   def whereis(name) do
     :global.whereis_name({:btc_server, name})
   end
@@ -75,6 +73,14 @@ defmodule BittorrentClient.Server.Worker do
     {:reply, {:ok, torrents}, {db, serverName, torrents}}
   end
 
+  def handle_call({:get_info_by_id, id}, _from, {db, serverName, torrents}) do
+    if Map.has_key?(torrents, id) do
+      {:reply, Map.fetch(torrents, id), {db, serverName, torrents}}
+    else
+      {:reply, "Bad ID was given", {db, serverName, torrents}}
+    end
+  end
+
   def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName, torrents}) do
     id = torrentFile
     |> fn x -> :crypto.hash(:md5, x) end.()
@@ -87,9 +93,14 @@ defmodule BittorrentClient.Server.Worker do
         {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
          {db, serverName, torrents}}
       else
-          updated_torrents = Map.put(torrents, id,
-            TorrentWorker.getTorrentData(id))
-          {:reply, {:ok, id}, {db, serverName, updated_torrents}}
+        {check, data} = TorrentWorker.getTorrentData(id)
+        case check do
+          :error ->
+            {:reply, {:error, "Failed to add torrent"}, {db, serverName, torrents}}
+          _ ->
+            updated_torrents = Map.put(torrents, id, data)
+            {:reply, {:ok, id}, {db, serverName, updated_torrents}}
+        end
       end
     else
         {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"},

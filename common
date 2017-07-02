@@ -1,0 +1,33 @@
+#!/bin/bash
+
+PROTO=http:
+HOST=localhost
+PORT=8080
+API=api/v1
+URL=$PROTO/$HOST:$PORT/$API
+
+function addFile {
+  curl -vX POST $URL/add/file \
+    -H "Content-Type: application/json" \
+    -d '{"filename":"examples/'${1}'.torrent"}' 
+}
+
+function connectToTracker {
+  curl -vX PUT $URL/$1/connect/
+}
+
+function listAll {
+  curl -vX GET $URL/all
+}
+
+function removeall {
+  curl -vX DELETE $URL/remove/all
+}
+
+function removeTorrent {
+  curl -vX DELETE $URL/$1/remove/
+}
+
+function getStatus {
+  curl -vX GET $URL/$1/status
+}

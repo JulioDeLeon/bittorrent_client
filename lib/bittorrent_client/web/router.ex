@@ -26,7 +26,7 @@ defmodule BittorrentClient.Web.Router do
     send_resp(conn, 200, Enum.join(["Returning: ", id, "\n"]))
   end
 
-  put "#{@api_root}/connect/to/tracker/:id" when byte_size(id) > 3 do
+  put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
     conn = Conn.fetch_query_params(conn)
     Logger.info fn -> "Connecting #{id} to tracker" end
     {status, torrent_info} = Server.get_torrent_info_by_id("GenericName", id)
@@ -48,7 +48,7 @@ defmodule BittorrentClient.Web.Router do
     end
   end
 
-  delete "#{@api_root}/remove/:id" when byte_size(id) > 3 do
+  delete "#{@api_root}/:id/remove" when byte_size(id) > 3 do
     conn = Conn.fetch_query_params(conn)
     id = conn.params["id"]
     Logger.info fn -> "Received the following filename: #{id}" end
@@ -67,6 +67,7 @@ defmodule BittorrentClient.Web.Router do
   end
 
   delete "#{@api_root}/remove/all" do
+    #TODO: check status of this func
     {_, _} = Server.delete_all_torrents("GenericName")
     send_resp(conn, 200, "All torrents deleted")
   end
