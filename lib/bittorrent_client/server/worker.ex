@@ -96,6 +96,7 @@ defmodule BittorrentClient.Server.Worker do
         {check, data} = TorrentWorker.getTorrentData(id)
         case check do
           :error ->
+            Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
             {:reply, {:error, "Failed to add torrent"}, {db, serverName, torrents}}
           _ ->
             updated_torrents = Map.put(torrents, id, data)

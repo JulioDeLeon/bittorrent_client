@@ -140,4 +140,14 @@ defmodule BittorrentClient.Torrent.Worker do
       }
     end
   end
+
+  defp parsePeerByteArray(peer_byte_array) do
+    # split byte array for each peer
+    peers = peer_byte_array
+    |> :binary.bin_to_list()
+    |> Enum.chunk(6)
+    |> Enum.map(fn x -> Enum.split(x, 4) end)
+    |> Enum.map(fn {ip_bytes, port_bytes} ->  end)
+    # figure out a way to print these bytes to a string
+  end
 end
