@@ -78,13 +78,13 @@ defmodule BittorrentClient.Torrent.Worker do
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
-          :error -> {:reply, :error, {metadata, Map.put(data, :status, "failed")}}
+          :error -> {:reply, {:error, "Failed to connect to tracker"}, {metadata, Map.put(data, :status, "failed")}}
           _ ->
           # update data
             updated_data =  data
             |> Map.put(:tracker_info, tracker_info)
             |> Map.put(:status, "started")
-            {:reply, :ok, {metadata, updated_data}}
+            {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
         end
     end
   end
