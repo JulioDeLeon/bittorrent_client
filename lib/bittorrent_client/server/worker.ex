@@ -75,13 +75,14 @@ defmodule BittorrentClient.Server.Worker do
 
   def handle_call({:get_info_by_id, id}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      {:reply, Map.fetch(torrents, id), {db, serverName, torrents}}
+      {:reply, {:ok, Map.fetch(torrents, id)}, {db, serverName, torrents}}
     else
-      {:reply, "Bad ID was given", {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
   end
 
   def handle_call({:add_new_torrent, torrentFile}, _from, {db, serverName, torrents}) do
+    # TODO: add some salt
     id = torrentFile
     |> fn x -> :crypto.hash(:md5, x) end.()
     |> Base.encode32
@@ -89,19 +90,20 @@ defmodule BittorrentClient.Server.Worker do
     if not Map.has_key?(torrents, id) do
       {status, _} = TorrentSupervisor.start_child({id, torrentFile})
       Logger.debug fn -> "add_new_torrent Status: #{status}" end
-      if status == :error do
-        {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
-         {db, serverName, torrents}}
-      else
-        {check, data} = TorrentWorker.get_torrent_data(id)
-        case check do
-          :error ->
-            Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
-            {:reply, {:error, "Failed to add torrent"}, {db, serverName, torrents}}
-          _ ->
-            updated_torrents = Map.put(torrents, id, data)
-            {:reply, {:ok, id}, {db, serverName, updated_torrents}}
-        end
+      case status do
+        :error ->
+          {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
+           {db, serverName, torrents}}
+      	_ ->
+          {check, data} = TorrentWorker.get_torrent_data(id)
+          case check do
+          	:error ->
+              Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
+              {:reply, {:error, "Failed to add torrent"}, {db, serverName, torrents}}
+          	_ ->
+              updated_torrents = Map.put(torrents, id, data)
+              {:reply, {:ok, id}, {db, serverName, updated_torrents}}
+          end
       end
     else
         {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"},
@@ -118,7 +120,7 @@ defmodule BittorrentClient.Server.Worker do
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, :error, "Bad ID was given", {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
   end
 
@@ -128,15 +130,15 @@ defmodule BittorrentClient.Server.Worker do
       case status do
         :error ->
           Logger.warn fn -> "#{id} failed to connect to tracker" end
-          {:reply, :error, {db, serverName, torrents}}
+          {:reply, {:error, "Could cannot connect #{id} to tracker"}, {db, serverName, torrents}}
         _ ->
           Logger.debug fn -> "#{id} connected to tracker" end
           updated_torrents = Map.put(torrents, id,
             TorrentWorker.get_torrent_data(id))
-          {:reply, :ok, {db, serverName, updated_torrents}}
+          {:reply, {:ok, id}, {db, serverName, updated_torrents}}
       end
    else
-      {:reply, :error, "Bad ID was given", {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
   end
 
@@ -144,9 +146,9 @@ defmodule BittorrentClient.Server.Worker do
     if Map.has_key?(torrents, id) do
       torrents = Map.update!(torrents, id,
         fn dataPoint -> %TorrentData{dataPoint | status: status} end)
-      {:reply, torrents, {db, serverName, torrents}}
+      {:reply, {:ok, torrents}, {db, serverName, torrents}}
     else
-      {:reply, "Bad ID was given", {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
   end
 
