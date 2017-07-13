@@ -93,7 +93,7 @@ defmodule BittorrentClient.Server.Worker do
         {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
          {db, serverName, torrents}}
       else
-        {check, data} = TorrentWorker.getTorrentData(id)
+        {check, data} = TorrentWorker.get_torrent_data(id)
         case check do
           :error ->
             Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
@@ -124,7 +124,7 @@ defmodule BittorrentClient.Server.Worker do
 
   def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      {status, _} = TorrentWorker.connectToTracker(id)
+      {status, _} = TorrentWorker.connect_to_tracker(id)
       case status do
         :error ->
           Logger.warn fn -> "#{id} failed to connect to tracker" end
@@ -132,7 +132,7 @@ defmodule BittorrentClient.Server.Worker do
         _ ->
           Logger.debug fn -> "#{id} connected to tracker" end
           updated_torrents = Map.put(torrents, id,
-            TorrentWorker.getTorrentData(id))
+            TorrentWorker.get_torrent_data(id))
           {:reply, :ok, {db, serverName, updated_torrents}}
       end
    else

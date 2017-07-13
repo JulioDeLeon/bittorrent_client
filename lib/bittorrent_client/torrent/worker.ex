@@ -14,7 +14,7 @@ defmodule BittorrentClient.Torrent.Worker do
     |> File.read!()
     |> Bento.torrent!()
     Logger.debug fn -> "Metadata: #{inspect torrent_metadata}" end
-    torrent_data = createInitialData(id, filename, torrent_metadata)
+    torrent_data = create_initial_data(id, filename, torrent_metadata)
     Logger.debug fn -> "Data: #{inspect torrent_data}" end
     GenServer.start_link(
       __MODULE__,
@@ -37,13 +37,13 @@ defmodule BittorrentClient.Torrent.Worker do
     :global.whereis_name({:btc_torrentworker, id})
   end
 
-  def getTorrentData(id) do
+  def get_torrent_data(id) do
     Logger.info fn -> "Torrent metadata for #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_data})
   end
 
-  def connectToTracker(id) do
+  def connect_to_tracker(id) do
     Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
       GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       	{:connect_to_tracker})
@@ -67,7 +67,7 @@ defmodule BittorrentClient.Torrent.Worker do
                        :__struct__]
     params = List.foldl(unwanted_params, data,
       fn elem, acc -> Map.delete(acc, elem) end)
-    url = createTrackerRequest(metadata.announce, params)
+    url = create_tracker_request(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url)
@@ -76,7 +76,7 @@ defmodule BittorrentClient.Torrent.Worker do
       _ ->
         Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
-        {status, tracker_info} = parseTrackerResponse(resp.body)
+        {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
           :error -> {:reply, :error, {metadata, Map.put(data, :status, "failed")}}
           _ ->
@@ -90,12 +90,12 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   # UTILITY
-  defp createTrackerRequest(url, params) do
+  defp create_tracker_request(url, params) do
    	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
     URI.encode(url <> "?" <> Enum.join(url_params, "&"))
   end
 
-  defp parseTrackerResponse(body) do
+  defp parse_tracker_response(body) do
     {status, track_resp} = Bento.decode(body)
     case status do
       :error -> {:error, %TrackerInfo{}}
@@ -108,7 +108,7 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
-  defp createInitialData(id, file, metadata) do
+  defp create_initial_data(id, file, metadata) do
     {check, info} = metadata.info
     |> Map.from_struct()
     |> Map.delete(:md5sum)
@@ -141,13 +141,13 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
-  defp parsePeerByteArray(peer_byte_array) do
+  defp parse_peer_byte_array(peer_byte_array) do
     # split byte array for each peer
     peers = peer_byte_array
     |> :binary.bin_to_list()
     |> Enum.chunk(6)
     |> Enum.map(fn x -> Enum.split(x, 4) end)
-    |> Enum.map(fn {ip_bytes, port_bytes} ->  end)
+    |> Enum.map(fn {ip_bytes, port_bytes} -> {ip_bytes, port_bytes} end)
     # figure out a way to print these bytes to a string
   end
 end

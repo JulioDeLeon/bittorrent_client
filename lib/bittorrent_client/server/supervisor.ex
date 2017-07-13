@@ -5,7 +5,7 @@ defmodule BittorrentClient.Server.Supervisor do
   use Supervisor
   require Logger
   alias BittorrentClient.Server.Worker, as: Server
-  # can take args
+
   def start_link do
     Logger.info fn -> "Starting Server Supervisor" end
     Supervisor.start_link(__MODULE__, [])
@@ -18,5 +18,4 @@ defmodule BittorrentClient.Server.Supervisor do
 
     supervise(children, strategy: :one_for_one)
   end
-
 end
