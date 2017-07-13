@@ -67,9 +67,11 @@ defmodule BittorrentClient.Web.Router do
   end
 
   delete "#{@api_root}/remove/all" do
-    #TODO: check status of this func
-    {_, _} = Server.delete_all_torrents("GenericName")
-    send_resp(conn, 200, "All torrents deleted")
+    {status, _} = Server.delete_all_torrents("GenericName")
+    case status do
+      :ok -> send_resp(conn, 200, "All torrents deleted")
+      :error -> send_resp(conn, 500, "Something went wrong")
+    end
   end
 
   match _ do
