@@ -29,10 +29,14 @@ defmodule BittorrentClient.Web.Router do
   put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
     conn = Conn.fetch_query_params(conn)
     Logger.info fn -> "Connecting #{id} to tracker" end
-    {status, torrent_info} = Server.get_torrent_info_by_id("GenericName", id)
+    {status, msg} = Server.connect_torrent_to_tracker("GenericName", id)
     case status do
-      :error -> send_resp(conn, 500, "#{torrent_info}")
-      :ok -> send_resp(conn, 200, torrent_info)
+      :error ->
+        Logger.debug fn -> "connect returning error" end
+        send_resp(conn, 500, msg)
+      :ok ->
+        Logger.debug fn -> "connect returning success" end
+        send_resp(conn, 200, msg)
     end
   end
 
@@ -55,15 +59,18 @@ defmodule BittorrentClient.Web.Router do
     {status, data} = Server.delete_torrent_by_id("GenericName", id)
     case status do
       :ok -> send_resp(conn, 200, data)
-      :error -> send_resp(conn, 400, data)
       _ -> send_resp(conn, 500, "Don't know what happened")
     end
   end
 
   get "#{@api_root}/all" do
-  	{_, data} = Server.list_current_torrents("GenericName")
-    put_resp_content_type(conn, "application/json")
-    send_resp(conn, 200, Poison.encode!(data))
+  	{status, data} = Server.list_current_torrents("GenericName")
+    case status do
+      :ok ->
+        put_resp_content_type(conn, "application/json")
+        send_resp(conn, 200, Poison.encode!(data))
+      _ -> send_resp(conn, 500, "Couldn't get all torrents")
+    end
   end
 
   delete "#{@api_root}/remove/all" do

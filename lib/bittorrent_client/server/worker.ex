@@ -125,17 +125,15 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
+    Logger.info fn -> "Entered callback of connect_to_trakcer" end
     if Map.has_key?(torrents, id) do
-      {status, _} = TorrentWorker.connect_to_tracker(id)
+      {status, msg} = TorrentWorker.connect_to_tracker(id)
       case status do
         :error ->
-          Logger.warn fn -> "#{id} failed to connect to tracker" end
-          {:reply, {:error, "Could cannot connect #{id} to tracker"}, {db, serverName, torrents}}
+          {:reply, {:error, msg}, {db, serverName, torrents}}
         _ ->
-          Logger.debug fn -> "#{id} connected to tracker" end
-          updated_torrents = Map.put(torrents, id,
-            TorrentWorker.get_torrent_data(id))
-          {:reply, {:ok, id}, {db, serverName, updated_torrents}}
+          updated_torrents = Map.put(torrents, id, TorrentWorker.get_torrent_data(id))
+          {:reply, {:ok, "#{id} has connected to tracker"}, {db, serverName, updated_torrents}}
       end
    else
       {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}

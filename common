@@ -1,10 +1,10 @@
 #!/bin/bash
 
-PROTO=http:
+PROTO=http
 HOST=localhost
 PORT=8080
 API=api/v1
-URL=$PROTO/$HOST:$PORT/$API
+URL=$PROTO://$HOST:$PORT/$API
 
 function addFile {
   curl -vX POST $URL/add/file \

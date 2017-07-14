@@ -72,7 +72,7 @@ defmodule BittorrentClient.Torrent.Worker do
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url)
     case status do
-      :error -> {:reply, :error, {metadata, data}}
+      :error -> {:reply, {:error, "Could not fetch #{url}"}, {metadata, data}}
       _ ->
         Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
