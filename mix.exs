@@ -49,8 +49,7 @@ defmodule BittorrentClient.Mixfile do
       {:hackney, "~> 1.6", override: true},
       {:gproc, "~> 0.5"},					             # global process registry
       {:credo, "~> 0.7", only: [:dev, :test]}, # code quality tool
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
-      {:rustler, "~> 0.9.0"}
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
   end
 end
