@@ -50,7 +50,11 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def handle_call({:get_data}, _from, {metadata, data}) do
-    {:reply, {:ok, {metadata, data}}, {metadata, data}}
+    ret = %{
+      "metadata" => metadata,
+      "data" => data
+    }
+    {:reply, {:ok, ret}, {metadata, data}}
   end
 
   def handle_call({:connect_to_tracker}, _from, {metadata, data}) do

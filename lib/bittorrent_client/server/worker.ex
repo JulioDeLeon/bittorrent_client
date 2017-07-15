@@ -75,7 +75,8 @@ defmodule BittorrentClient.Server.Worker do
 
   def handle_call({:get_info_by_id, id}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      {:reply, {:ok, Map.fetch(torrents, id)}, {db, serverName, torrents}}
+	  {_, d} = Map.fetch(torrents, id)
+      {:reply, {:ok, d}, {db, serverName, torrents}}
     else
       {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
     end
