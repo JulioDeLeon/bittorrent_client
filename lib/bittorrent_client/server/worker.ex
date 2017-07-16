@@ -133,7 +133,8 @@ defmodule BittorrentClient.Server.Worker do
         :error ->
           {:reply, {:error, msg}, {db, serverName, torrents}}
         _ ->
-          updated_torrents = Map.put(torrents, id, TorrentWorker.get_torrent_data(id))
+          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
           {:reply, {:ok, "#{id} has connected to tracker"}, {db, serverName, updated_torrents}}
       end
    else
