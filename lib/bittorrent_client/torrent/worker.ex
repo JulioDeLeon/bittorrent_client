@@ -74,9 +74,12 @@ defmodule BittorrentClient.Torrent.Worker do
     url = create_tracker_request(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
-    {status, resp} = HTTPoison.get(url)
+    {status, resp} = HTTPoison.get(url, [], [{:timeout, 1500}, {:recv_timeout, 1500}])
     case status do
-      :error -> {:reply, {:error, "Could not fetch #{url}"}, {metadata, data}}
+      :error ->
+        Logger.error fn -> "Failed to fetch #{url}" end
+        Logger.error fn -> "Resp: #{inspect resp}" end
+        {:reply, {:error, "Could not fetch #{url}"}, {metadata, data}}
       _ ->
         Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
