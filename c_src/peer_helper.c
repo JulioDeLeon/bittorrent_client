@@ -15,7 +15,6 @@ get_peer_connection_info(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
   int size;
   unsigned char* bin_term;
   enif_get_int(env, argv[1], &size);
-  bin_term = enif_make_new_binary(env, size, )
   return enif_make_string(env, "ret", ERL_NIF_LATIN1);
 }
 
