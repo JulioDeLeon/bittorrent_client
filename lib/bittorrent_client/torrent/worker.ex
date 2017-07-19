@@ -89,13 +89,13 @@ defmodule BittorrentClient.Torrent.Worker do
       :error ->
         Logger.error fn -> "Failed to fetch #{url}" end
         Logger.error fn -> "Resp: #{inspect resp}" end
-        {:reply, {:error, "Could not fetch #{url}"}, {metadata, data}}
+        {:reply, {:error, {504, "failed to fetch #{url}"}}, {metadata, data}}
       _ ->
         Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
-          :error -> {:reply, {:error, "Failed to connect to tracker"}, {metadata, Map.put(data, :status, "failed")}}
+          :error -> {:reply, {:error, {500, "Failed to connect to tracker"}}, {metadata, Map.put(data, :status, "failed")}}
           _ ->
           # update data
             updated_data =  data

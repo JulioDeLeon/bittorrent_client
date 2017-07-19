@@ -36,7 +36,8 @@ defmodule BittorrentClient.Web.Router do
           |> Poison.encode!())
       :error ->
         Logger.debug fn -> "Failed to retrieve info for #{id}" end
-        send_resp(conn, 500, "#{msg}")
+        {code, err_msg} = msg
+        send_resp(conn, code, err_msg)
     end
   end
 
@@ -50,7 +51,8 @@ defmodule BittorrentClient.Web.Router do
         send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
       :error ->
         Logger.debug fn -> "Failed to retrieve info for #{id}" end
-        send_resp(conn, 500, "#{msg}")
+        {code, err_msg} = msg
+        send_resp(conn, code, err_msg)
     end
   end
 
@@ -60,10 +62,11 @@ defmodule BittorrentClient.Web.Router do
     case status do
       :error ->
         Logger.debug fn -> "connect returning error" end
-        send_resp(conn, 500, msg)
+        {code, err_msg} = msg
+        send_resp(conn, code, err_msg)
       :ok ->
         Logger.debug fn -> "connect returning success" end
-        send_resp(conn, 200, msg)
+        send_resp(conn, 204, nil)
     end
   end
 
@@ -76,7 +79,9 @@ defmodule BittorrentClient.Web.Router do
       :ok ->
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, Poison.encode!(data))
-      :error -> send_resp(conn, 500, data)
+      :error ->
+        {code, err_msg} = data
+        send_resp(conn, code, err_msg)
     end
   end
 
@@ -104,9 +109,10 @@ defmodule BittorrentClient.Web.Router do
   end
 
   delete "#{@api_root}/remove/all" do
+    # TODO: NOT TESTED YET
     {status, _} = Server.delete_all_torrents("GenericName")
     case status do
-      :ok -> send_resp(conn, 200, "All torrents deleted")
+      :ok -> send_resp(conn, 204, nil)
       :error -> send_resp(conn, 500, "Something went wrong")
     end
   end
