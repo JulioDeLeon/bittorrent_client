@@ -47,7 +47,8 @@ defmodule BittorrentClient.Server.Worker do
 
   def get_torrent_info_by_id(serverName, id) do
     Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+    GenServer
+.call(:global.whereis_name({:btc_server, serverName}),
       {:get_info_by_id, id})
   end
 
@@ -78,7 +79,7 @@ defmodule BittorrentClient.Server.Worker do
 	  {_, d} = Map.fetch(torrents, id)
       {:reply, {:ok, d}, {db, serverName, torrents}}
     else
-      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given\n"}, {db, serverName, torrents}}
     end
   end
 
@@ -93,21 +94,21 @@ defmodule BittorrentClient.Server.Worker do
       Logger.debug fn -> "add_new_torrent Status: #{status}" end
       case status do
         :error ->
-          {:reply, {:error, "Failed to add torrent for #{torrentFile}"},
+          {:reply, {:error, "Failed to add torrent for #{torrentFile}\n"},
            {db, serverName, torrents}}
       	_ ->
           {check, data} = TorrentWorker.get_torrent_data(id)
           case check do
           	:error ->
               Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
-              {:reply, {:error, "Failed to add torrent"}, {db, serverName, torrents}}
+              {:reply, {:error, "Failed to add torrent\n"}, {db, serverName, torrents}}
           	_ ->
               updated_torrents = Map.put(torrents, id, data)
               {:reply, {:ok, id}, {db, serverName, updated_torrents}}
           end
       end
     else
-        {:reply, {:error, "That torrent already exist, Here's the ID: #{id}"},
+        {:reply, {:error, "That torrent already exist, Here's the ID: #{id}\n"},
          {db, serverName, torrents}}
     end
   end
@@ -121,12 +122,12 @@ defmodule BittorrentClient.Server.Worker do
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given\n"}, {db, serverName, torrents}}
     end
   end
 
   def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
-    Logger.info fn -> "Entered callback of connect_to_trakcer" end
+    Logger.info fn -> "Entered callback of connect_to_tracker" end
     if Map.has_key?(torrents, id) do
       {status, msg} = TorrentWorker.connect_to_tracker(id)
       case status do
@@ -135,10 +136,10 @@ defmodule BittorrentClient.Server.Worker do
         _ ->
           {_, new_info} = TorrentWorker.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
-          {:reply, {:ok, "#{id} has connected to tracker"}, {db, serverName, updated_torrents}}
+          {:reply, {:ok, "#{id} has connected to tracker\n"}, {db, serverName, updated_torrents}}
       end
    else
-      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
+      {:reply, {:error, "Bad ID was given\n"}, {db, serverName, torrents}}
     end
   end
 
