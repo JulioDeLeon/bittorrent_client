@@ -8,6 +8,15 @@ defmodule BittorrentClient.Torrent.Worker do
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
 
+  @on_load :load_nifs
+  def load_nifs do
+    :erlang.load_nif("./c_lib/peer_helper", 0)
+  end
+
+  def get_peer_connection_info(_byte_arr, _size) do
+    raise "NIF get_peer_connection_info/2 not implemented"
+  end
+
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
     torrent_metadata = filename
@@ -75,6 +84,7 @@ defmodule BittorrentClient.Torrent.Worker do
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url, [], [{:timeout, 1500}, {:recv_timeout, 1500}])
+    Logger.debug fn -> "Response from tracker: #{inspect resp}" end
     case status do
       :error ->
         Logger.error fn -> "Failed to fetch #{url}" end
@@ -104,6 +114,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   defp parse_tracker_response(body) do
     {status, track_resp} = Bento.decode(body)
+    Logger.debug fn -> "tracker response decode -> #{inspect track_resp}" end
     case status do
       :error -> {:error, %TrackerInfo{}}
       _ ->
