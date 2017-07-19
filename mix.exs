@@ -10,7 +10,6 @@ defmodule BittorrentClient.Mixfile do
 
   def project do
     [app: :bittorrent_client,
-     compilers: [:custom_nifs] ++ Mix.compilers,
      version: "0.1.0",
      elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,

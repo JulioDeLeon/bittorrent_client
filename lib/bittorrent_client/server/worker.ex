@@ -79,7 +79,7 @@ defmodule BittorrentClient.Server.Worker do
 	  {_, d} = Map.fetch(torrents, id)
       {:reply, {:ok, d}, {db, serverName, torrents}}
     else
-      {:reply, {:error, "Bad ID was given\n"}, {db, serverName, torrents}}
+      {:reply, {:error, {400, "Bad ID was given\n"}}, {db, serverName, torrents}}
     end
   end
 

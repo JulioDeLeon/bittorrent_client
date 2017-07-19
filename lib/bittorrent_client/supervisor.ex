@@ -7,6 +7,7 @@ defmodule BittorrentClient.Supervisor do
   alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
   alias BittorrentClient.Web.Supervisor, as: WebSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
+  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
 
   def start_link do
     Supervisor.start_link(__MODULE__, :ok)
@@ -16,7 +17,8 @@ defmodule BittorrentClient.Supervisor do
     children = [
       worker(ServerSupervisor, []),
       worker(WebSupervisor, []),
-      worker(TorrentSupervisor, [])
+      worker(TorrentSupervisor, []),
+      worker(PeerSupervisor, [])
     ]
 
     supervise(children, strategy: :one_for_one)
