@@ -47,7 +47,7 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def get_torrent_data(id) do
-    Logger.info fn -> "Torrent metadata for #{id}" end
+    Logger.info fn -> "Getting torrent data for #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_data})
   end

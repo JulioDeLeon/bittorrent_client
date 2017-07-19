@@ -66,7 +66,7 @@ defmodule BittorrentClient.Web.Router do
         send_resp(conn, code, err_msg)
       :ok ->
         Logger.debug fn -> "connect returning success" end
-        send_resp(conn, 204, nil)
+        send_resp(conn, 204, "")
     end
   end
 
@@ -112,7 +112,7 @@ defmodule BittorrentClient.Web.Router do
     # TODO: NOT TESTED YET
     {status, _} = Server.delete_all_torrents("GenericName")
     case status do
-      :ok -> send_resp(conn, 204, nil)
+      :ok -> send_resp(conn, 204, "")
       :error -> send_resp(conn, 500, "Something went wrong")
     end
   end
