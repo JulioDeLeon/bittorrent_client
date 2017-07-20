@@ -10,7 +10,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   @on_load :load_nifs
   def load_nifs do
-    :erlang.load_nif("./c_lib/peer_helper", 0)
+   :erlang.load_nif("./c_lib/torrent_worker_nif", 0)
   end
 
   def get_peer_connection_info(_byte_arr, _size) do
@@ -157,33 +157,5 @@ defmodule BittorrentClient.Torrent.Worker do
         tracker_info: %TrackerInfo{}
       }
     end
-  end
-
-  """
-  https://github.com/lita/bittorrent/blob/master/peers.py
-  python example
-    for chunk in self.chunkToSixBytes(response):
-      ip = []
-      port = None
-      for i in range(0, 4):
-        ip.append(str(ord(chunk[i])))
-
-      port = ord(chunk[4])*256+ord(chunk[5])
-      mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      mySocket.setblocking(0)
-      ip = '.'.join(ip)
-      peer = Peer(ip, port, mySocket, self.infoHash, self.peer_id)
-      self.peers.append(peer)
-  """
-  defp parse_peer_byte_array(peer_byte_array) do
-    peers = peer_byte_array
-    |> :binary.bin_to_list()
-    |> Enum.chunk(6)
-    |> Enum.map(fn single_ip_chunk ->
-        # if these strings do not print to temrinal correctly, check unicode support
-        ip = Enum.take(single_ip_chunk, 4) |> Enum.join(".")
-        port = Enum.drop(single_ip_chunk, 4) |> fn [f, s | r] -> f*256+s end.()
-        {ip, port}
-        end)
   end
 end

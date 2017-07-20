@@ -12,13 +12,11 @@ endif
 C_SRC=./c_src
 C_LIB=./c_lib
 
-
-
-peer_helper: $(C_SRC)/peer_helper.c
-	$(CC) $(CFLAGS) -o $(C_LIB)/$@.so $(C_SRC)/$@.c
-
 .PHONY: all
-all: peer_helper
+all: torrent_worker_nif
+
+torrent_worker_nif: $(C_SRC)/torrent_worker_nif.c
+	$(CC) $(CFLAGS) -o $(C_LIB)/$@.so $(C_SRC)/$@.c
 
 .PHONY: clean
 clean:
