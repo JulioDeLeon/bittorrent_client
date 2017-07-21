@@ -13,10 +13,18 @@ C_SRC=./c_src
 C_LIB=./c_lib
 
 .PHONY: all
-all: torrent_worker_nif
+all: configure \
+		 torrent_worker_nif
 
 torrent_worker_nif: $(C_SRC)/torrent_worker_nif.c
 	$(CC) $(CFLAGS) -o $(C_LIB)/$@.so $(C_SRC)/$@.c
+
+
+.PHONY: configure
+configure:
+ifeq (,$(findstring $(C_LIB),$(wildcard $(C_LIB) )))
+	mkdir $(C_LIB)
+endif
 
 .PHONY: clean
 clean:
