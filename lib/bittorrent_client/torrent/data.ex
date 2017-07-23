@@ -22,4 +22,8 @@ defmodule BittorrentClient.Torrent.Data do
              :trackerid,
              :tracker_info
             ]
+
+  def get_peers(data) do
+    data |> Map.get(:tracker_info) |> Map.get(:peers)
+  end
 end

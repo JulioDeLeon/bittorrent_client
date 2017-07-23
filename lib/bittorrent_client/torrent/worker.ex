@@ -8,15 +8,6 @@ defmodule BittorrentClient.Torrent.Worker do
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
 
-  @on_load :load_nifs
-  def load_nifs do
-   :erlang.load_nif("./c_lib/torrent_worker_nif", 0)
-  end
-
-  def get_peer_connection_info(_byte_arr, _size) do
-    raise "NIF get_peer_connection_info/2 not implemented"
-  end
-
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
     torrent_metadata = filename
@@ -54,8 +45,14 @@ defmodule BittorrentClient.Torrent.Worker do
 
   def connect_to_tracker(id) do
     Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
-      GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      	{:connect_to_tracker})
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:connect_to_tracker})
+  end
+
+  def get_peers(id) do
+    Logger.debug fn -> "Getting peer list of #{id}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:get_peers})
   end
 
   def handle_call({:get_data}, _from, {metadata, data}) do
@@ -104,6 +101,10 @@ defmodule BittorrentClient.Torrent.Worker do
             {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
         end
     end
+  end
+
+  def handle_call({:get_peers}, _from, {metadata, data}) do
+    {:reply, {:ok, TorrentData.get_peers(data)}, {metadata, data}}
   end
 
   # UTILITY
@@ -157,5 +158,14 @@ defmodule BittorrentClient.Torrent.Worker do
         tracker_info: %TrackerInfo{}
       }
     end
+  end
+
+  @on_load :load_nifs
+  def load_nifs do
+    :erlang.load_nif("./c_lib/torrent_worker_nif", 0)
+  end
+
+  def get_peer_connection_info(_byte_arr, _size) do
+    raise "NIF get_peer_connection_info/2 not implemented"
   end
 end
