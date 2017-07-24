@@ -88,7 +88,6 @@ defmodule BittorrentClient.Torrent.Worker do
         Logger.error fn -> "Resp: #{inspect resp}" end
         {:reply, {:error, {504, "failed to fetch #{url}"}}, {metadata, data}}
       _ ->
-        Logger.debug fn -> "Response from tracker: #{inspect resp}" end
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do

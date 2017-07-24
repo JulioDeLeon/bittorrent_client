@@ -47,3 +47,4 @@ static ErlNifFunc nif_funcs[] = {
 
 //ERL_NIF_INIT(__MODULE__, ErlNifFunc* arr, void* load_func, void* upgrade_func, void* unload_func, void* reload_func)
 ERL_NIF_INIT(Elixir.BittorrentClient.Torrent.Worker, nif_funcs, NULL,NULL,NULL,NULL)
+
