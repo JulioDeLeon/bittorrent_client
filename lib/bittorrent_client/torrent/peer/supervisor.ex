@@ -17,7 +17,7 @@ defmodule BittorrentClient.Torrent.Peer.Supervisor do
   end
 
   def start_child({torrent_id, filename, tracker_id, interval, ip, port}) do
-    Logger.info fn -> "Starting peer connection for #{id}" end
+    Logger.info fn -> "Starting peer connection for #{torrent_id}" end
     # This also looks like this can be shipped at a list
     Supervisor.start_child(__MODULE__, [{torrent_id, filename, tracker_id, interval, ip, port}])
   end

@@ -27,12 +27,6 @@ defmodule BittorrentClient.Torrent.Worker do
     {:ok, {torrent_metadata, torrent_data}}
   end
 
-  def terminate(id, reason, _state) do
-    pid = whereis(id)
-    Logger.info fn -> "terminating #{inspect pid}: #{inspect reason}" end
-    # terminate the given pid
-  end
-
   def whereis(id) do
     :global.whereis_name({:btc_torrentworker, id})
   end
