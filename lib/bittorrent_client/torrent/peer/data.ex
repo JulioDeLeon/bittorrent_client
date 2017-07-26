@@ -11,6 +11,7 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :port,
              :socket,
              :interval,
+             :info_hash,
              :am_choking,
              :am_interested,
              :peer_choking,
