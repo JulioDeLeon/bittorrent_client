@@ -28,8 +28,8 @@ get_peer_connection_info(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
   //load the passed binary
   int binary_size;
   ErlNifBinary temp_bin;
-  char* ipBuff = (char*) malloc(sizeof(char) * 8);
-  memset(ipBuff, '.', sizeof(char) * 8);
+  char* ipBuff = (char*) malloc(sizeof(char) * 9);
+  memset(ipBuff, 0, sizeof(char) * 9);
   int portBuff = 0;
   if( !enif_get_int(env, argv[1], &binary_size)
       || !enif_inspect_binary(env, argv[0], &temp_bin)) {
@@ -37,11 +37,15 @@ get_peer_connection_info(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]){
   }
 
   //Get IP
-  for(int x = 0; x < binary_size + 4; x+2) {
+  char* temp = ipBuff;
+  for(int x = 0; x < 4; x++) {
     //printf("%d:%c\n", x, temp_bin.data[x]);
-    ipBuff[x] = temp_bin.data[x];
+    *temp = temp_bin.data[x];
+    temp++;
+    *temp = '.';
+    temp++;
   }
-
+  printf("%s\n", ipBuff);
   //Get Port
   portBuff = atoi((const char *) &temp_bin.data[4]) * 256 + atoi((const char*) &temp_bin.data[5]);
 

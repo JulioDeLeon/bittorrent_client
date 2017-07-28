@@ -161,4 +161,18 @@ defmodule BittorrentClient.Torrent.Worker do
   def get_peer_connection_info(_byte_arr, _size) do
     raise "NIF get_peer_connection_info/2 not implemented"
   end
+
+  def parse_peers_binary(binary) do
+    parse_peers_binary(binary, [])
+  end
+
+  def parse_peers_binary(<<a,b,c,d, port::size(16), rest::bytes>>, acc) do
+    parse_peers_binary(rest, [{{a,b,c,d}, port} | acc])
+  end
+
+  def parse_peers_binary(_, acc) do
+    acc
+  end
 end
+
+# :gen_tcp.connect({130,239,18,159}, 7220, [{active,true},binary])
