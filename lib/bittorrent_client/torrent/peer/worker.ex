@@ -8,8 +8,8 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
-    Logger.info fn -> "Starting peer worker for #{filename}->#{ip}:#{port}" end
-    {status, sock} = :gen_tcp.connect(ip, port, [])
+    Logger.info fn -> "Starting peer worker for #{filename}->#{ip_to_str(ip)}:#{port}" end
+    {status, sock} = :gen_tcp.connect(ip, port, [{:active,true},:binary])
     case status do
       :error -> raise "Could not connect to #{ip}:#{port} for #{torrent_id}"
       :ok ->
@@ -27,9 +27,10 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
               am_choking: 0,
               am_interested: 0,
               peer_choking: 0,
-              peer_interested: 0
+              peer_interested: 0,
+              handshake_check: false
            }},
-          name: {:global, {:btc_peerworker, "#{filename}_#{ip}_#{port}"}})
+          name: {:global, {:btc_peerworker, "#{filename}_#{ip_to_str(ip)}_#{port}"}})
     end
   end
 
@@ -58,9 +59,12 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   info_hash: 20-byte SHA1 hash of the info key in the metainfo file. This is the same info_hash that is transmitted in tracker requests.
   peer_id: 20-byte string used as a unique ID for the client. This is usually the same peer_id that is transmitted in tracker requests (but not always e.g. an anonymity option in Azureus).
   """
-
   def handle_call({:start_handshake}, _from, {peer_data}) do
     {:reply, {:ok}, {peer_data}}
   end
 
+  # Utility
+  defp ip_to_str({f,s,t,fr}) do
+    "#{f}.#{s}.#{t}.#{fr}"
+  end
 end

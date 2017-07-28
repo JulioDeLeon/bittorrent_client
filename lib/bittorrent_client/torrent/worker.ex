@@ -153,15 +153,6 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
-  @on_load :load_nifs
-  def load_nifs do
-    :erlang.load_nif("./c_lib/torrent_worker_nif", 0)
-  end
-
-  def get_peer_connection_info(_byte_arr, _size) do
-    raise "NIF get_peer_connection_info/2 not implemented"
-  end
-
   def parse_peers_binary(binary) do
     parse_peers_binary(binary, [])
   end

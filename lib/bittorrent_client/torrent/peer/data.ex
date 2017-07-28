@@ -15,6 +15,7 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :am_choking,
              :am_interested,
              :peer_choking,
-             :peer_interested
+             :peer_interested,
+             :handshake_check
             ]
 end
