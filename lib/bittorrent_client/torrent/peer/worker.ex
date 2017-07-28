@@ -6,46 +6,50 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   use GenServer
   require Logger
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
+  alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
-    Logger.info fn -> "Starting peer worker for #{filename}->#{ip_to_str(ip)}:#{port}" end
-    {status, sock} = :gen_tcp.connect(ip, port, [{:active,true},:binary])
-    case status do
-      :error -> raise "Could not connect to #{ip}:#{port} for #{torrent_id}"
-      :ok ->
-        GenServer.start_link(
-          __MODULE__,
-          {%PeerData{
-              torrent_id: torrent_id,
-              peer_id: Application.get_env(:bittorrent_client, :peer_id),
-              filename: filename,
-              ip: ip,
-              port: port,
-              socket: sock,
-              interval: interval,
-              info_hash: info_hash,
-              am_choking: 0,
-              am_interested: 0,
-              peer_choking: 0,
-              peer_interested: 0,
-              handshake_check: false
-           }},
-          name: {:global, {:btc_peerworker, "#{filename}_#{ip_to_str(ip)}_#{port}"}})
-    end
+    name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
+    peer_data = %PeerData{
+      torrent_id: torrent_id,
+      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+      filename: filename,
+      peer_ip: ip,
+      peer_port: port,
+      interval: interval,
+      info_hash: info_hash,
+      am_choking: 0,
+      am_interested: 0,
+      peer_choking: 0,
+      peer_interested: 0,
+      handshake_check: false,
+      metainfo: metainfo,
+      timer: nil,
+      name: name
+    }
+    GenServer.start_link(
+      __MODULE__,
+      {peer_data},
+      name: {:global, {:btc_peerworker, name}}
+    )
   end
 
-  def init(peer_data) do
-    {:ok, {peer_data}}
+  def init({peer_data})do
+    timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+    Logger.info fn -> "Starting peer worker for #{peer_data.name}" end
+    sock = connect(peer_data.peer_ip, peer_data.peer_port)
+    msg = PeerProtocol.encode(:handshake, <<0::size(64)>>, peer_data.info_hash, peer_data.peer_id)
+    send_handshake(sock, msg)
+    temp = Map.merge(peer_data, %PeerData{
+          handshake_check: true,
+          socket: sock,
+                     })
+    Logger.debug fn -> "After: #{inspect temp}" end
+    {:ok, {temp}}
   end
 
-  def whereis(id) do
-    :global.whereis_name({:btc_peerworker, id})
-  end
-
-  def start_peer_handshake(pworker_id) do
-    Logger.info fn -> "#{pworker_id} is handshaking" end
-    GenServer.call(:global.whereis_name({:btc_peerworker, pworker_id}),
-      {:start_handshake})
+  def whereis(pworker_id) do
+    :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
   @doc  """
@@ -59,12 +63,19 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   info_hash: 20-byte SHA1 hash of the info key in the metainfo file. This is the same info_hash that is transmitted in tracker requests.
   peer_id: 20-byte string used as a unique ID for the client. This is usually the same peer_id that is transmitted in tracker requests (but not always e.g. an anonymity option in Azureus).
   """
-  def handle_call({:start_handshake}, _from, {peer_data}) do
-    {:reply, {:ok}, {peer_data}}
-  end
 
   # Utility
-  defp ip_to_str({f,s,t,fr}) do
+  def ip_to_str({f,s,t,fr}) do
     "#{f}.#{s}.#{t}.#{fr}"
+  end
+
+  defp send_handshake(socket, msg) do
+    :gen_tcp.send(socket, msg)
+  end
+
+  defp connect(ip, port) do
+    {:ok, sock} = :gen_tcp.connect(ip, port, [:binary, active: 1], 2_000)
+    Logger.debug fn -> "#{ip_to_str(ip)}:#{port} is connected}" end
+    sock
   end
 end

@@ -7,6 +7,8 @@ defmodule BittorrentClient.Torrent.Worker do
   require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
+  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Torrent.Peer.Worker, as: PeerWorker
 
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
@@ -47,6 +49,12 @@ defmodule BittorrentClient.Torrent.Worker do
     Logger.debug fn -> "Getting peer list of #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_peers})
+  end
+
+  def start_single_peer(id, {ip, port}) do
+    Logger.debug fn -> "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:start_single_peer, {ip,port}})
   end
 
   def handle_call({:get_data}, _from, {metadata, data}) do
@@ -100,6 +108,24 @@ defmodule BittorrentClient.Torrent.Worker do
     {:reply, {:ok, TorrentData.get_peers(data)}, {metadata, data}}
   end
 
+  def handle_call({:start_single_peer, {ip, port}}, _from, {metadata, data}) do
+    {s, peer_data} = PeerSupervisor.start_child({
+      metadata,
+      Map.get(data, :id),
+      Map.get(data, :info_hash),
+      Map.get(data, :filename),
+      Application.get_env(:bittorrent_client, :trackerid),
+      data |> Map.get(:tracker_info) |> Map.get(:interval),
+      ip,
+      port})
+    case s do
+      :error ->
+        Logger.error fn -> "#{inspect peer_data}" end
+        {:reply, {:error, "Failed to start peer connection for #{inspect ip}:#{inspect port}: #{inspect peer_data}"},  {metadata, data}}
+      :ok -> {:reply, {:ok, peer_data}, {metadata, data}}
+    end
+  end
+
   # UTILITY
   defp create_tracker_request(url, params) do
    	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
@@ -128,7 +154,7 @@ defmodule BittorrentClient.Torrent.Worker do
     |> Bento.encode()
     if check == :error do
       Logger.debug fn -> "Failed to extract info from metadata" end
-      %TorrentData{}
+      raise "Failed to extract info from metadata"
     else
       hash = :crypto.hash(:sha, info)
       %TorrentData{
@@ -148,7 +174,8 @@ defmodule BittorrentClient.Torrent.Worker do
         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
         key: Application.fetch_env!(:bittorrent_client, :key),
         trackerid: Application.fetch_env!(:bittorrent_client, :trackerid),
-        tracker_info: %TrackerInfo{}
+        tracker_info: %TrackerInfo{},
+        connected_peers: []
       }
     end
   end
@@ -157,12 +184,23 @@ defmodule BittorrentClient.Torrent.Worker do
     parse_peers_binary(binary, [])
   end
 
-  def parse_peers_binary(<<a,b,c,d, port::size(16), rest::bytes>>, acc) do
+  def parse_peers_binary(<<a,b,c,d, fp, sp, rest::bytes>>, acc) do
+    port = fp * 256 + sp
     parse_peers_binary(rest, [{{a,b,c,d}, port} | acc])
   end
 
   def parse_peers_binary(_, acc) do
     acc
+  end
+
+  def get_peer_list(id) do
+    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
+    parse_peers_binary(tab)
+  end
+
+  def scratch(id) do
+    peerList = BittorrentClient.Torrent.Worker.get_peer_list(id)
+    Enum.map(peerList, fn tp -> start_single_peer(id, tp) end)
   end
 end
 
