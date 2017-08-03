@@ -6,6 +6,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   use GenServer
   require Logger
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
+  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
@@ -18,7 +19,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       peer_port: port,
       interval: interval,
       info_hash: info_hash,
-      am_choking: 0,
+      am_choking: 1,
       am_interested: 0,
       peer_choking: 0,
       peer_interested: 0,
@@ -40,32 +41,48 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     sock = connect(peer_data.peer_ip, peer_data.peer_port)
     msg = PeerProtocol.encode(:handshake, <<0::size(64)>>, peer_data.info_hash, peer_data.peer_id)
     send_handshake(sock, msg)
-    temp = Map.merge(peer_data, %PeerData{
-          handshake_check: true,
-          socket: sock,
-                     })
-    Logger.debug fn -> "After: #{inspect temp}" end
+    temp = Map.merge(peer_data, %PeerData{socket: sock})
     {:ok, {temp}}
+  end
+
+  # these handle_info calls come from the socket for attention
+  def handle_info({:error, reason}, peer_data) do
+    Logger.error fn -> "#{peer_data.name} has come across and error" end
+    # terminate genserver gracefully?
+    {:noreply, peer_data}
+  end
+
+  # Bread and butter
+  def handle_info({:tcp, _socket, msg}, peer_data) do
+    Logger.debug fn -> "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}" end
+    msgs = PeerProtocol.decode(msg)
+    # {:noreply, List.foldl(msgs, peer_data, fn(msg, peer_data)-> handle_message(msgs, socket, peer_data) end)}
+    {:noreply, peer_data}
+  end
+
+  # Extra use cases
+  def handle_info({:tcp_passive, socket}, peer_data) do
+    :inet.setopts(socket, [active: 1])
+    {:noreply, peer_data}
+  end
+
+  def handle_info({:tcp_closed, socket}, peer_data) do
+    Logger.info fn -> "#{peer_data.name} has closed socket, should terminate" end
+    # Gracefully stop this peer process OR get a new peer
+    {:noreply, peer_data}
+  end
+
+  def handle_info({:timeout, reason, :send_message}, peer_data) do
+    Logger.error fn -> "#{peer_data.name} took too long: #{reason}" end
+    {:noreply, peer_data}
   end
 
   def whereis(pworker_id) do
     :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
-  @doc  """
-  The handshake is a required message and must be the first message transmitted by the client. It is (49+len(pstr)) bytes long.
-
-  handshake: <pstrlen><pstr><reserved><info_hash><peer_id>
-
-  pstrlen: string length of <pstr>, as a single raw byte
-  pstr: string identifier of the protocol
-  reserved: eight (8) reserved bytes. All current implementations use all zeroes. Each bit in these bytes can be used to change the behavior of the protocol. An email from Bram suggests that trailing bits should be used first, so that leading bits may be used to change the meaning of trailing bits.
-  info_hash: 20-byte SHA1 hash of the info key in the metainfo file. This is the same info_hash that is transmitted in tracker requests.
-  peer_id: 20-byte string used as a unique ID for the client. This is usually the same peer_id that is transmitted in tracker requests (but not always e.g. an anonymity option in Azureus).
-  """
-
   # Utility
-  def ip_to_str({f,s,t,fr}) do
+  defp ip_to_str({f,s,t,fr}) do
     "#{f}.#{s}.#{t}.#{fr}"
   end
 
@@ -77,5 +94,18 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     {:ok, sock} = :gen_tcp.connect(ip, port, [:binary, active: 1], 2_000)
     Logger.debug fn -> "#{ip_to_str(ip)}:#{port} is connected}" end
     sock
+  end
+
+  defp handle_message(msg, socket, peer_data) do
+    # hand types
+    state = {
+      peer_data.handshake_check,
+      peer_data.am_choking,
+      peer_data.am_interested,
+      peer_data.peer_choking,
+      peer_data.peer_interested
+    }
+    Logger.debug fn -> "#{peer_data.name}: #{inspect msg}" end
+    peer_data
   end
 end
