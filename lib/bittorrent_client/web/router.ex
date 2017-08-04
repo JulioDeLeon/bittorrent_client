@@ -21,7 +21,6 @@ defmodule BittorrentClient.Web.Router do
     send_resp(conn, 200, "pong")
   end
 
-  # though this is usefull for curl, for UI, send put request to the UI service to get updates
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
     Logger.info fn -> "Getting status for #{id}" end
     {status, msg} = Server.get_torrent_info_by_id("GenericName", id)
@@ -121,8 +120,8 @@ defmodule BittorrentClient.Web.Router do
     send_resp(conn, 404, "oops")
   end
 
+# this function is created to work with Bento.Metainfo module to encode as json
   defp entry_to_encodable(data_point) do
-    # this function is created to work with Bento.Metainfo module to encode as json
     {_, new_dp} = data_point
     |> Map.get_and_update("metadata", fn  metadata ->
       {data_point, fn ->

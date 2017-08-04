@@ -54,7 +54,7 @@ defmodule BittorrentClient.Torrent.Worker do
   def start_single_peer(id, {ip, port}) do
     Logger.debug fn -> "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:start_single_peer, {ip,port}})
+      {:start_single_peer, {ip, port}})
   end
 
   def handle_call({:get_data}, _from, {metadata, data}) do
@@ -82,7 +82,8 @@ defmodule BittorrentClient.Torrent.Worker do
     url = create_tracker_request(metadata.announce, params)
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
-    {status, resp} = HTTPoison.get(url, [], [{:timeout, 1500}, {:recv_timeout, 1500}])
+    {status, resp} = HTTPoison.get(url, [],
+      [{:timeout, 1500}, {:recv_timeout, 1500}])
     Logger.debug fn -> "Response from tracker: #{inspect resp}" end
     case status do
       :error ->
@@ -93,7 +94,8 @@ defmodule BittorrentClient.Torrent.Worker do
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
-          :error -> {:reply, {:error, {500, "Failed to connect to tracker"}}, {metadata, Map.put(data, :status, "failed")}}
+          :error -> {:reply, {:error, {500, "Failed to connect to tracker"}},
+                    {metadata, Map.put(data, :status, "failed")}}
           _ ->
           # update data
             updated_data =  data
@@ -184,9 +186,9 @@ defmodule BittorrentClient.Torrent.Worker do
     parse_peers_binary(binary, [])
   end
 
-  def parse_peers_binary(<<a,b,c,d, fp, sp, rest::bytes>>, acc) do
+  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
     port = fp * 256 + sp
-    parse_peers_binary(rest, [{{a,b,c,d}, port} | acc])
+    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
   end
 
   def parse_peers_binary(_, acc) do
@@ -199,9 +201,7 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def scratch(id) do
-    peerList = BittorrentClient.Torrent.Worker.get_peer_list(id)
-    Enum.map(peerList, fn tp -> start_single_peer(id, tp) end)
+    peer_list = BittorrentClient.Torrent.Worker.get_peer_list(id)
+    Enum.map(peer_list, fn tp -> start_single_peer(id, tp) end)
   end
 end
-
-# :gen_tcp.connect({130,239,18,159}, 7220, [{active,true},binary])

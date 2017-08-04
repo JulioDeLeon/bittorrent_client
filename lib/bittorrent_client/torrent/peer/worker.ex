@@ -6,11 +6,12 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   use GenServer
   require Logger
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
-  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
+  alias BittorrentClient.Torrent.Peer.State, as: PeerFSM
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
+    {_, fsm} = PeerFSM.start_link()
     peer_data = %PeerData{
       torrent_id: torrent_id,
       peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
@@ -19,11 +20,8 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       peer_port: port,
       interval: interval,
       info_hash: info_hash,
-      am_choking: 1,
-      am_interested: 0,
-      peer_choking: 0,
-      peer_interested: 0,
       handshake_check: false,
+      state: fsm,
       metainfo: metainfo,
       timer: nil,
       name: name
@@ -39,7 +37,8 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info fn -> "Starting peer worker for #{peer_data.name}" end
     sock = connect(peer_data.peer_ip, peer_data.peer_port)
-    msg = PeerProtocol.encode(:handshake, <<0::size(64)>>, peer_data.info_hash, peer_data.peer_id)
+    msg = PeerProtocol.encode(:handshake, <<0::size(64)>>,
+      peer_data.info_hash, peer_data.peer_id)
     send_handshake(sock, msg)
     temp = Map.merge(peer_data, %PeerData{socket: sock})
     {:ok, {temp}}
@@ -56,7 +55,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   def handle_info({:tcp, _socket, msg}, peer_data) do
     Logger.debug fn -> "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}" end
     msgs = PeerProtocol.decode(msg)
-    # {:noreply, List.foldl(msgs, peer_data, fn(msg, peer_data)-> handle_message(msgs, socket, peer_data) end)}
+# {:noreply, List.foldl(msgs, peer_data, fn(msg, peer_data)-> handle_message(msgs, socket, peer_data) end)}
     {:noreply, peer_data}
   end
 
@@ -82,7 +81,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   end
 
   # Utility
-  defp ip_to_str({f,s,t,fr}) do
+  defp ip_to_str({f, s, t, fr}) do
     "#{f}.#{s}.#{t}.#{fr}"
   end
 

@@ -4,102 +4,65 @@ defmodule BittorrentClient.Torrent.Peer.State do
   			https://glot.io/snippets/e6zq7yv67l
   Mangages peer state, eases TCP connection handling
   """
-  @behaviour :gen_fsm
+  use GenStateMachine
   require Logger
 
-  def start_link(pworker_pid) do
-    :gen_fsm.start_link(__MODULE__, pworker_pid, [])
+  def start_link do
+    # no need to take in data ATM
+    GenStateMachine.start_link(__MODULE__, {:we_choke, []})
   end
 
-  def init(pworker_pid) do
-    {:ok, :we_choke, pworker_pid}
+  # Client calls
+  def me_choke(pid) do
+    GenStateMachine.cast(pid, :me_choke)
   end
 
-  def me_choke(pworker_pid) do
-    :gen_fsm.send_event(pworker_pid, :me_choke)
+  def it_choke(pid) do
+    GenStateMachine.cast(pid, :it_choke)
   end
 
-  def me_interest(pworker_pid) do
-    :gen_fsm.send_event(pworker_pid, :me_interest)
+  def me_interest(pid) do
+    GenStateMachine.cast(pid, :me_interest)
   end
 
-  def it_choke(pworker_pid) do
-    :gen_fsm.send_event(pworker_pid, :it_choke)
+  def it_interest(pid) do
+    GenStateMachine.cast(pid, :it_interest)
   end
 
-  def it_interest(pworker_pid) do
-    :gen_fsm.send_event(pworker_pid, :it_interest)
+  # Server callbacks
+  def handle_event(:cast, :me_interest, :we_choke, peer_data) do
+    {:next_state, :me_interest_it_choke, peer_data}
   end
 
-
-  @doc """
-  This client is choking the given peer and vice-versa.
-  """
-  def we_choke(:me_interest, state) do
-    {:next_state, :me_interest_it_choke, state}
+  def handle_event(:cast, :it_interest, :we_choke, peer_data) do
+    {:next_state, :me_choke_it_interest, peer_data}
   end
 
-  def we_choke(:it_interest, state) do
-    {:next_state, :me_choke_it_interest, state}
+  def handle_event(:cast, :me_choke, :me_interest_it_choke, peer_data) do
+    {:next_state, :we_choke, peer_data}
   end
 
-  @doc """
-  This client is interested in the given peer and vice-versa.
-  """
-  def we_interest(:me_choke, state) do
-    {:next_state, :me_choke_it_interest, state}
+  def handle_event(:cast, :it_choke, :me_choke_it_interest, peer_data) do
+    {:next_state, :we_choke, peer_data}
   end
 
-  def we_interest(:it_choke, state) do
-    {:next_state, :me_interest_it_choke, state}
+  def handle_event(:cast, :me_interest, :me_choke_it_interest, peer_data) do
+    {:next_state, :we_interest, peer_data}
   end
 
-  def we_interest(:have, state) do
-    {:next_state, :we_interest, state}
+  def handle_event(:cast, :it_interest, :me_interest_it_choke, peer_data) do
+    {:next_state, :we_interest, peer_data}
   end
 
-  @doc """
-  This client is choking the given peer, but the peer is interested in the
-  client.
-  """
-  def me_choke_it_interest(:me_interest, state) do
-    {:next_state, :we_interest, state}
+  def handle_event(:cast, :me_choke, :we_interest, peer_data) do
+    {:next_state, :me_choke_it_interest, peer_data}
   end
 
-  def me_choke_it_interest(:it_choke, state) do
-    {:next_state, :we_choke, state}
+  def handle_event(:cast, :it_choke, :we_interest, peer_data) do
+    {:next_state, :me_interest_it_choke, peer_data}
   end
 
-  @doc """
-  This client is interested in the given peer, but the peer is choking the
-  client.
-  """
-  def me_interest_it_choke(:me_choke, state) do
-    {:next_state, :we_choke, state}
-  end
-
-  def me_interest_it_choke(:it_interest, state) do
-    {:next_state, :we_interest, state}
-  end
-
-  ## Callbacks ===============================================================
-  def handle_event(event, state_name, state_data) do
-    {:stop, {:bad_event, state_name, event}, state_data}
-  end
-
-  def handle_sync_event(event, _from, state_name, state_data) do
-    {:stop, {:bad_sync_event, state_name, event}, state_data}
-  end
-
-  def handle_info(_msg, state_name, state_data) do
-    {:next_state, state_name, state_data}
-  end
-
-  def terminate(_reason, _state_name, _state_data) do
-    :ok
-  end
-
-  def code_change(_old, state_name, state_data, _extra) do
-    {:ok, state_name, state_data}
+  def handle_event(:cast, :have, :we_interest, peer_data) do
+    {:next_state, :we_interest, peer_data}
   end
 end

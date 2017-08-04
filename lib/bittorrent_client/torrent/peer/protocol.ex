@@ -6,7 +6,7 @@ defmodule BittorrentClient.Torrent.Peer.Protocol do
 
   require Logger
 
-  @block_len 16384 # 2^(14)
+  @block_len 16_384 # 2^(14)
 
   @protocol_string_len 19
   @keep_alive_len      0
@@ -96,8 +96,8 @@ defmodule BittorrentClient.Torrent.Peer.Protocol do
     length = length - 1
 
     if rest == "" do
-      Logger.debug("Length: #{length}")
-      Logger.debug("Rest: #{rest}")
+      Logger.debug fn -> "Length: #{length}" end
+      Logger.debug fn -> "Rest: #{rest}" end
     end
 
     # if length != byte_size(rest)
@@ -159,7 +159,6 @@ defmodule BittorrentClient.Torrent.Peer.Protocol do
   defp decode_type(rest, acc) do
     {Enum.reverse(acc), rest}
   end
-
 
   @doc """
   Encode a given type and associated data into a peer protocol binary.

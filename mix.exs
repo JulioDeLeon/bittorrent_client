@@ -22,7 +22,7 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      applications: [:logger, :cowboy, :plug, :gproc, :httpoison],
+      applications: [:logger, :cowboy, :plug, :gproc, :httpoison, :gen_state_machine],
       env: [key_file: [],
             cert_file: [],
             peer_id: [],
@@ -56,6 +56,7 @@ defmodule BittorrentClient.Mixfile do
       {:hackney, "~> 1.6", override: true},
       {:gproc, "~> 0.5"},					             # global process registry
       {:credo, "~> 0.7", only: [:dev, :test]}, # code quality tool
+      {:gen_state_machine, "~> 2.0"},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
   end
