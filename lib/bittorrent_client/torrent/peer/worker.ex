@@ -35,9 +35,8 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     )
   end
 
-  def init({peer_data})do
-    timer = :erlang.start_timer(peer_data.interval, self(), :
-  endsend_message)
+  def init({peer_data}) do
+    timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info fn -> "Starting peer worker for #{peer_data.name}" end
     sock = connect(peer_data.peer_ip, peer_data.peer_port)
     msg = PeerProtocol.encode(:handshake, <<0::size(64)>>, peer_data.info_hash, peer_data.peer_id)
