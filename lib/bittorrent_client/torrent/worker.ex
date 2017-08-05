@@ -42,7 +42,14 @@ defmodule BittorrentClient.Torrent.Worker do
   def connect_to_tracker(id) do
     Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:connect_to_tracker})
+      {:connect_to_tracker}, :infinity)
+  end
+
+  # DONOT USE
+  def connect_to_tracker_async(id) do
+    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+    GenServer.cast(:global.whereis_name({:btc_torrentworker, id}),
+      {:connect_to_tracker_async})
   end
 
   def get_peers(id) do
@@ -65,8 +72,9 @@ defmodule BittorrentClient.Torrent.Worker do
     {:reply, {:ok, ret}, {metadata, data}}
   end
 
-  def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
-    # these have not been implemented yet
+
+  def connect_to_tracker_helper({metadata, data}) do
+    # These either dont relate to tracker req or are not implemented yet
     unwanted_params = [:status,
                        :id,
                        :pid,
@@ -83,7 +91,7 @@ defmodule BittorrentClient.Torrent.Worker do
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url, [],
-      [{:timeout, 1500}, {:recv_timeout, 1500}])
+      [{:timeout, 10_000}, {:recv_timeout, 10_000}])
     Logger.debug fn -> "Response from tracker: #{inspect resp}" end
     case status do
       :error ->
@@ -106,6 +114,10 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
+  def handle_call({:connect_to_tracker}, _from, {metadata, data}) do
+    connect_to_tracker_helper({metadata, data})
+  end
+
   def handle_call({:get_peers}, _from, {metadata, data}) do
     {:reply, {:ok, TorrentData.get_peers(data)}, {metadata, data}}
   end
@@ -126,6 +138,11 @@ defmodule BittorrentClient.Torrent.Worker do
         {:reply, {:error, "Failed to start peer connection for #{inspect ip}:#{inspect port}: #{inspect peer_data}"},  {metadata, data}}
       :ok -> {:reply, {:ok, peer_data}, {metadata, data}}
     end
+  end
+
+  def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
+    {:reply, _, {new_metadata, new_data}} = connect_to_tracker_helper({metadata, data})
+    {:no_reply, {new_metadata, new_data}}
   end
 
   # UTILITY

@@ -16,6 +16,11 @@ function connectToTracker {
   curl -vX PUT $URL/$1/connect/
 }
 
+function connectToTrackerAsync {
+  curl -vX PUT $URL/$1/connect/async
+}
+
+
 function listAll {
   curl -vX GET $URL/all
 }

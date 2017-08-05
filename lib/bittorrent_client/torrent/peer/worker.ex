@@ -52,6 +52,9 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   end
 
   # Bread and butter
+  def handle_info({:timeout, timer, :send_message}, peer_data) do
+  end
+
   def handle_info({:tcp, _socket, msg}, peer_data) do
     Logger.debug fn -> "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}" end
     msgs = PeerProtocol.decode(msg)

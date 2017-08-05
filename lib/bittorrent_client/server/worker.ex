@@ -45,10 +45,15 @@ defmodule BittorrentClient.Server.Worker do
       {:connect_to_tracker, id})
   end
 
+  def connect_torrent_to_tracker_async(serverName, id) do
+    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
+      {:connect_to_tracker_async, id})
+  end
+
   def get_torrent_info_by_id(serverName, id) do
     Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
-    GenServer
-.call(:global.whereis_name({:btc_server, serverName}),
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:get_info_by_id, id})
   end
 
@@ -61,7 +66,13 @@ defmodule BittorrentClient.Server.Worker do
   def update_torrent_status_by_id(serverName, id, status) do
     Logger.info fn -> "Entered update_torrent_status_by_id" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:update_by_id, id, status})
+      {:update_status_by_id, id, status})
+  end
+
+  def update_torrent_by_id(serverName, id, data) do
+    Logger.info fn -> "Entered update_torrent_by_id" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+     {:update_by_id, id, data})
   end
 
   def delete_all_torrents(serverName) do
@@ -143,7 +154,36 @@ defmodule BittorrentClient.Server.Worker do
     end
   end
 
-  def handle_call({:update_by_id, id, status}, _from, {db, serverName, torrents}) do
+  def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
+    Logger.info fn -> "Entered callback of connect_to_tracker_async" end
+    if Map.has_key?(torrents, id) do
+      {status, msg} = TorrentWorker.connect_to_tracker(id)
+      case status do
+        :error ->
+          {:noreply, {db, serverName, torrents}}
+        _ ->
+          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
+          Logger.info fn -> "connect_to_tracker_async #{id} completed" end
+          {:noreply, {db, serverName, updated_torrents}}
+      end
+    else
+      Logger.error fn -> "Bad id was given #{id}" end
+      {:noreply, {db, serverName, torrents}}
+    end
+  end
+
+  def handle_call({:update_by_id, id, data}, _from, {db, serverName, torrents}) do
+    if Map.has_key?(torrents, id) do
+      torrents = Map.update!(torrents, id,
+        fn dataPoint ->  data end)
+      {:reply, {:ok, torrents}, {db, serverName, torrents}}
+    else
+      {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
+    end
+  end
+
+ def handle_call({:update_status_by_id, id, status}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
       torrents = Map.update!(torrents, id,
         fn dataPoint -> %TorrentData{dataPoint | status: status} end)
