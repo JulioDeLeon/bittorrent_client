@@ -20,6 +20,9 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :metainfo,
              :timer,
              :state,
+             :piece_index,
+             :sub_piece_index,
+             :tracker_id,
              :name
             ]
 end

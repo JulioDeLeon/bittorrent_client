@@ -58,8 +58,12 @@ defmodule BittorrentClient.Web.Router do
   put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
     Logger.info fn -> "Connecting #{id} to tracker" end
     {status, msg} = Server.connect_torrent_to_tracker("GenericName", id)
-    spawn(fn -> Server.connect_torrent_to_tracker("GenericName", id) end)
-    send_resp(conn, 204, "")
+    case status do
+      :ok ->
+        send_resp(conn, 204, "")
+      :error ->
+        send_resp(conn, 400, msg)
+    end
   end
 
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do

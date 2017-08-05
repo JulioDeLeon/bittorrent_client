@@ -154,29 +154,10 @@ defmodule BittorrentClient.Server.Worker do
     end
   end
 
-  def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
-    Logger.info fn -> "Entered callback of connect_to_tracker_async" end
-    if Map.has_key?(torrents, id) do
-      {status, msg} = TorrentWorker.connect_to_tracker(id)
-      case status do
-        :error ->
-          {:noreply, {db, serverName, torrents}}
-        _ ->
-          {_, new_info} = TorrentWorker.get_torrent_data(id)
-          updated_torrents = Map.put(torrents, id, new_info)
-          Logger.info fn -> "connect_to_tracker_async #{id} completed" end
-          {:noreply, {db, serverName, updated_torrents}}
-      end
-    else
-      Logger.error fn -> "Bad id was given #{id}" end
-      {:noreply, {db, serverName, torrents}}
-    end
-  end
-
   def handle_call({:update_by_id, id, data}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      torrents = Map.update!(torrents, id,
-        fn dataPoint ->  data end)
+      # TODO better way to do this
+      torrents = Map.update!(torrents, id, fn _dataPoint -> data end)
       {:reply, {:ok, torrents}, {db, serverName, torrents}}
     else
       {:reply, {:error, "Bad ID was given"}, {db, serverName, torrents}}
@@ -196,5 +177,24 @@ defmodule BittorrentClient.Server.Worker do
   def handle_call({:delete_all}, _from, {db, serverName, torrents}) do
     torrents = Map.drop(torrents, Map.keys(torrents))
     {:reply, {:ok, torrents}, {db, serverName, torrents}}
+ end
+
+  def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
+    Logger.info fn -> "Entered callback of connect_to_tracker_async" end
+    if Map.has_key?(torrents, id) do
+      {status, _} = TorrentWorker.connect_to_tracker(id)
+      case status do
+        :error ->
+          {:noreply, {db, serverName, torrents}}
+        _ ->
+          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
+          Logger.info fn -> "connect_to_tracker_async #{id} completed" end
+          {:noreply, {db, serverName, updated_torrents}}
+      end
+    else
+      Logger.error fn -> "Bad id was given #{id}" end
+      {:noreply, {db, serverName, torrents}}
+    end
   end
 end
