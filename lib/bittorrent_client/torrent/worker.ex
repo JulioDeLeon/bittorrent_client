@@ -83,7 +83,7 @@ defmodule BittorrentClient.Torrent.Worker do
     Logger.debug fn -> "url created: #{url}" end
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url, [],
-      [{:timeout, 1500}, {:recv_timeout, 1500}])
+      [{:timeout, 10_000}, {:recv_timeout, 10_000}])
     Logger.debug fn -> "Response from tracker: #{inspect resp}" end
     case status do
       :error ->

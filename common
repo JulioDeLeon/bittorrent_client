@@ -16,6 +16,10 @@ function connectToTracker {
   curl -vX PUT $URL/$1/connect/
 }
 
+function connectToTrackerCast {
+  curl -vX PUT $URL/$1/connect/cast
+}
+
 function listAll {
   curl -vX GET $URL/all
 }
