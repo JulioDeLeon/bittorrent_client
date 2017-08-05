@@ -42,7 +42,7 @@ defmodule BittorrentClient.Server.Worker do
   def connect_torrent_to_tracker(serverName, id) do
     Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:connect_to_tracker, id})
+      {:connect_to_tracker, id}, :infinity)
   end
 
   def connect_torrent_to_tracker_async(serverName, id) do
