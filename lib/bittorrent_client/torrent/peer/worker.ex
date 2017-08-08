@@ -7,12 +7,10 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   require Logger
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
-  alias BittorrentClient.Torrent.Peer.State, as: PeerFSM
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
-    {_, fsm} = PeerFSM.start_link()
     peer_data = %PeerData{
       torrent_id: torrent_id,
       peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
@@ -22,7 +20,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       interval: interval,
       info_hash: info_hash,
       handshake_check: false,
-      state: fsm,
+      state: :we_choke,
       metainfo: metainfo,
       timer: nil,
       tracker_id: tracker_id,
@@ -130,6 +128,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       :handshake ->
         if peer_data.handshake_check == false do
           # TODO: check the recieved info hash?
+          Logger.debug fn -> "Handshake MSG: #{peer_data.name}" end
           %PeerData{peer_data | state: :we_choke , handshake_check: true}
         else
           peer_data
@@ -158,34 +157,37 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         %PeerData{peer_data | state: state}
       :interested ->
         # TODO Start seeding
-        Logger.debug fn -> "Peer is interested in #{peer_data.name}" end
+        Logger.debug fn -> "Interested MSG: #{peer_data.name}" end
         peer_data
       :not_interest ->
         # TODO Stop seeding
-        Logger.debug fn -> "Peer is not interested in #{peer_data.name}" end
+        Logger.debug fn -> "Not_interested MSG: #{peer_data.name}" end
         peer_data
       :have ->
         # Peer lets client know which pieces it has
         # Could send message back to parent torrent process to log/add to known pieces
         # TODO make this info useful
-        Logger.debug fn -> "Peer has #{inspect msg} for #{peer_data.name}" end
+        # Send the message payload back to the torrent process to put together to track
+        Logger.debug fn -> "Have MSG: #{peer_data.name}" end
         peer_data
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
-        Logger.debug fn -> "Peer has #{inspect msg} for #{peer_data.name}" end
+        # Again, send the payload back to the torrent process to process and track
+        Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
         peer_data
       :piece ->
         # TODO piece
-        Logger.debug fn -> "Peer has #{inspect msg} for #{peer_data.name}" end
+        # Send the piece information back to the torrent process to put the file together
+        Logger.debug fn -> "Piece MSG: #{peer_data.name}" end
         peer_data
       :cancel ->
         # TODO kills this peer handling process gracefull
-        Logger.debug fn -> "Peer has #{inspect msg} for #{peer_data.name}" end
-        %PeerData{peer_data | state: :we_choke, handshake_check: false}
+        Logger.debug fn -> "Cancel MSG: #{peer_data.name}" end
+        peer_data
       :port ->
         # TODO handle port change
-        Logger.debug fn -> "Peer has #{inspect msg} for #{peer_data.name}" end
+        Logger.debug fn -> "Port MSG: #{peer_data.name}" end
         peer_data
      _ ->
         unless msg.type == :keep_alive do
