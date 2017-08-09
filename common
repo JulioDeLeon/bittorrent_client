@@ -20,6 +20,14 @@ function connectToTrackerAsync {
   curl -vX PUT $URL/$1/connect/async
 }
 
+function startTorrent {
+    curl -vX PUT $URL/$1/startTorrent/
+}
+
+function startTorrentAsync {
+    curl -vX PUT $URL/$1/startTorrent/async
+}
+
 function listAll {
   curl -vX GET $URL/all
 }

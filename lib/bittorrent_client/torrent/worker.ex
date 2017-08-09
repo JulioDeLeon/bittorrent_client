@@ -32,6 +32,12 @@ defmodule BittorrentClient.Torrent.Worker do
     :global.whereis_name({:btc_torrentworker, id})
   end
 
+  def start_torrent(id) do
+    Logger.info fn -> "Starting torrent: #{id}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:start_torrent, id}, :infinity)
+  end
+
   def get_torrent_data(id) do
     Logger.info fn -> "Getting torrent data for #{id}" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
@@ -65,7 +71,7 @@ defmodule BittorrentClient.Torrent.Worker do
   def get_next_piece_index(id) do
     Logger.debug fn -> "#{id} is retrieving next_piece_index" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_next_piece_index})
+      {:get_next_piece_index}, :infinity)
   end
 
   def mark_piece_index_done(id, index) do
@@ -102,9 +108,33 @@ defmodule BittorrentClient.Torrent.Worker do
       port})
     case s do
       :error ->
-        Logger.error fn -> "#{inspect peer_data}" end
+        Logger.error fn -> "Error: #{inspect peer_data}" end
         {:reply, {:error, "Failed to start peer connection for #{inspect ip}:#{inspect port}: #{inspect peer_data}"},  {metadata, data}}
       :ok -> {:reply, {:ok, peer_data}, {metadata, data}}
+    end
+  end
+
+  def handle_call({:start_torrent, id}, _from, {metadata, data}) do
+    if data.status != "started" do
+      {:reply, {:error, {403, "#{id} has not connected to tracker"}}, {metadata, data}}
+    else
+      peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
+      if (length peer_list) == 0 do
+        {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
+      else
+        _ret = Enum.map(peer_list, fn {ip, port} ->
+          PeerSupervisor.start_child({
+            metadata,
+            Map.get(data, :id),
+            Map.get(data, :info_hash),
+            Map.get(data, :filename),
+            Application.get_env(:bittorrent_client, :trackerid),
+            data |> Map.get(:tracker_info) |> Map.get(:interval),
+            ip,
+            port})
+        end)
+        {:reply, {:ok, "started torrent #{id}"}, {metadata, data}}
+      end
     end
   end
 
@@ -114,7 +144,7 @@ defmodule BittorrentClient.Torrent.Worker do
      # The way the table will update will change with dying peers and etc.
      new_piece_table = Map.merge(data.pieces, %{ret_piece_index => "started"})
      {:reply, {:ok, ret_piece_index},
-     {metadata, %TorrentData{ data | pieces: new_piece_table, next_piece_index: new_piece_index}}}
+      {metadata, %TorrentData{ data | pieces: new_piece_table, next_piece_index: new_piece_index}}}
   end
 
   def handle_call({:mark_piece_index_done, index}, _from, {metadata, data}) do
@@ -129,7 +159,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
     {_, _, {new_metadata, new_data}} = connect_to_tracker_helper({metadata, data})
-    {:no_reply, {new_metadata, new_data}}
+    {:noreply, {new_metadata, new_data}}
   end
 
   # UTILITY
@@ -250,10 +280,5 @@ defmodule BittorrentClient.Torrent.Worker do
   def get_peer_list(id) do
     {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
     parse_peers_binary(tab)
-  end
-
-  def scratch(id) do
-    peer_list = BittorrentClient.Torrent.Worker.get_peer_list(id)
-    Enum.map(peer_list, fn tp -> start_single_peer(id, tp) end)
   end
 end

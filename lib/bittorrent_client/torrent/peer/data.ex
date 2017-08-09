@@ -22,6 +22,8 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :state,
              :piece_index,
              :sub_piece_index,
+             :request_queue, # pieces that you need to serve
+             :piece_queue, # pieces the peer has that you want
              :tracker_id,
              :name
             ]

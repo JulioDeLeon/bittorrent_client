@@ -51,6 +51,18 @@ defmodule BittorrentClient.Server.Worker do
       {:connect_to_tracker_async, id})
   end
 
+  def start_torrent(serverName, id) do
+    Logger.info fn -> "Entered start_torrent #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:start_torrent, id})
+  end
+
+  def start_torrent_async(serverName, id) do
+    Logger.info fn -> "Entered start_torrent #{id}" end
+    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
+      {:start_torrent_async, id})
+  end
+
   def get_torrent_info_by_id(serverName, id) do
     Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
@@ -177,7 +189,39 @@ defmodule BittorrentClient.Server.Worker do
   def handle_call({:delete_all}, _from, {db, serverName, torrents}) do
     torrents = Map.drop(torrents, Map.keys(torrents))
     {:reply, {:ok, torrents}, {db, serverName, torrents}}
- end
+  end
+
+  def handle_call({:start_torrent, id}, _from, {db, serverName, torrents}) do
+    if Map.has_key?(torrents, id) do
+      {status, msg} = TorrentWorker.start_torrent(id)
+      case status do
+        :error ->
+          {:reply, {:error, msg},{db, serverName, torrents}}
+        _ ->
+          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
+          {:reply, {:ok, "#{id} has started"}, {db, serverName, updated_torrents}}
+      end
+    else
+      {:reply, {:ok, {403, "bad input given"}}, {db, serverName, torrents}}
+    end
+  end
+
+  def handle_cast({:start_torrent_async, id}, {db, serverName, torrents}) do
+    if Map.has_key?(torrents, id) do
+      {status, _} = TorrentWorker.start_torrent(id)
+      case status do
+        :error ->
+          {:noreply, {db, serverName, torrents}}
+        _ ->
+          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
+          {:noreply, {db, serverName, updated_torrents}}
+      end
+    else
+      {:noreply, {db, serverName, torrents}}
+    end
+  end
 
   def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
     Logger.info fn -> "Entered callback of connect_to_tracker_async" end

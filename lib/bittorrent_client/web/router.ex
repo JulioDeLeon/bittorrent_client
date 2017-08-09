@@ -79,6 +79,32 @@ defmodule BittorrentClient.Web.Router do
     end
   end
 
+  put "#{@api_root}/:id/startTorrent/" when byte_size(id) > 3 do
+    Logger.info fn -> "Connecting #{id} to tracker async" end
+    {status, msg} = Server.start_torrent("GenericName", id)
+    case status do
+      :error ->
+        Logger.debug fn -> "Could not start #{id}, returning error" end
+        {err_code, msg} = msg
+        send_resp(conn, err_code, msg)
+      :ok ->
+        Logger.debug fn -> "connect returning success" end
+        send_resp(conn, 204, "")
+    end
+  end
+
+  put "#{@api_root}/:id/startTorrent/async" when byte_size(id) > 3 do
+    Logger.info fn -> "Connecting #{id} to tracker async" end
+    status = Server.start_torrent_async("GenericName", id)
+    case status do
+      :error ->
+        Logger.debug fn -> "Could not start #{id}, returning error" end
+        send_resp(conn, 500, "Something went wrong with async call")
+      :ok ->
+        send_resp(conn, 204, "")
+    end
+  end
+
   post "#{@api_root}/add/file" do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]

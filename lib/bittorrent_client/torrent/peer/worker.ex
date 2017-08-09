@@ -26,6 +26,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       tracker_id: tracker_id,
       piece_index: 0,
       sub_piece_index: 0,
+      piece_queue: %{},
       name: name
     }
     GenServer.start_link(
@@ -64,7 +65,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
       {:noreply, {%PeerData{peer_data | timer: timer}}}
     end
-    Logger.debug fn -> "#{peer_data.name} has received a timer event" end
+    # Logger.debug fn -> "#{peer_data.name} has received a timer event" end
     socket = peer_data.socket
     case peer_data.state do
       :we_choke ->
@@ -73,15 +74,26 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         Logger.debug fn -> "#{peer_data.name} sent interested msg" end
         ret.()
       :me_choke_it_interest ->
-        msg = PeerProtocol.encode(:keep_alive)
-        :gen_tcp.send(socket, msg)
-        Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
+        msg1 = PeerProtocol.encode(:keep_alive)
+        # :gen_tcp.send(socket, msg)
+        # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
+
+        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
+        next_sub_piece_index = 0
+        msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+        Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}"end
         ret.()
       :me_interest_it_choke ->
         # Cant send data yet
         ret.()
       :we_interest ->
-        # Cant send data yet
+        # Cant send data yet but switch between request/desired queues
+        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
+        next_sub_piece_index = 0
+        msg = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+        :gen_tcp.send(peer_data.socket, msg)
+        Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg}"end
         ret.()
       _ ->
         Logger.debug fn -> "#{peer_data.name} is in #{inspect peer_data.state} state" end
@@ -97,7 +109,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     {a_pd} = peer_data
     # Logger.debug fn -> "Messages #{inspect msgs} for #{inspect peer_data}" end
     ret = loop_msgs(msgs, socket, a_pd)
-    Logger.debug fn -> "Returning this: #{inspect ret}" end
+    # Logger.debug fn -> "Returning this: #{inspect ret}" end
     {:noreply, {ret}}
   end
 
@@ -121,7 +133,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   defp handle_message(msg, _socket, peer_data) do
     # Logger.debug fn -> "Within handle_message: #{inspect peer_data}" end
     unless msg.type == :keep_alive do
-      Logger.debug fn -> "Peer requested #{peer_data.name} to stay alive" end
+      Logger.debug fn -> "Stay-Alive: #{peer_data.name}" end
     end
     peer_state = peer_data.state
     case msg.type do
@@ -134,6 +146,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
           peer_data
         end
       :choke -> # Stop leaching
+        Logger.debug fn -> "Choke MSG: #{peer_data.name}" end
         case peer_state do
           :we_interest ->
             %PeerData{peer_data | state: :me_choke_it_interest}
@@ -144,16 +157,13 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         end
       :unchoke ->
         # Start/Continue leaching
+        Logger.debug fn -> "Unchoke MSG: #{peer_data.name}" end
         state = case peer_state do
                   :we_choke ->
                     :me_choke_it_interest
                   :me_interest_it_choke ->
                     :we_interest
                 end
-        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
-        next_sub_piece_index = 0
-        msg = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-        :gen_tcp.send(peer_data.socket, msg)
         %PeerData{peer_data | state: state}
       :interested ->
         # TODO Start seeding
@@ -169,13 +179,15 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
         Logger.debug fn -> "Have MSG: #{peer_data.name}" end
-        peer_data
+        %PeerData{peer_data | piece_queue: Map.merge(peer_data.piece_queue, %{msg.piece_index => :intial})}
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
         # Again, send the payload back to the torrent process to process and track
         Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
-        peer_data
+        pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
+        # Logger.debug fn -> "BF has: #{inspect pqueue}" end
+        %PeerData{peer_data | piece_queue: pqueue}
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
@@ -223,5 +235,17 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         Logger.debug fn -> "#{ip_to_str(ip)}:#{port} is connected" end
         sock
     end
+  end
+
+  defp parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
+    if bit  == 1 do
+      parse_bitfield(rest, Map.merge(queue, %{acc => :initial}), (acc + 1))
+    else
+      parse_bitfield(rest, queue, (acc + 1))
+    end
+  end
+
+  defp parse_bitfield(_, queue, _acc) do
+    queue
   end
 end

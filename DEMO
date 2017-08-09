@@ -1,0 +1,8 @@
+#!/bin/bash
+source ./common
+
+addFile debian
+
+connectToTrackerAsync NDVNC5WY4P7MQJHKAVICBEXJWI======
+
+startTorrentAsync NDVNC5WY4P7MQJHKAVICBEXJWI======
