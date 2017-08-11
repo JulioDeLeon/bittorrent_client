@@ -19,7 +19,7 @@ defmodule BittorrentClientTest do
 
   # create test for post and put request
   test "compute info hash" do
-    file = "examples/debian2.torrent"
+    file = "priv/debian2.torrent"
     metadata = file
     |> File.read!()
     |> Bento.torrent!()
