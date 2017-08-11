@@ -9,7 +9,7 @@ URL=$PROTO://$HOST:$PORT/$API
 function addFile {
   curl -vX POST $URL/add/file \
     -H "Content-Type: application/json" \
-    -d '{"filename":"examples/'${1}'.torrent"}' 
+    -d '{"filename":"priv/'${1}'.torrent"}' 
 }
 
 function connectToTracker {
