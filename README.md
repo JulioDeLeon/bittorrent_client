@@ -1,6 +1,9 @@
 # BittorrentClient
-
 **Bittorrent client written in Elixir for personal use**
+
+[![Travis build](https://secure.travis-ci.org/JulioDeLeon/bittorrent_client.svg?branch=master
+"Build Status")](https://travis-ci.org/JulioDeLeon/bittorrent_client)
+
 
 ## Installation
 
