@@ -15,7 +15,7 @@ defmodule BittorrentClient.Supervisor do
 
   def init(:ok) do
     children = [
-      worker(ServerSupervisor, []),
+      worker(ServerSupervisor, ["GenericName"]),
       worker(WebSupervisor, []),
       worker(TorrentSupervisor, []),
       worker(PeerSupervisor, [])

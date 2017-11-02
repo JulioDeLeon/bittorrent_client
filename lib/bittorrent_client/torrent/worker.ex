@@ -9,6 +9,9 @@ defmodule BittorrentClient.Torrent.Worker do
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
 
+  #-------------------------------------------------------------------------------
+  # GenServer Callbacks
+  #-------------------------------------------------------------------------------
   def start_link({id, filename}) do
     Logger.info fn -> "Starting Torrent worker for #{filename}" end
     torrent_metadata = filename
@@ -26,58 +29,6 @@ defmodule BittorrentClient.Torrent.Worker do
 
   def init(torrent_metadata, torrent_data) do
     {:ok, {torrent_metadata, torrent_data}}
-  end
-
-  def whereis(id) do
-    :global.whereis_name({:btc_torrentworker, id})
-  end
-
-  def start_torrent(id) do
-    Logger.info fn -> "Starting torrent: #{id}" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:start_torrent, id}, :infinity)
-  end
-
-  def get_torrent_data(id) do
-    Logger.info fn -> "Getting torrent data for #{id}" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_data})
-  end
-
-  def connect_to_tracker(id) do
-    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:connect_to_tracker}, :infinity)
-  end
-
-  def connect_to_tracker_async(id) do
-    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
-    GenServer.cast(:global.whereis_name({:btc_torrentworker, id}),
-      {:connect_to_tracker_async})
-  end
-
-  def get_peers(id) do
-    Logger.debug fn -> "Getting peer list of #{id}" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_peers})
-  end
-
-  def start_single_peer(id, {ip, port}) do
-    Logger.debug fn -> "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:start_single_peer, {ip, port}})
-  end
-
-  def get_next_piece_index(id) do
-    Logger.debug fn -> "#{id} is retrieving next_piece_index" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_next_piece_index}, :infinity)
-  end
-
-  def mark_piece_index_done(id, index) do
-    Logger.debug fn -> "#{id}'s peerworker has marked #{index} as done!" end
-    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:mark_piece_index_done, index})
   end
 
   def handle_call({:get_data}, _from, {metadata, data}) do
@@ -162,7 +113,83 @@ defmodule BittorrentClient.Torrent.Worker do
     {:noreply, {new_metadata, new_data}}
   end
 
-  # UTILITY
+  #-------------------------------------------------------------------------------
+  # Api Calls
+  #-------------------------------------------------------------------------------
+  def whereis(id) do
+    :global.whereis_name({:btc_torrentworker, id})
+  end
+
+  def start_torrent(id) do
+    Logger.info fn -> "Starting torrent: #{id}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:start_torrent, id}, :infinity)
+  end
+
+  def get_torrent_data(id) do
+    Logger.info fn -> "Getting torrent data for #{id}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:get_data})
+  end
+
+  def connect_to_tracker(id) do
+    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:connect_to_tracker}, :infinity)
+  end
+
+  def connect_to_tracker_async(id) do
+    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+    GenServer.cast(:global.whereis_name({:btc_torrentworker, id}),
+      {:connect_to_tracker_async})
+  end
+
+  def get_peers(id) do
+    Logger.debug fn -> "Getting peer list of #{id}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:get_peers})
+  end
+
+  def start_single_peer(id, {ip, port}) do
+    Logger.debug fn -> "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:start_single_peer, {ip, port}})
+  end
+
+  def get_next_piece_index(id) do
+    Logger.debug fn -> "#{id} is retrieving next_piece_index" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:get_next_piece_index}, :infinity)
+  end
+
+  def mark_piece_index_done(id, index) do
+    Logger.debug fn -> "#{id}'s peerworker has marked #{index} as done!" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:mark_piece_index_done, index})
+  end
+
+
+  def parse_peers_binary(binary) do
+    parse_peers_binary(binary, [])
+  end
+
+  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
+    port = fp * 256 + sp
+    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
+  end
+
+  def parse_peers_binary(_, acc) do
+    acc
+  end
+
+  def get_peer_list(id) do
+    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
+    parse_peers_binary(tab)
+  end
+
+  #-------------------------------------------------------------------------------
+  # Utility Functions
+  #-------------------------------------------------------------------------------
   defp create_tracker_request(url, params) do
    	url_params = for key <- Map.keys(params), do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
     URI.encode(url <> "?" <> Enum.join(url_params, "&"))
@@ -262,23 +289,5 @@ defmodule BittorrentClient.Torrent.Worker do
         connected_peers: []
       }
     end
-  end
-
-  def parse_peers_binary(binary) do
-    parse_peers_binary(binary, [])
-  end
-
-  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
-    port = fp * 256 + sp
-    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
-  end
-
-  def parse_peers_binary(_, acc) do
-    acc
-  end
-
-  def get_peer_list(id) do
-    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
-    parse_peers_binary(tab)
   end
 end

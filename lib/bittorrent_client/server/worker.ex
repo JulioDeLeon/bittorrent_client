@@ -9,6 +9,9 @@ defmodule BittorrentClient.Server.Worker do
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Torrent.Data, as: TorrentData
 
+  #-------------------------------------------------------------------------------
+  # GenServer Callbacks
+  #-------------------------------------------------------------------------------
   def start_link(db_dir, name) do
     Logger.info fn -> "Starting BTC server for #{name}" end
     GenServer.start_link(
@@ -21,76 +24,6 @@ defmodule BittorrentClient.Server.Worker do
   def init({db_dir, name, torrent_map}) do
     # load from database into table
     {:ok, {db_dir, name, torrent_map}}
-  end
-
-  def whereis(name) do
-    :global.whereis_name({:btc_server, name})
-  end
-
-  def list_current_torrents(serverName) do
-    Logger.info fn -> "Entered list_current_torrents" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:list_current_torrents})
-  end
-
-  def add_new_torrent(serverName, torrentFile) do
-    Logger.info fn -> "Entered add_new_torrent #{torrentFile}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:add_new_torrent, torrentFile})
-  end
-
-  def connect_torrent_to_tracker(serverName, id) do
-    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:connect_to_tracker, id}, :infinity)
-  end
-
-  def connect_torrent_to_tracker_async(serverName, id) do
-    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
-    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
-      {:connect_to_tracker_async, id})
-  end
-
-  def start_torrent(serverName, id) do
-    Logger.info fn -> "Entered start_torrent #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:start_torrent, id})
-  end
-
-  def start_torrent_async(serverName, id) do
-    Logger.info fn -> "Entered start_torrent #{id}" end
-    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
-      {:start_torrent_async, id})
-  end
-
-  def get_torrent_info_by_id(serverName, id) do
-    Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:get_info_by_id, id})
-  end
-
-  def delete_torrent_by_id(serverName, id) do
-    Logger.info fn -> "Entered delete_torrent_by id #{id}" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:delete_by_id, id})
-  end
-
-  def update_torrent_status_by_id(serverName, id, status) do
-    Logger.info fn -> "Entered update_torrent_status_by_id" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:update_status_by_id, id, status})
-  end
-
-  def update_torrent_by_id(serverName, id, data) do
-    Logger.info fn -> "Entered update_torrent_by_id" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-     {:update_by_id, id, data})
-  end
-
-  def delete_all_torrents(serverName) do
-    Logger.info fn -> "Entered delete_all_torrents" end
-    GenServer.call(:global.whereis_name({:btc_server, serverName}),
-      {:delete_all})
   end
 
   def handle_call({:list_current_torrents}, _from, {db, serverName, torrents}) do
@@ -240,5 +173,78 @@ defmodule BittorrentClient.Server.Worker do
       Logger.error fn -> "Bad id was given #{id}" end
       {:noreply, {db, serverName, torrents}}
     end
+  end
+
+  #-------------------------------------------------------------------------------
+  # Api Functions
+  #-------------------------------------------------------------------------------
+  def whereis(name) do
+    :global.whereis_name({:btc_server, name})
+  end
+
+  def list_current_torrents(serverName) do
+    Logger.info fn -> "Entered list_current_torrents" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:list_current_torrents})
+  end
+
+  def add_new_torrent(serverName, torrentFile) do
+    Logger.info fn -> "Entered add_new_torrent #{torrentFile}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:add_new_torrent, torrentFile})
+  end
+
+  def connect_torrent_to_tracker(serverName, id) do
+    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:connect_to_tracker, id}, :infinity)
+  end
+
+  def connect_torrent_to_tracker_async(serverName, id) do
+    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
+      {:connect_to_tracker_async, id})
+  end
+
+  def start_torrent(serverName, id) do
+    Logger.info fn -> "Entered start_torrent #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:start_torrent, id})
+  end
+
+  def start_torrent_async(serverName, id) do
+    Logger.info fn -> "Entered start_torrent #{id}" end
+    GenServer.cast(:global.whereis_name({:btc_server, serverName}),
+      {:start_torrent_async, id})
+  end
+
+  def get_torrent_info_by_id(serverName, id) do
+    Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:get_info_by_id, id})
+  end
+
+  def delete_torrent_by_id(serverName, id) do
+    Logger.info fn -> "Entered delete_torrent_by id #{id}" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:delete_by_id, id})
+  end
+
+  def update_torrent_status_by_id(serverName, id, status) do
+    Logger.info fn -> "Entered update_torrent_status_by_id" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:update_status_by_id, id, status})
+  end
+
+  def update_torrent_by_id(serverName, id, data) do
+    Logger.info fn -> "Entered update_torrent_by_id" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+     {:update_by_id, id, data})
+  end
+
+  def delete_all_torrents(serverName) do
+    Logger.info fn -> "Entered delete_all_torrents" end
+    GenServer.call(:global.whereis_name({:btc_server, serverName}),
+      {:delete_all})
   end
 end

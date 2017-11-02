@@ -6,7 +6,6 @@ defmodule BittorrentClient.Torrent.Supervisor do
   require Logger
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
 
-  # start_link
   def start_link do
     Logger.info fn -> "Starting Torrent Supervisor" end
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
@@ -23,6 +22,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def terminate_child(torrent_pid) do
+    Logger.info fn -> "Request to terminate #{torrent_pid}" end
     Supervisor.terminate_child(__MODULE__, torrent_pid)
   end
 end
