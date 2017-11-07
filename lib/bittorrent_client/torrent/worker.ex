@@ -108,6 +108,33 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
+  def handle_call({:add_piece_index, index}, _from, {metadata, data}) do
+    if index >= 0 and !(Map.has_key?(data.pieces, index)) do
+      {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: Map.put(data.pieces, index, "found")}}}
+    else
+      {:reply, {:error, "invalid index"}, {metadata, data}}
+    end
+  end
+
+  def handle_call({:add_multi_pieces, lst}, _from, {metadata, data}) do
+    new_pieces = Enum.reduce(lst, %{}, fn(elem, acc)->
+      if elem >= 0 and !(Map.has_key?(acc, elem)) and !(Map.has_key?(data.pieces, elem)) do
+        %{acc | elem => "found"}
+      else
+        acc
+      end
+    end)
+    {:reply, {:ok, new_pieces}, {metadata, %TorrentData{data | pieces: Map.merge(data.pieces, new_pieces)}}}
+  end
+
+  def handle_call({:delete_piece_index, index}, _from, {metadata, data}) do
+    if index >= 0 and Map.has_key?(data.pieces, index) do
+      {:reply, {:ok, Map.fetch!(data.pieces, index)}, {metadata, %TorrentData{data | pieces: Map.delete(data.pieces, index)}}}
+    else
+      {:reply, {:error, "Invalid index"}, {metadata, data}}
+    end
+  end
+
   def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
     {_, _, {new_metadata, new_data}} = connect_to_tracker_helper({metadata, data})
     {:noreply, {new_metadata, new_data}}
@@ -168,25 +195,17 @@ defmodule BittorrentClient.Torrent.Worker do
       {:mark_piece_index_done, index})
   end
 
-
-  def parse_peers_binary(binary) do
-    parse_peers_binary(binary, [])
+  def add_new_piece_index(id, index) do
+    Logger.debug fn -> "#{id} is attempting to add new piece index: #{index}" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:add_piece_index, index})
   end
 
-  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
-    port = fp * 256 + sp
-    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
+  def add_multi_pieces(id, lst) do
+    Logger.debug fn -> "#{id} is attempting to add multliple pieces" end
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:add_piece_index, lst})
   end
-
-  def parse_peers_binary(_, acc) do
-    acc
-  end
-
-  def get_peer_list(id) do
-    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
-    parse_peers_binary(tab)
-  end
-
   #-------------------------------------------------------------------------------
   # Utility Functions
   #-------------------------------------------------------------------------------
@@ -289,5 +308,23 @@ defmodule BittorrentClient.Torrent.Worker do
         connected_peers: []
       }
     end
+  end
+
+  def parse_peers_binary(binary) do
+    parse_peers_binary(binary, [])
+  end
+
+  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
+    port = fp * 256 + sp
+    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
+  end
+
+  def parse_peers_binary(_, acc) do
+    acc
+  end
+
+  def get_peer_list(id) do
+    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
+    parse_peers_binary(tab)
   end
 end
