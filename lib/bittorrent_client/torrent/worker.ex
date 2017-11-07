@@ -92,7 +92,7 @@ defmodule BittorrentClient.Torrent.Worker do
   def handle_call({:get_next_piece_index, known_list}, _from, {metadata, data}) do
     case determine_next_piece(data.pieces, known_list) do
       {:ok, piece_index} ->
-        new_piece_table = Map.merge(data.pieces, %{piece_index => "started"})
+        new_piece_table = Map.merge(data.pieces, %{piece_index => :started})
         {:reply, {:ok, piece_index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
       {:error, msg} -> {:reply, {:error, msg}, {metadata, data}}
     end
@@ -101,7 +101,7 @@ defmodule BittorrentClient.Torrent.Worker do
   def handle_call({:mark_piece_index_done, index}, _from, {metadata, data}) do
     piece_table = data.piece
     if Map.has_key?(piece_table, index) do
-      new_piece_table = %{piece_table | index => "done"}
+      new_piece_table = %{piece_table | index => :done}
       {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
     else
       {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
@@ -110,7 +110,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   def handle_call({:add_piece_index, index}, _from, {metadata, data}) do
     if index >= 0 and !(Map.has_key?(data.pieces, index)) do
-      {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: Map.put(data.pieces, index, "found")}}}
+      {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: Map.put(data.pieces, index, :found)}}}
     else
       {:reply, {:error, "invalid index"}, {metadata, data}}
     end

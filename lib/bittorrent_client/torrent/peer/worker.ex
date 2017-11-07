@@ -61,9 +61,9 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     # Logger.debug fn -> "What is this: #{inspect peer_data}" end
     {peer_data} = state
     :erlang.cancel_timer(timer)
-    ret = fn  ->
+    ret = fn new_state ->
       timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-      {:noreply, {%PeerData{peer_data | timer: timer}}}
+      {:noreply, {%PeerData{new_state | timer: timer}}}
     end
     # Logger.debug fn -> "#{peer_data.name} has received a timer event" end
     socket = peer_data.socket
@@ -72,12 +72,9 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         msg = PeerProtocol.encode(:interested)
         :gen_tcp.send(socket, msg)
         Logger.debug fn -> "#{peer_data.name} sent interested msg" end
-        ret.()
+        ret.(peer_data)
       :me_choke_it_interest ->
         msg1 = PeerProtocol.encode(:keep_alive)
-        # :gen_tcp.send(socket, msg)
-        # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
-
         case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
@@ -94,9 +91,6 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
         msg1 = PeerProtocol.encode(:keep_alive)
-        # :gen_tcp.send(socket, msg)
-        # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
-
         case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
