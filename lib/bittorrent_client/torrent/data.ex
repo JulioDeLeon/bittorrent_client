@@ -30,6 +30,30 @@ defmodule BittorrentClient.Torrent.Data do
              :connected_peers
             ]
 
+  @type t :: %__MODULE__{
+    id: integer,
+    # pid
+    file: String.t,
+    status: String.t,
+    info_hash: String.t,
+    peer_id: String.t,
+    port: integer,
+    uploaded: integer,
+    downloaded: integer,
+    left: integer,
+    compact: boolean,
+    no_peer_id: boolean,
+    event: String.t,
+    ip: String.t,
+    numwant: integer,
+    key: String.t,
+    trackerid: String.t,
+    # tracker_info:
+    next_piece_index: integer,
+    # pieces:
+    # connected_peers:
+  }
+
   def get_peers(data) do
     data |> Map.get(:tracker_info) |> Map.get(:peers)
   end

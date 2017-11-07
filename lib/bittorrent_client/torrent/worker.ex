@@ -206,6 +206,7 @@ defmodule BittorrentClient.Torrent.Worker do
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:add_piece_index, lst})
   end
+
   #-------------------------------------------------------------------------------
   # Utility Functions
   #-------------------------------------------------------------------------------
