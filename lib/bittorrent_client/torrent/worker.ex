@@ -89,13 +89,13 @@ defmodule BittorrentClient.Torrent.Worker do
     end
   end
 
-  def handle_call({:get_next_piece_index}, _from, {metadata, data}) do
-     ret_piece_index = data.next_piece_index
-     new_piece_index = ret_piece_index + 1 # +1 for now, next logic will be diff
-     # The way the table will update will change with dying peers and etc.
-     new_piece_table = Map.merge(data.pieces, %{ret_piece_index => "started"})
-     {:reply, {:ok, ret_piece_index},
-      {metadata, %TorrentData{ data | pieces: new_piece_table, next_piece_index: new_piece_index}}}
+  def handle_call({:get_next_piece_index, known_list}, _from, {metadata, data}) do
+    case determine_next_piece(data.pieces, known_list) do
+      {:ok, piece_index} ->
+        new_piece_table = Map.merge(data.pieces, %{piece_index => "started"})
+        {:reply, {:ok, piece_index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
+      {:error, msg} -> {:reply, {:error, msg}, {metadata, data}}
+    end
   end
 
   def handle_call({:mark_piece_index_done, index}, _from, {metadata, data}) do
@@ -183,10 +183,10 @@ defmodule BittorrentClient.Torrent.Worker do
       {:start_single_peer, {ip, port}})
   end
 
-  def get_next_piece_index(id) do
+  def get_next_piece_index(id, known_list) do
     Logger.debug fn -> "#{id} is retrieving next_piece_index" end
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_next_piece_index}, :infinity)
+      {:get_next_piece_index, known_list}, :infinity)
   end
 
   def mark_piece_index_done(id, index) do
@@ -326,5 +326,20 @@ defmodule BittorrentClient.Torrent.Worker do
   def get_peer_list(id) do
     {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
     parse_peers_binary(tab)
+  end
+
+  defp determine_next_piece(piece_map, [fst | rst]) do
+    if fst >= 0 and Map.has_key?(piece_map, fst) do
+      case Map.fetch!(piece_map, fst) do
+        "found" -> {:ok, fst}
+        _ -> determine_next_piece(piece_map, rst)
+      end
+    else
+      determine_next_piece(piece_map, rst)
+    end
+  end
+
+  defp determine_next_piece(_, []) do
+    {:error, "no possible pieces available"}
   end
 end

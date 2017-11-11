@@ -78,22 +78,34 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         # :gen_tcp.send(socket, msg)
         # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
 
-        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
-        next_sub_piece_index = 0
-        msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
-        Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}"end
+        case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+          {:ok, next_piece_index} ->
+            next_sub_piece_index = 0
+            msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+            :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+            Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}" end
+          {:error, msg} ->
+            Logger.error fn -> "#{peer_data.data.name} was not able to get a available piece: #{msg}" end
+        end
         ret.()
       :me_interest_it_choke ->
         # Cant send data yet
         ret.()
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
-        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
-        next_sub_piece_index = 0
-        msg = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-        :gen_tcp.send(peer_data.socket, msg)
-        Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg}"end
+        msg1 = PeerProtocol.encode(:keep_alive)
+        # :gen_tcp.send(socket, msg)
+        # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
+
+        case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+          {:ok, next_piece_index} ->
+            next_sub_piece_index = 0
+            msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+            :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+            Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}" end
+          {:error, msg} ->
+            Logger.error fn -> "#{peer_data.data.name} was not able to get a available piece: #{msg}" end
+        end
         ret.()
       _ ->
         Logger.debug fn -> "#{peer_data.name} is in #{inspect peer_data.state} state" end
@@ -187,7 +199,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
         pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
         # Logger.debug fn -> "BF has: #{inspect pqueue}" end
-        %PeerData{peer_data | piece_queue: pqueue}
+        %PeerData{peer_data | piece_queue: Map.merge(peer_data.piece_queue, pqueue, fn _k, v1, _v2 -> v1 end)}
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
