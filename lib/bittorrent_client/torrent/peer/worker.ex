@@ -9,7 +9,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
 
-  def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
+  def start_link({metainfo, torrent_id, info_hash, filename, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
     peer_data = %PeerData{
       torrent_id: torrent_id,
@@ -23,10 +23,9 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       state: :we_choke,
       metainfo: metainfo,
       timer: nil,
-      tracker_id: tracker_id,
       piece_index: 0,
       sub_piece_index: 0,
-      piece_queue: %{},
+      piece_table: %{},
       name: name
     }
     GenServer.start_link(
@@ -185,7 +184,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
         Logger.debug fn -> "Have MSG: #{peer_data.name}" end
-        %PeerData{peer_data | piece_queue: Map.merge(peer_data.piece_queue, %{msg.piece_index => :intial})}
+        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, %{msg.piece_index => :found})}
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
@@ -193,7 +192,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
         pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
         # Logger.debug fn -> "BF has: #{inspect pqueue}" end
-        %PeerData{peer_data | piece_queue: Map.merge(peer_data.piece_queue, pqueue, fn _k, v1, _v2 -> v1 end)}
+        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, pqueue, fn _k, v1, _v2 -> v1 end)}
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
