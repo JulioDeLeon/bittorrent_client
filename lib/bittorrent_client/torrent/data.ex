@@ -1,6 +1,12 @@
 defmodule BittorrentClient.Torrent.Data do
   @moduledoc """
   Torrent data defines struct which will represent relavent torrent worker information to be passed between processes
+  Fields are:
+  * `id` - 20-byte SHA1 hash string which uniquely identifies the process.
+  * `pid` - Erlang assigned PID for reference (MAY NOT BE NEEDED).
+  * `status` - the status of the torrent process, :initial | :started | :finished | :seeding | ???.
+  * `info_hash` - 20-byte SHA1 hash to be used in handshake and fact checking steps.
+  * `peer_id` - 
   """
   @derive {Poison.Encoder, except: [:pid,
                                     :tracker_info,

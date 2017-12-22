@@ -3,11 +3,14 @@ defmodule BittorrentClient.Torrent.Peer.Supervisor do
   Peer supervisor which is created when a new torrent is created to mange peer connections
   """
   use Supervisor
-  require Logger
   alias BittorrentClient.Torrent.Peer.Worker, as: PeerWorker
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
+
+  @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link do
-    Logger.info fn -> "Starting Peer supervisor" end
+    JDLogger.info(@logger, "Starting Peer supervisor")
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -17,7 +20,7 @@ defmodule BittorrentClient.Torrent.Peer.Supervisor do
   end
 
   def start_child({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
-    Logger.info fn -> "Starting peer connection for #{torrent_id}" end
+    JDLogger.info(@logger, "Starting peer connection for #{torrent_id}")
     # This also looks like this can be shipped at a list
     Supervisor.start_child(__MODULE__, [{metainfo,
                                          torrent_id,

@@ -4,10 +4,13 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   https://wiki.theory.org/index.php/BitTorrentSpecification#Peer_wire_protocol_.28TCP.29
   """
   use GenServer
-  require Logger
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
+
+  @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link({metainfo, torrent_id, info_hash, filename, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
@@ -37,7 +40,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
 
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-    Logger.info fn -> "Starting peer worker for #{peer_data.name}" end
+    JDLogger.info(@logger, "Starting peer worker for #{peer_data.name}")
     sock = connect(peer_data.peer_ip, peer_data.peer_port)
     msg = PeerProtocol.encode(:handshake, <<0::size(64)>>,
       peer_data.info_hash, peer_data.peer_id)
@@ -47,7 +50,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
 
   # these handle_info calls come from the socket for attention
   def handle_info({:error, reason}, peer_data) do
-    Logger.error fn -> "#{peer_data.name} has come across and error: #{reason}" end
+    JDLogger.error(@logger, "#{peer_data.name} has come across and error: #{reason}")
     # terminate genserver gracefully?
     {:noreply, peer_data}
   end
@@ -57,20 +60,20 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
     # this should look at the state of the message to determine what to send
     # to peer. the timer sends a signal to the peer handle when it is time to
     # send over a message.
-    # Logger.debug fn -> "What is this: #{inspect peer_data}" end
+    # JDLogger.debug(@logger, "What is this: #{inspect peer_data}")
     {peer_data} = state
     :erlang.cancel_timer(timer)
     ret = fn new_state ->
       timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
       {:noreply, {%PeerData{new_state | timer: timer}}}
     end
-    # Logger.debug fn -> "#{peer_data.name} has received a timer event" end
+    # JDLogger.debug(@logger, "#{peer_data.name} has received a timer event")
     socket = peer_data.socket
     case peer_data.state do
       :we_choke ->
         msg = PeerProtocol.encode(:interested)
         :gen_tcp.send(socket, msg)
-        Logger.debug fn -> "#{peer_data.name} sent interested msg" end
+        JDLogger.debug(@logger, "#{peer_data.name} sent interested msg")
         ret.(peer_data)
       :me_choke_it_interest ->
         msg1 = PeerProtocol.encode(:keep_alive)
@@ -79,9 +82,9 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
             :gen_tcp.send(peer_data.socket, msg1 <> msg2)
-            Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}" end
+            JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
           {:error, msg} ->
-            Logger.error fn -> "#{peer_data.data.name} was not able to get a available piece: #{msg}" end
+            JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
         end
         ret.()
       :me_interest_it_choke ->
@@ -95,13 +98,13 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
             :gen_tcp.send(peer_data.socket, msg1 <> msg2)
-            Logger.debug fn -> "#{peer_data.name} has sent Request MSG: #{inspect msg2}" end
+            JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
           {:error, msg} ->
-            Logger.error fn -> "#{peer_data.data.name} was not able to get a available piece: #{msg}" end
+            JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
         end
         ret.()
       _ ->
-        Logger.debug fn -> "#{peer_data.name} is in #{inspect peer_data.state} state" end
+        JDLogger.debug(@logger, "#{peer_data.name} is in #{inspect peer_data.state} state")
         ret.()
     end
   end
@@ -109,12 +112,12 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   def handle_info({:tcp, socket, msg}, peer_data) do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
-    # Logger.debug fn -> "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}" end
+    # JDLogger.debug(@logger, "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}")
     {msgs, _} = PeerProtocol.decode(msg)
     {a_pd} = peer_data
-    # Logger.debug fn -> "Messages #{inspect msgs} for #{inspect peer_data}" end
+    # JDLogger.debug(@logger, "Messages #{inspect msgs} for #{inspect peer_data}")
     ret = loop_msgs(msgs, socket, a_pd)
-    # Logger.debug fn -> "Returning this: #{inspect ret}" end
+    # JDLogger.debug(@logger, "Returning this: #{inspect ret}")
     {:noreply, {ret}}
   end
 
@@ -125,7 +128,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
   end
 
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
-    Logger.info fn -> "#{peer_data.name} has closed socket, should terminate" end
+    JDLogger.info(@logger, "#{peer_data.name} has closed socket, should terminate")
     # Gracefully stop this peer process OR get a new peer
     {:noreply, {peer_data}}
   end
@@ -136,22 +139,22 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
 
   # Utility
   defp handle_message(msg, _socket, peer_data) do
-    # Logger.debug fn -> "Within handle_message: #{inspect peer_data}" end
+    # JDLogger.debug(@logger, "Within handle_message: #{inspect peer_data}")
     unless msg.type == :keep_alive do
-      Logger.debug fn -> "Stay-Alive: #{peer_data.name}" end
+      JDLogger.debug(@logger, "Stay-Alive: #{peer_data.name}")
     end
     peer_state = peer_data.state
     case msg.type do
       :handshake ->
         if peer_data.handshake_check == false do
           # TODO: check the recieved info hash?
-          Logger.debug fn -> "Handshake MSG: #{peer_data.name}" end
+          JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
           %PeerData{peer_data | state: :we_choke , handshake_check: true}
         else
           peer_data
         end
       :choke -> # Stop leaching
-        Logger.debug fn -> "Choke MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Choke MSG: #{peer_data.name}")
         case peer_state do
           :we_interest ->
             %PeerData{peer_data | state: :me_choke_it_interest}
@@ -162,7 +165,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         end
       :unchoke ->
         # Start/Continue leaching
-        Logger.debug fn -> "Unchoke MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Unchoke MSG: #{peer_data.name}")
         state = case peer_state do
                   :we_choke ->
                     :me_choke_it_interest
@@ -172,43 +175,43 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         %PeerData{peer_data | state: state}
       :interested ->
         # TODO Start seeding
-        Logger.debug fn -> "Interested MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Interested MSG: #{peer_data.name}")
         peer_data
       :not_interest ->
         # TODO Stop seeding
-        Logger.debug fn -> "Not_interested MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Not_interested MSG: #{peer_data.name}")
         peer_data
       :have ->
         # Peer lets client know which pieces it has
         # Could send message back to parent torrent process to log/add to known pieces
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
-        Logger.debug fn -> "Have MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
         %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, %{msg.piece_index => :found})}
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
         # Again, send the payload back to the torrent process to process and track
-        Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
         pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
-        # Logger.debug fn -> "BF has: #{inspect pqueue}" end
+        # JDLogger.debug(@logger, "BF has: #{inspect pqueue}")
         %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, pqueue, fn _k, v1, _v2 -> v1 end)}
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
-        Logger.debug fn -> "Piece MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
         peer_data
       :cancel ->
         # TODO kills this peer handling process gracefull
-        Logger.debug fn -> "Cancel MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Cancel MSG: #{peer_data.name}")
         peer_data
       :port ->
         # TODO handle port change
-        Logger.debug fn -> "Port MSG: #{peer_data.name}" end
+        JDLogger.debug(@logger, "Port MSG: #{peer_data.name}")
         peer_data
      _ ->
         unless msg.type == :keep_alive do
-          Logger.error fn -> "#{peer_state.name} could not handle this message: #{inspect msg}" end
+          JDLogger.error(@logger, "#{peer_state.name} could not handle this message: #{inspect msg}")
           peer_data
         end
     end
@@ -237,7 +240,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       :error ->
         raise "#{ip_to_str(ip)}:#{port} could not connect"
       :ok ->
-        Logger.debug fn -> "#{ip_to_str(ip)}:#{port} is connected" end
+        JDLogger.debug(@logger, "#{ip_to_str(ip)}:#{port} is connected")
         sock
     end
   end

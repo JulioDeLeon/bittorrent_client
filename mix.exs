@@ -1,10 +1,3 @@
-defmodule Mix.Tasks.Compile.CustomNifs do
-  def run(_args) do
-    {result, _errcode} = System.cmd("make", [], stderr_to_stdout: true)
-    IO.binwrite(result)
-  end
-end
-
 defmodule BittorrentClient.Mixfile do
   use Mix.Project
 

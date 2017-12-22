@@ -4,16 +4,19 @@ defmodule BittorrentClient.Server.Worker do
   control to torrent handlers and database modules
   """
   use GenServer
-  require Logger
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Torrent.Data, as: TorrentData
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
+
+  @logger LoggerFactory.create_logger(__MODULE__)
 
   #-------------------------------------------------------------------------------
   # GenServer Callbacks
   #-------------------------------------------------------------------------------
   def start_link(db_dir, name) do
-    Logger.info fn -> "Starting BTC server for #{name}" end
+    JDLogger.info(@logger, "Starting BTC server for #{name}")
     GenServer.start_link(
       __MODULE__,
       {db_dir, name, Map.new()},
@@ -44,10 +47,10 @@ defmodule BittorrentClient.Server.Worker do
     id = torrentFile
     |> fn x -> :crypto.hash(:md5, x) end.()
     |> Base.encode32
-    Logger.debug fn -> "add_new_torrent Generated #{id}" end
+    JDLogger.debug(@logger, "add_new_torrent Generated #{id}")
     if not Map.has_key?(torrents, id) do
       {status, _} = TorrentSupervisor.start_child({id, torrentFile})
-      Logger.debug fn -> "add_new_torrent Status: #{status}" end
+      JDLogger.debug(@logger, "add_new_torrent Status: #{status}")
       case status do
         :error ->
           {:reply, {:error, "Failed to add torrent for #{torrentFile}\n"},
@@ -56,7 +59,7 @@ defmodule BittorrentClient.Server.Worker do
           {check, data} = TorrentWorker.get_torrent_data(id)
           case check do
           	:error ->
-              Logger.error fn -> "Failed to add new torrent for #{torrentFile}" end
+              JDLogger.error(@logger, "Failed to add new torrent for #{torrentFile}")
               {:reply, {:error, "Failed to add torrent\n"}, {db, serverName, torrents}}
           	_ ->
               updated_torrents = Map.put(torrents, id, data)
@@ -70,10 +73,10 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, serverName, torrents}) do
-    Logger.debug fn -> "Entered delete_by_id" end
+    JDLogger.debug(@logger, "Entered delete_by_id")
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
-      Logger.debug fn -> "TorrentData: #{inspect torrent_data}" end
+      JDLogger.debug(@logger, "TorrentData: #{inspect torrent_data}")
       TorrentSupervisor.terminate_child(torrent_data.pid)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
@@ -83,7 +86,7 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
-    Logger.info fn -> "Entered callback of connect_to_tracker" end
+    JDLogger.info(@logger, "Entered callback of connect_to_tracker")
     if Map.has_key?(torrents, id) do
       {status, msg} = TorrentWorker.connect_to_tracker(id)
       case status do
@@ -157,7 +160,7 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
-    Logger.info fn -> "Entered callback of connect_to_tracker_async" end
+    JDLogger.info(@logger, "Entered callback of connect_to_tracker_async")
     if Map.has_key?(torrents, id) do
       {status, _} = TorrentWorker.connect_to_tracker(id)
       case status do
@@ -166,11 +169,11 @@ defmodule BittorrentClient.Server.Worker do
         _ ->
           {_, new_info} = TorrentWorker.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
-          Logger.info fn -> "connect_to_tracker_async #{id} completed" end
+          JDLogger.info(@logger, "connect_to_tracker_async #{id} completed")
           {:noreply, {db, serverName, updated_torrents}}
       end
     else
-      Logger.error fn -> "Bad id was given #{id}" end
+      JDLogger.error(@logger, "Bad id was given #{id}")
       {:noreply, {db, serverName, torrents}}
     end
   end
@@ -183,67 +186,67 @@ defmodule BittorrentClient.Server.Worker do
   end
 
   def list_current_torrents(serverName) do
-    Logger.info fn -> "Entered list_current_torrents" end
+    JDLogger.info(@logger, "Entered list_current_torrents")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:list_current_torrents})
   end
 
   def add_new_torrent(serverName, torrentFile) do
-    Logger.info fn -> "Entered add_new_torrent #{torrentFile}" end
+    JDLogger.info(@logger, "Entered add_new_torrent #{torrentFile}")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:add_new_torrent, torrentFile})
   end
 
   def connect_torrent_to_tracker(serverName, id) do
-    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    JDLogger.info(@logger, "Entered connect_torrent_to_tracker #{id}")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:connect_to_tracker, id}, :infinity)
   end
 
   def connect_torrent_to_tracker_async(serverName, id) do
-    Logger.info fn -> "Entered connect_torrent_to_tracker #{id}" end
+    JDLogger.info(@logger, "Entered connect_torrent_to_tracker #{id}")
     GenServer.cast(:global.whereis_name({:btc_server, serverName}),
       {:connect_to_tracker_async, id})
   end
 
   def start_torrent(serverName, id) do
-    Logger.info fn -> "Entered start_torrent #{id}" end
+    JDLogger.info(@logger, "Entered start_torrent #{id}")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:start_torrent, id})
   end
 
   def start_torrent_async(serverName, id) do
-    Logger.info fn -> "Entered start_torrent #{id}" end
+    JDLogger.info(@logger, "Entered start_torrent #{id}")
     GenServer.cast(:global.whereis_name({:btc_server, serverName}),
       {:start_torrent_async, id})
   end
 
   def get_torrent_info_by_id(serverName, id) do
-    Logger.info fn -> "Entered get_torrent_info_by_id #{id}" end
+    JDLogger.info(@logger, "Entered get_torrent_info_by_id #{id}")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:get_info_by_id, id})
   end
 
   def delete_torrent_by_id(serverName, id) do
-    Logger.info fn -> "Entered delete_torrent_by id #{id}" end
+    JDLogger.info(@logger, "Entered delete_torrent_by id #{id}")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:delete_by_id, id})
   end
 
   def update_torrent_status_by_id(serverName, id, status) do
-    Logger.info fn -> "Entered update_torrent_status_by_id" end
+    JDLogger.info(@logger, "Entered update_torrent_status_by_id")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:update_status_by_id, id, status})
   end
 
   def update_torrent_by_id(serverName, id, data) do
-    Logger.info fn -> "Entered update_torrent_by_id" end
+    JDLogger.info(@logger, "Entered update_torrent_by_id")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
      {:update_by_id, id, data})
   end
 
   def delete_all_torrents(serverName) do
-    Logger.info fn -> "Entered delete_all_torrents" end
+    JDLogger.info(@logger, "Entered delete_all_torrents")
     GenServer.call(:global.whereis_name({:btc_server, serverName}),
       {:delete_all})
   end
