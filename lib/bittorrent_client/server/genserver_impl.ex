@@ -1,8 +1,9 @@
-defmodule BittorrentClient.Server.Worker do
+defmodule BittorrentClient.Server.GenServerImpl do
   @moduledoc """
   BittorrentClient Server handles calls to add or remove new torrents to be handle,
   control to torrent handlers and database modules
   """
+  @behaviour BittorrentClient.Server
   use GenServer
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Torrent.Worker, as: TorrentWorker
