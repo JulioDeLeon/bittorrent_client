@@ -2,6 +2,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   @moduledoc """
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
+  @behaviour BittorrentClient.Torrent
   use GenServer
   require HTTPoison
   alias BittorrentClient.Torrent.Data, as: TorrentData
@@ -327,7 +328,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def get_peer_list(id) do
-    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
+    {_, tab} = get_peers(id)
     parse_peers_binary(tab)
   end
 

@@ -8,4 +8,7 @@ config :bittorrent_client,
   numwant: 80,
   key: "",
   trackerid: "",
-  server_impl: BittorrentClient.Server.GenServerImpl
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Torrent.Peer.GenServerImpl
+

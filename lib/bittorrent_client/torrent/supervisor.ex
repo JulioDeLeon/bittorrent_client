@@ -4,10 +4,10 @@ defmodule BittorrentClient.Torrent.Supervisor do
   """
   use Supervisor
   #require Logger
-  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
+  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link do
@@ -17,7 +17,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def init(_) do
-    supervise([worker(TorrentWorker, [])],
+    supervise([worker(@torrent_impl, [])],
       strategy: :simple_one_for_one)
   end
 

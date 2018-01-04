@@ -6,12 +6,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
   @behaviour BittorrentClient.Server
   use GenServer
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
-  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
   @logger LoggerFactory.create_logger(__MODULE__)
+  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
 
   #-------------------------------------------------------------------------------
   # GenServer Callbacks
@@ -57,7 +57,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
           {:reply, {:error, "Failed to add torrent for #{torrentFile}\n"},
            {db, serverName, torrents}}
       	_ ->
-          {check, data} = TorrentWorker.get_torrent_data(id)
+          {check, data} = @torrent_impl.get_torrent_data(id)
           case check do
           	:error ->
               JDLogger.error(@logger, "Failed to add new torrent for #{torrentFile}")
@@ -89,12 +89,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
   def handle_call({:connect_to_tracker, id}, _from, {db, serverName, torrents}) do
     JDLogger.info(@logger, "Entered callback of connect_to_tracker")
     if Map.has_key?(torrents, id) do
-      {status, msg} = TorrentWorker.connect_to_tracker(id)
+      {status, msg} = @torrent_impl.connect_to_tracker(id)
       case status do
         :error ->
           {:reply, {:error, msg}, {db, serverName, torrents}}
         _ ->
-          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
           {:reply, {:ok, "#{id} has connected to tracker\n"}, {db, serverName, updated_torrents}}
       end
@@ -130,12 +130,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
   def handle_call({:start_torrent, id}, _from, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      {status, msg} = TorrentWorker.start_torrent(id)
+      {status, msg} = @torrent_impl.start_torrent(id)
       case status do
         :error ->
           {:reply, {:error, msg},{db, serverName, torrents}}
         _ ->
-          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
           {:reply, {:ok, "#{id} has started"}, {db, serverName, updated_torrents}}
       end
@@ -146,12 +146,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
   def handle_cast({:start_torrent_async, id}, {db, serverName, torrents}) do
     if Map.has_key?(torrents, id) do
-      {status, _} = TorrentWorker.start_torrent(id)
+      {status, _} = @torrent_impl.start_torrent(id)
       case status do
         :error ->
           {:noreply, {db, serverName, torrents}}
         _ ->
-          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
           {:noreply, {db, serverName, updated_torrents}}
       end
@@ -163,12 +163,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
   def handle_cast({:connect_to_tracker_async, id}, {db, serverName, torrents}) do
     JDLogger.info(@logger, "Entered callback of connect_to_tracker_async")
     if Map.has_key?(torrents, id) do
-      {status, _} = TorrentWorker.connect_to_tracker(id)
+      {status, _} = @torrent_impl.connect_to_tracker(id)
       case status do
         :error ->
           {:noreply, {db, serverName, torrents}}
         _ ->
-          {_, new_info} = TorrentWorker.get_torrent_data(id)
+          {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
           JDLogger.info(@logger, "connect_to_tracker_async #{id} completed")
           {:noreply, {db, serverName, updated_torrents}}

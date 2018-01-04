@@ -1,15 +1,16 @@
-defmodule BittorrentClient.Torrent.Peer.Worker do
+defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   @moduledoc """
   Peer worker to handle peer connections
   https://wiki.theory.org/index.php/BitTorrentSpecification#Peer_wire_protocol_.28TCP.29
   """
+  @behaviour BittorrentClient.Torrent.Peer
   use GenServer
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
-  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
+  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link({metainfo, torrent_id, info_hash, filename, interval, ip, port}) do
@@ -77,7 +78,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
         ret.(peer_data)
       :me_choke_it_interest ->
         msg1 = PeerProtocol.encode(:keep_alive)
-        case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
@@ -93,7 +94,7 @@ defmodule BittorrentClient.Torrent.Peer.Worker do
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
         msg1 = PeerProtocol.encode(:keep_alive)
-        case TorrentWorker.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)

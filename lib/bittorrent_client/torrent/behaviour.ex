@@ -34,9 +34,9 @@ defmodule BittorrentClient.Torrent do
 
   @doc """
   """
-  @type ip :: {integer(), integer(), integet(), integer()}
-  @type port :: integer()
-  @callback start_single_peer(torrentID :: String.t, {ip :: ip, port :: port}) :: {atom(), {atom(), String.t}, tuple()}
+  @type d_ip :: {integer(), integer(), integer(), integer()}
+  @type d_port :: integer()
+  @callback start_single_peer(torrentID :: String.t, {ip :: d_ip, port :: d_port}) :: {atom(), {atom(), String.t}, tuple()}
 
   @doc """
   """
