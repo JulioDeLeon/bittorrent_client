@@ -11,7 +11,7 @@ defmodule BittorrentClient.Torrent do
   @doc """
   start_torrent initiates the communication between peers to start sharing the relative torrent file.
   """
-  @callback start_torrent(torrentID :: String.t) :: {atom(), {atom(), String.t}, tuple()}
+  @callback start_torrent(torrentID :: String.t) :: {atom(), {atom(), String.t, any()}, tuple()}
 
   @doc """
   get_torrent_data retrieves the metadata and data of torrent process
@@ -26,7 +26,7 @@ defmodule BittorrentClient.Torrent do
   @doc """
   connect_to_tracker attempts to connect a torrent process to it's relative tracker to retrieve a peer list asynchronously. Return in GenServer cast style. 
   """
-  @callback connect_to_tracker_async(torrentID :: String.t) :: {atom()}
+  @callback connect_to_tracker_async(torrentID :: String.t) :: (atom())
 
   @doc """
   """

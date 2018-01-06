@@ -87,10 +87,10 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
           {:error, msg} ->
             JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
         end
-        ret.()
+        ret.(peer_data)
       :me_interest_it_choke ->
         # Cant send data yet
-        ret.()
+        ret.(peer_data)
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
         msg1 = PeerProtocol.encode(:keep_alive)
@@ -103,10 +103,10 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
           {:error, msg} ->
             JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
         end
-        ret.()
+        ret.(peer_data)
       _ ->
         JDLogger.debug(@logger, "#{peer_data.name} is in #{inspect peer_data.state} state")
-        ret.()
+        ret.(peer_data)
     end
   end
 

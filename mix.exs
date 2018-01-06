@@ -51,7 +51,7 @@ defmodule BittorrentClient.Mixfile do
       {:credo, "~> 0.7", only: :dev}, 		  # code quality tool
       {:dogma, "~> 0.1", only: :dev},         # linter
       {:gen_state_machine, "~> 2.0"},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:dialyxir, "~> 0.5", only: [:dev]},
       {:earmark, "~> 1.2.2", only: :dev},
       {:ex_doc, "~> 0.16", only: :dev}
     ]

@@ -19,14 +19,13 @@ defmodule BittorrentClient.Torrent.Peer.Supervisor do
       strategy: :simple_one_for_one)
   end
 
-  def start_child({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
+  def start_child({metainfo, torrent_id, info_hash, filename, interval, ip, port}) do
     JDLogger.info(@logger, "Starting peer connection for #{torrent_id}")
     # This also looks like this can be shipped at a list
     Supervisor.start_child(__MODULE__, [{metainfo,
                                          torrent_id,
                                          info_hash,
                                          filename,
-                                         tracker_id,
                                          interval,
                                          ip,
                                          port

@@ -26,7 +26,7 @@ defmodule BittorrentClient.Server do
   @doc """
   Attempts to connect to a torrent process to it's relative tracker asynchronously. does not return feedback in Genserver cast styling.
   """
-  @callback connect_torrent_to_tracker_async(serverName :: String.t, torrentID :: String.t) :: {atom(), tuple()}
+  @callback connect_torrent_to_tracker_async(serverName :: String.t, torrentID :: String.t) :: (atom())
 
   @doc """
   Tells torrent process to request peers from the tracker and start requesting data. Will fail if the process has not connect to the tracker yet.
@@ -36,7 +36,7 @@ defmodule BittorrentClient.Server do
   @doc """
   Tells torrent process to request peers from the tracker and start request data from peers. This returns In Genserver cast styling.
   """
-  @callback start_torrent_async(serverName :: String.t, torrentID :: String.t) :: {atom(), tuple()}
+  @callback start_torrent_async(serverName :: String.t, torrentID :: String.t) :: (atom())
 
   @doc """
   Retrieves torrent information of preccess. Returns in GenServer all style.

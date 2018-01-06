@@ -12,6 +12,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
   @logger LoggerFactory.create_logger(__MODULE__)
+  #@torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
   #-------------------------------------------------------------------------------
   # GenServer Callbacks
@@ -57,7 +58,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       Map.get(data, :id),
       Map.get(data, :info_hash),
       Map.get(data, :filename),
-      Application.get_env(:bittorrent_client, :trackerid),
       data |> Map.get(:tracker_info) |> Map.get(:interval),
       ip,
       port})
@@ -70,25 +70,28 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:start_torrent, id}, _from, {metadata, data}) do
-    if data.status != :started do
-      {:reply, {:error, {403, "#{id} has not connected to tracker"}}, {metadata, data}}
-    else
-      peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
-      if (length peer_list) == 0 do
-        {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
-      else
-        _ret = Enum.map(peer_list, fn {ip, port} ->
-          PeerSupervisor.start_child({
-            metadata,
-            Map.get(data, :id),
-            Map.get(data, :info_hash),
-            Map.get(data, :filename),
-            data |> Map.get(:tracker_info) |> Map.get(:interval),
-            ip,
-            port})
-        end)
-        {:reply, {:ok, "started torrent #{id}"}, {metadata, data}}
-      end
+    case data.status do
+      :initial ->
+        {:reply, {:error, {403, "#{id} has not connected to tracker"}}, {metadata, data}}
+      :error ->
+        {:reply, {:error, {403, "#{id} has experienced an error somewhere. Will not connect."}}, {metadata, data}}
+      _ ->
+        peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
+        if (length peer_list) == 0 do
+          {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
+        else
+          returned_pids = Enum.map(peer_list, fn {ip, port} ->
+            PeerSupervisor.start_child({
+              metadata,
+              Map.get(data, :id),
+              Map.get(data, :info_hash),
+              Map.get(data, :filename),
+              data |> Map.get(:tracker_info) |> Map.get(:interval),
+              ip,
+              port})
+          end)
+          {:reply, {:ok, "started torrent #{id}", returned_pids}, {metadata, %TorrentData{data | status: :started}}}
+        end
     end
   end
 
@@ -263,12 +266,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
           :error -> {:reply, {:error, {500, "Failed to connect to tracker"}},
-                    {metadata, Map.put(data, :status, "failed")}}
+                    {metadata, Map.put(data, :status, :error)}}
           _ ->
           # update data
             updated_data =  data
             |> Map.put(:tracker_info, tracker_info)
-            |> Map.put(:status, "started")
+            |> Map.put(:status, :connected)
             {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
         end
     end
@@ -289,7 +292,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         id: id,
         pid: self(),
         file: file,
-        event: "started",
         peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
         compact: Application.fetch_env!(:bittorrent_client, :compact),
         port: Application.fetch_env!(:bittorrent_client, :port),
@@ -309,7 +311,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         pieces: %{},
         # This would be none zero if continueing, for now 0
         next_piece_index: 0,
-        connected_peers: []
+        connected_peers: [],
+        status: :initial
       }
     end
   end

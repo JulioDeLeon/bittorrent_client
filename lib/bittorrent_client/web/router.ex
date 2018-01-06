@@ -70,15 +70,9 @@ defmodule BittorrentClient.Web.Router do
 
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker async")
-    status = @server_impl.connect_torrent_to_tracker_async("GenericName", id)
-    case status do
-      :error ->
-        JDLogger.debug(@logger, "connect returning error")
-        send_resp(conn, 500, "Something went wrong with async connection to tracker")
-      :ok ->
-        JDLogger.debug(@logger, "connect returning success")
-        send_resp(conn, 204, "")
-    end
+    _status = @server_impl.connect_torrent_to_tracker_async("GenericName", id)
+    JDLogger.debug(@logger, "connect returning success")
+    send_resp(conn, 204, "")
   end
 
   put "#{@api_root}/:id/startTorrent/" when byte_size(id) > 3 do
@@ -97,14 +91,8 @@ defmodule BittorrentClient.Web.Router do
 
   put "#{@api_root}/:id/startTorrent/async" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker async")
-    status = @server_impl.start_torrent_async("GenericName", id)
-    case status do
-      :error ->
-        JDLogger.debug(@logger, "Could not start #{id}, returning error")
-        send_resp(conn, 500, "Something went wrong with async call")
-      :ok ->
-        send_resp(conn, 204, "")
-    end
+    _status = @server_impl.start_torrent_async("GenericName", id)
+    send_resp(conn, 204, "")
   end
 
   post "#{@api_root}/add/file" do
