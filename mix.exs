@@ -1,10 +1,3 @@
-defmodule Mix.Tasks.Compile.CustomNifs do
-  def run(_args) do
-    {result, _errcode} = System.cmd("make", [], stderr_to_stdout: true)
-    IO.binwrite(result)
-  end
-end
-
 defmodule BittorrentClient.Mixfile do
   use Mix.Project
 
@@ -14,7 +7,8 @@ defmodule BittorrentClient.Mixfile do
      elixir: "~> 1.3",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps()]
+     deps: deps(),
+     dialyzer: [plt_add_deps: true]]
   end
 
   # Configuration for the OTP application
@@ -58,7 +52,9 @@ defmodule BittorrentClient.Mixfile do
       {:credo, "~> 0.7", only: :dev}, 		  # code quality tool
       {:dogma, "~> 0.1", only: :dev},         # linter
       {:gen_state_machine, "~> 2.0"},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
+      {:dialyxir, "~> 0.5", only: [:dev]},
+      {:earmark, "~> 1.2.2", only: :dev},
+      {:ex_doc, "~> 0.16", only: :dev}
     ]
   end
 end

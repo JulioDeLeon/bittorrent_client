@@ -4,7 +4,6 @@ defmodule BittorrentClient.Web.Router do
   """
   use Plug.Router
   alias Plug.Conn, as: Conn
-  require Logger
 
   plug Plug.Logger
   plug Plug.Parsers, parsers: [:urlencoded, :json],
@@ -13,8 +12,11 @@ defmodule BittorrentClient.Web.Router do
   plug :match
   plug :dispatch
 
-  alias BittorrentClient.Server.Worker, as: Server
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
+  @server_impl Application.get_env(:bittorrent_client, :server_impl)
+  @logger LoggerFactory.create_logger(__MODULE__)
   @api_root "/api/v1"
 
   get "/ping" do
@@ -22,11 +24,11 @@ defmodule BittorrentClient.Web.Router do
   end
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
-    Logger.info fn -> "Getting status for #{id}" end
-    {status, msg} = Server.get_torrent_info_by_id("GenericName", id)
+    JDLogger.info(@logger, "Getting status for #{id}")
+    {status, msg} = @server_impl.get_torrent_info_by_id("GenericName", id)
     case status do
       :ok ->
-        Logger.debug fn -> "Retrieved info for #{id}" end
+        JDLogger.debug(@logger, "Retrieved info for #{id}")
         put_resp_content_type(conn, "application/json")
         data = msg["data"]
         send_resp(conn, 200, %{"status" => Map.get(data, :status),
@@ -34,30 +36,30 @@ defmodule BittorrentClient.Web.Router do
                                "uploaded" => Map.get(data, :uploaded)}
           |> Poison.encode!())
       :error ->
-        Logger.debug fn -> "Failed to retrieve info for #{id}" end
+        JDLogger.debug(@logger, "Failed to retrieve info for #{id}")
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
   end
 
   get "#{@api_root}/:id/info" when byte_size(id) > 3 do
-    Logger.info fn -> "Getting info for #{id}" end
-    {status, msg} = Server.get_torrent_info_by_id("GenericName", id)
+    JDLogger.info(@logger, "Getting info for #{id}")
+    {status, msg} = @server_impl.get_torrent_info_by_id("GenericName", id)
     case status do
       :ok ->
-        Logger.debug fn -> "Retrieved info for #{id}" end
+        JDLogger.debug(@logger, "Retrieved info for #{id}")
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
       :error ->
-        Logger.debug fn -> "Failed to retrieve info for #{id}" end
+        JDLogger.debug(@logger, "Failed to retrieve info for #{id}")
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
   end
 
   put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
-    Logger.info fn -> "Connecting #{id} to tracker" end
-    {status, msg} = Server.connect_torrent_to_tracker("GenericName", id)
+    JDLogger.info(@logger, "Connecting #{id} to tracker")
+    {status, msg} = @server_impl.connect_torrent_to_tracker("GenericName", id)
     case status do
       :ok ->
         send_resp(conn, 204, "")
@@ -67,49 +69,37 @@ defmodule BittorrentClient.Web.Router do
   end
 
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do
-    Logger.info fn -> "Connecting #{id} to tracker async" end
-    status = Server.connect_torrent_to_tracker_async("GenericName", id)
-    case status do
-      :error ->
-        Logger.debug fn -> "connect returning error" end
-        send_resp(conn, 500, "Something went wrong with async connection to tracker")
-      :ok ->
-        Logger.debug fn -> "connect returning success" end
-        send_resp(conn, 204, "")
-    end
+    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    _status = @server_impl.connect_torrent_to_tracker_async("GenericName", id)
+    JDLogger.debug(@logger, "connect returning success")
+    send_resp(conn, 204, "")
   end
 
   put "#{@api_root}/:id/startTorrent/" when byte_size(id) > 3 do
-    Logger.info fn -> "Connecting #{id} to tracker async" end
-    {status, msg} = Server.start_torrent("GenericName", id)
+    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    {status, msg} = @server_impl.start_torrent("GenericName", id)
     case status do
       :error ->
-        Logger.debug fn -> "Could not start #{id}, returning error" end
+        JDLogger.debug(@logger, "Could not start #{id}, returning error")
         {err_code, msg} = msg
         send_resp(conn, err_code, msg)
       :ok ->
-        Logger.debug fn -> "connect returning success" end
+        JDLogger.debug(@logger, "connect returning success")
         send_resp(conn, 204, "")
     end
   end
 
   put "#{@api_root}/:id/startTorrent/async" when byte_size(id) > 3 do
-    Logger.info fn -> "Connecting #{id} to tracker async" end
-    status = Server.start_torrent_async("GenericName", id)
-    case status do
-      :error ->
-        Logger.debug fn -> "Could not start #{id}, returning error" end
-        send_resp(conn, 500, "Something went wrong with async call")
-      :ok ->
-        send_resp(conn, 204, "")
-    end
+    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    _status = @server_impl.start_torrent_async("GenericName", id)
+    send_resp(conn, 204, "")
   end
 
   post "#{@api_root}/add/file" do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
-    Logger.info fn -> "Received the following filename: #{filename}" end
-    {status, data} = Server.add_new_torrent("GenericName", filename)
+    JDLogger.info(@logger, "Received the following filename: #{filename}")
+    {status, data} = @server_impl.add_new_torrent("GenericName", filename)
     case status do
       :ok ->
         put_resp_content_type(conn, "application/json")
@@ -122,8 +112,8 @@ defmodule BittorrentClient.Web.Router do
 
   delete "#{@api_root}/:id/remove" when byte_size(id) > 3 do
     # TODO: NOT TESTED YET
-    Logger.info fn -> "Received the following filename: #{id}" end
-    {status, data} = Server.delete_torrent_by_id("GenericName", id)
+    JDLogger.info(@logger, "Received the following filename: #{id}")
+    {status, data} = @server_impl.delete_torrent_by_id("GenericName", id)
     case status do
       :ok -> send_resp(conn, 200, data)
       _ -> send_resp(conn, 500, "Don't know what happened")
@@ -131,7 +121,7 @@ defmodule BittorrentClient.Web.Router do
   end
 
   get "#{@api_root}/all" do
-  	{status, data} = Server.list_current_torrents("GenericName")
+  	{status, data} = @server_impl.list_current_torrents("GenericName")
     case status do
       :ok ->
         ret = Enum.reduce(Map.keys(data), %{}, fn (key, acc) ->
@@ -145,7 +135,7 @@ defmodule BittorrentClient.Web.Router do
 
   delete "#{@api_root}/remove/all" do
     # TODO: NOT TESTED YET
-    {status, _} = Server.delete_all_torrents("GenericName")
+    {status, _} = @server_impl.delete_all_torrents("GenericName")
     case status do
       :ok -> send_resp(conn, 204, "")
       :error -> send_resp(conn, 500, "Something went wrong")

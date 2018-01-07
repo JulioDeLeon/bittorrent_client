@@ -1,25 +1,30 @@
-defmodule BittorrentClient.Torrent.Worker do
+defmodule BittorrentClient.Torrent.GenServerImpl do
   @moduledoc """
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
+  @behaviour BittorrentClient.Torrent
   use GenServer
   require HTTPoison
-  require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
+
+  @logger LoggerFactory.create_logger(__MODULE__)
+  #@torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
   #-------------------------------------------------------------------------------
   # GenServer Callbacks
   #-------------------------------------------------------------------------------
   def start_link({id, filename}) do
-    Logger.info fn -> "Starting Torrent worker for #{filename}" end
+    JDLogger.info(@logger, "Starting Torrent worker for #{filename}")
     torrent_metadata = filename
     |> File.read!()
     |> Bento.torrent!()
-    Logger.debug fn -> "Metadata: #{inspect torrent_metadata}" end
+    JDLogger.debug(@logger, "Metadata: #{inspect torrent_metadata}")
     torrent_data = create_initial_data(id, filename, torrent_metadata)
-    Logger.debug fn -> "Data: #{inspect torrent_data}" end
+    JDLogger.debug(@logger, "Data: #{inspect torrent_data}")
     GenServer.start_link(
       __MODULE__,
       {torrent_metadata, torrent_data},
@@ -53,58 +58,86 @@ defmodule BittorrentClient.Torrent.Worker do
       Map.get(data, :id),
       Map.get(data, :info_hash),
       Map.get(data, :filename),
-      Application.get_env(:bittorrent_client, :trackerid),
       data |> Map.get(:tracker_info) |> Map.get(:interval),
       ip,
       port})
     case s do
       :error ->
-        Logger.error fn -> "Error: #{inspect peer_data}" end
+        JDLogger.error(@logger, "Error: #{inspect peer_data}")
         {:reply, {:error, "Failed to start peer connection for #{inspect ip}:#{inspect port}: #{inspect peer_data}"},  {metadata, data}}
       :ok -> {:reply, {:ok, peer_data}, {metadata, data}}
     end
   end
 
   def handle_call({:start_torrent, id}, _from, {metadata, data}) do
-    if data.status != "started" do
-      {:reply, {:error, {403, "#{id} has not connected to tracker"}}, {metadata, data}}
-    else
-      peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
-      if (length peer_list) == 0 do
-        {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
-      else
-        _ret = Enum.map(peer_list, fn {ip, port} ->
-          PeerSupervisor.start_child({
-            metadata,
-            Map.get(data, :id),
-            Map.get(data, :info_hash),
-            Map.get(data, :filename),
-            Application.get_env(:bittorrent_client, :trackerid),
-            data |> Map.get(:tracker_info) |> Map.get(:interval),
-            ip,
-            port})
-        end)
-        {:reply, {:ok, "started torrent #{id}"}, {metadata, data}}
-      end
+    case data.status do
+      :initial ->
+        {:reply, {:error, {403, "#{id} has not connected to tracker"}}, {metadata, data}}
+      :error ->
+        {:reply, {:error, {403, "#{id} has experienced an error somewhere. Will not connect."}}, {metadata, data}}
+      _ ->
+        peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
+        if (length peer_list) == 0 do
+          {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
+        else
+          returned_pids = Enum.map(peer_list, fn {ip, port} ->
+            PeerSupervisor.start_child({
+              metadata,
+              Map.get(data, :id),
+              Map.get(data, :info_hash),
+              Map.get(data, :filename),
+              data |> Map.get(:tracker_info) |> Map.get(:interval),
+              ip,
+              port})
+          end)
+          {:reply, {:ok, "started torrent #{id}", returned_pids}, {metadata, %TorrentData{data | status: :started}}}
+        end
     end
   end
 
-  def handle_call({:get_next_piece_index}, _from, {metadata, data}) do
-     ret_piece_index = data.next_piece_index
-     new_piece_index = ret_piece_index + 1 # +1 for now, next logic will be diff
-     # The way the table will update will change with dying peers and etc.
-     new_piece_table = Map.merge(data.pieces, %{ret_piece_index => "started"})
-     {:reply, {:ok, ret_piece_index},
-      {metadata, %TorrentData{ data | pieces: new_piece_table, next_piece_index: new_piece_index}}}
+  def handle_call({:get_next_piece_index, known_list}, _from, {metadata, data}) do
+    case determine_next_piece(data.pieces, known_list) do
+      {:ok, piece_index} ->
+        new_piece_table = Map.merge(data.pieces, %{piece_index => :started})
+        {:reply, {:ok, piece_index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
+      {:error, msg} -> {:reply, {:error, msg}, {metadata, data}}
+    end
   end
 
   def handle_call({:mark_piece_index_done, index}, _from, {metadata, data}) do
     piece_table = data.piece
     if Map.has_key?(piece_table, index) do
-      new_piece_table = %{piece_table | index => "done"}
+      new_piece_table = %{piece_table | index => :done}
       {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
     else
       {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
+    end
+  end
+
+  def handle_call({:add_piece_index, index}, _from, {metadata, data}) do
+    if index >= 0 and !(Map.has_key?(data.pieces, index)) do
+      {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: Map.put(data.pieces, index, :found)}}}
+    else
+      {:reply, {:error, "invalid index"}, {metadata, data}}
+    end
+  end
+
+  def handle_call({:add_multi_pieces, lst}, _from, {metadata, data}) do
+    new_pieces = Enum.reduce(lst, %{}, fn(elem, acc)->
+      if elem >= 0 and !(Map.has_key?(acc, elem)) and !(Map.has_key?(data.pieces, elem)) do
+        %{acc | elem => "found"}
+      else
+        acc
+      end
+    end)
+    {:reply, {:ok, new_pieces}, {metadata, %TorrentData{data | pieces: Map.merge(data.pieces, new_pieces)}}}
+  end
+
+  def handle_call({:delete_piece_index, index}, _from, {metadata, data}) do
+    if index >= 0 and Map.has_key?(data.pieces, index) do
+      {:reply, {:ok, Map.fetch!(data.pieces, index)}, {metadata, %TorrentData{data | pieces: Map.delete(data.pieces, index)}}}
+    else
+      {:reply, {:error, "Invalid index"}, {metadata, data}}
     end
   end
 
@@ -121,70 +154,63 @@ defmodule BittorrentClient.Torrent.Worker do
   end
 
   def start_torrent(id) do
-    Logger.info fn -> "Starting torrent: #{id}" end
+    JDLogger.info(@logger, "Starting torrent: #{id}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:start_torrent, id}, :infinity)
   end
 
   def get_torrent_data(id) do
-    Logger.info fn -> "Getting torrent data for #{id}" end
+    JDLogger.info(@logger, "Getting torrent data for #{id}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_data})
   end
 
   def connect_to_tracker(id) do
-    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+    JDLogger.debug(@logger, "Torrent #{id} attempting to connect tracker")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:connect_to_tracker}, :infinity)
   end
 
   def connect_to_tracker_async(id) do
-    Logger.debug fn -> "Torrent #{id} attempting to connect tracker" end
+    JDLogger.debug(@logger, "Torrent #{id} attempting to connect tracker")
     GenServer.cast(:global.whereis_name({:btc_torrentworker, id}),
       {:connect_to_tracker_async})
   end
 
   def get_peers(id) do
-    Logger.debug fn -> "Getting peer list of #{id}" end
+    JDLogger.debug(@logger, "Getting peer list of #{id}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:get_peers})
   end
 
   def start_single_peer(id, {ip, port}) do
-    Logger.debug fn -> "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}" end
+    JDLogger.debug(@logger, "Starting a single peer for #{id} with #{inspect ip}:#{inspect port}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:start_single_peer, {ip, port}})
   end
 
-  def get_next_piece_index(id) do
-    Logger.debug fn -> "#{id} is retrieving next_piece_index" end
+  def get_next_piece_index(id, known_list) do
+    JDLogger.debug(@logger, "#{id} is retrieving next_piece_index")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:get_next_piece_index}, :infinity)
+      {:get_next_piece_index, known_list}, :infinity)
   end
 
   def mark_piece_index_done(id, index) do
-    Logger.debug fn -> "#{id}'s peerworker has marked #{index} as done!" end
+    JDLogger.debug(@logger, "#{id}'s peerworker has marked #{index} as done!")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:mark_piece_index_done, index})
   end
 
-
-  def parse_peers_binary(binary) do
-    parse_peers_binary(binary, [])
+  def add_new_piece_index(id, index) do
+    JDLogger.debug(@logger, "#{id} is attempting to add new piece index: #{index}")
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:add_piece_index, index})
   end
 
-  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
-    port = fp * 256 + sp
-    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
-  end
-
-  def parse_peers_binary(_, acc) do
-    acc
-  end
-
-  def get_peer_list(id) do
-    {_, tab} = BittorrentClient.Torrent.Worker.get_peers(id)
-    parse_peers_binary(tab)
+  def add_multi_pieces(id, lst) do
+    JDLogger.debug(@logger, "#{id} is attempting to add multliple pieces")
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:add_piece_index, lst})
   end
 
   #-------------------------------------------------------------------------------
@@ -197,7 +223,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   defp parse_tracker_response(body) do
     {status, track_resp} = Bento.decode(body)
-    Logger.debug fn -> "tracker response decode -> #{inspect track_resp}" end
+    JDLogger.debug(@logger, "tracker response decode -> #{inspect track_resp}")
     case status do
       :error -> {:error, %TrackerInfo{}}
       _ ->
@@ -211,7 +237,7 @@ defmodule BittorrentClient.Torrent.Worker do
 
   defp connect_to_tracker_helper({metadata, data}) do
     # These either dont relate to tracker req or are not implemented yet
-    Logger.debug fn -> "connect_to_tracker_helper" end
+    JDLogger.debug(@logger, "connect_to_tracker_helper")
     unwanted_params = [:status,
                        :id,
                        :pid,
@@ -229,23 +255,23 @@ defmodule BittorrentClient.Torrent.Worker do
     # connect to tracker, respond based on what the http response is
     {status, resp} = HTTPoison.get(url, [],
       [{:timeout, 10_000}, {:recv_timeout, 10_000}])
-    Logger.debug fn -> "Response from tracker: #{inspect resp}" end
+    JDLogger.debug(@logger, "Response from tracker: #{inspect resp}")
     case status do
       :error ->
-        Logger.error fn -> "Failed to fetch #{url}" end
-        Logger.error fn -> "Resp: #{inspect resp}" end
+        JDLogger.error(@logger, "Failed to fetch #{url}")
+        JDLogger.error(@logger, "Resp: #{inspect resp}")
         {:reply, {:error, {504, "failed to fetch #{url}"}}, {metadata, data}}
       _ ->
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
         case status do
           :error -> {:reply, {:error, {500, "Failed to connect to tracker"}},
-                    {metadata, Map.put(data, :status, "failed")}}
+                    {metadata, Map.put(data, :status, :error)}}
           _ ->
           # update data
             updated_data =  data
             |> Map.put(:tracker_info, tracker_info)
-            |> Map.put(:status, "started")
+            |> Map.put(:status, :connected)
             {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
         end
     end
@@ -258,7 +284,7 @@ defmodule BittorrentClient.Torrent.Worker do
     |> Map.delete(:private)
     |> Bento.encode()
     if check == :error do
-      Logger.debug fn -> "Failed to extract info from metadata" end
+      JDLogger.debug(@logger, "Failed to extract info from metadata")
       raise "Failed to extract info from metadata"
     else
       hash = :crypto.hash(:sha, info)
@@ -266,7 +292,6 @@ defmodule BittorrentClient.Torrent.Worker do
         id: id,
         pid: self(),
         file: file,
-        event: "started",
         peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
         compact: Application.fetch_env!(:bittorrent_client, :compact),
         port: Application.fetch_env!(:bittorrent_client, :port),
@@ -286,8 +311,42 @@ defmodule BittorrentClient.Torrent.Worker do
         pieces: %{},
         # This would be none zero if continueing, for now 0
         next_piece_index: 0,
-        connected_peers: []
+        connected_peers: [],
+        status: :initial
       }
     end
+  end
+
+  def parse_peers_binary(binary) do
+    parse_peers_binary(binary, [])
+  end
+
+  def parse_peers_binary(<<a, b, c, d, fp, sp, rest::bytes>>, acc) do
+    port = fp * 256 + sp
+    parse_peers_binary(rest, [{{a, b, c, d}, port} | acc])
+  end
+
+  def parse_peers_binary(_, acc) do
+    acc
+  end
+
+  def get_peer_list(id) do
+    {_, tab} = get_peers(id)
+    parse_peers_binary(tab)
+  end
+
+  defp determine_next_piece(piece_map, [fst | rst]) do
+    if fst >= 0 and Map.has_key?(piece_map, fst) do
+      case Map.fetch!(piece_map, fst) do
+        "found" -> {:ok, fst}
+        _ -> determine_next_piece(piece_map, rst)
+      end
+    else
+      determine_next_piece(piece_map, rst)
+    end
+  end
+
+  defp determine_next_piece(_, []) do
+    {:error, "no possible pieces available"}
   end
 end

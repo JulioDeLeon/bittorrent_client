@@ -3,17 +3,20 @@ defmodule BittorrentClient.Server.Supervisor do
   ServerSupervisor supervises BittorrentClient Server
   """
   use Supervisor
-  require Logger
-  alias BittorrentClient.Server.Worker, as: Server
+  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Logger.JDLogger, as: JDLogger
+
+  @logger LoggerFactory.create_logger(__MODULE__)
+  @serverImpl Application.get_env(:bittorrent_client, :server_impl)
 
   def start_link(name) do
-    Logger.info fn -> "Starting Server Supervisor" end
+    JDLogger.info(@logger, "Starting Server Supervisor")
     Supervisor.start_link(__MODULE__, [name])
   end
 
   def init([name]) do
     children = [
-      worker(Server, ["./", name], id: {:server, name})
+      worker(@serverImpl, ["./", name], id: {:server, name})
     ]
 
     supervise(children, strategy: :one_for_one)
