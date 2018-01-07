@@ -78,7 +78,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
         ret.(peer_data)
       :me_choke_it_interest ->
         msg1 = PeerProtocol.encode(:keep_alive)
-        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
@@ -94,7 +94,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
         msg1 = PeerProtocol.encode(:keep_alive)
-        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_queue)) do
+        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
           {:ok, next_piece_index} ->
             next_sub_piece_index = 0
             msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
@@ -188,15 +188,15 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
         JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
-        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, %{msg.piece_index => :found})}
+        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})}
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
         # Again, send the payload back to the torrent process to process and track
         JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
-        pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
+        subtable = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
         # JDLogger.debug(@logger, "BF has: #{inspect pqueue}")
-        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_queue, pqueue, fn _k, v1, _v2 -> v1 end)}
+        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, subtable, fn _k, v1, _v2 -> v1 end)}
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
@@ -248,7 +248,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
 
   defp parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
     if bit  == 1 do
-      parse_bitfield(rest, Map.merge(queue, %{acc => :initial}), (acc + 1))
+      parse_bitfield(rest, Map.merge(queue, %{acc => :found}), (acc + 1))
     else
       parse_bitfield(rest, queue, (acc + 1))
     end
