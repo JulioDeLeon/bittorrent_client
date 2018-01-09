@@ -123,7 +123,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:add_multi_pieces, lst}, _from, {metadata, data}) do
-    new_pieces = Enum.reduce(lst, %{}, fn(elem, acc)->
+    new_pieces = Enum.reduce(lst, %{}, fn(elem, acc) ->
       if elem >= 0 and !(Map.has_key?(acc, elem)) and !(Map.has_key?(data.pieces, elem)) do
         %{acc | elem => "found"}
       else

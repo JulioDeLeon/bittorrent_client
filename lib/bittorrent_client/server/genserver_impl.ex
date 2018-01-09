@@ -133,7 +133,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
       {status, msg} = @torrent_impl.start_torrent(id)
       case status do
         :error ->
-          {:reply, {:error, msg},{db, serverName, torrents}}
+          {:reply, {:error, msg}, {db, serverName, torrents}}
         _ ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
