@@ -155,6 +155,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         _ -> acc
       end
     end)
+    {:reply, completed_indexes, {metadata, data}}
   end
 
   #-------------------------------------------------------------------------------
