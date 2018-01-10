@@ -9,4 +9,5 @@ config :bittorrent_client,
   key: "",
   server_impl: BittorrentClient.Server.GenServerImpl,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,
-  peer_impl: BittorrentClient.Torrent.Peer.GenServerImpl
+  peer_impl: BittorrentClient.Torrent.Peer.GenServerImpl,
+  upload_check: false
