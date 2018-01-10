@@ -14,14 +14,14 @@ defmodule BittorrentClient.Logger.JDLogger do
   }
 
   def debug(data, msg) do
-    Logger.debug fn -> "[#{Map.get(data, :module_name)}] #{msg}" end
+    Logger.debug fn -> "[#{Map.get(data, :module_name)}] [#{inspect(self())}] #{msg}" end
   end
 
   def info(data, msg) do
-    Logger.info fn -> "[#{Map.get(data, :module_name)}] #{msg}" end
+    Logger.info fn -> "[#{Map.get(data, :module_name)}] [#{inspect(self())}] #{msg}" end
   end
 
   def error(data, msg) do
-    Logger.error fn -> "[#{Map.get(data, :module_name)}] #{msg}" end
+    Logger.error fn -> "[#{Map.get(data, :module_name)}] [#{inspect(self())}] #{msg}" end
   end
 end

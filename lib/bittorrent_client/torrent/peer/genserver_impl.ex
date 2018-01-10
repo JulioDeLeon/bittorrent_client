@@ -71,11 +71,14 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     # JDLogger.debug(@logger, "#{peer_data.name} has received a timer event")
     socket = peer_data.socket
     case peer_data.state do
+      # No sharing is happening
       :we_choke ->
         msg = PeerProtocol.encode(:interested)
         :gen_tcp.send(socket, msg)
         JDLogger.debug(@logger, "#{peer_data.name} sent interested msg")
         ret.(peer_data)
+
+      # Client does not give, Client request data from peer
       :me_choke_it_interest ->
         msg1 = PeerProtocol.encode(:keep_alive)
         case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
@@ -88,9 +91,13 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
             JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
         end
         ret.(peer_data)
+
+      # Peer is interest in data client has, client is not requesting data from peer
       :me_interest_it_choke ->
         # Cant send data yet
         ret.(peer_data)
+
+      # Client and Peer are sending data back and forth
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
         msg1 = PeerProtocol.encode(:keep_alive)
@@ -177,10 +184,14 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
       :interested ->
         # TODO Start seeding
         JDLogger.debug(@logger, "Interested MSG: #{peer_data.name}")
+        JDLogger.debug(@logger, "Cannot seed yet so not changing peer state")
+        # have state changing code similar to choke/unchoke
         peer_data
       :not_interest ->
         # TODO Stop seeding
         JDLogger.debug(@logger, "Not_interested MSG: #{peer_data.name}")
+        JDLogger.debug(@logger, "Not seeding yet so no need to stop seeding")
+        # have state changing code similar to choke/unchoke
         peer_data
       :have ->
         # Peer lets client know which pieces it has
@@ -188,15 +199,26 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
         JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
-        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})}
+        {status, _} = @torrent_impl.add_new_piece_index(peer_data.torrent_id, peer_data.peer_id, msg.piece_index)
+        case status do
+          :ok ->
+            JDLogger.debug(@logger, "#{peer_data.name} successfully added #{msg.piece_index} to it's table.")
+            %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})}
+          _ -> peer_data
+        end
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
         # Again, send the payload back to the torrent process to process and track
         JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
-        subtable = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
-        # JDLogger.debug(@logger, "BF has: #{inspect pqueue}")
-        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, subtable, fn _k, v1, _v2 -> v1 end)}
+        new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
+        {status, valid_indexes} = @torrent_impl.add_multi_pieces(peer_data.torrent_id, peer_data.peer_id, Map.keys(new_table))
+        case status do
+          :ok ->
+            JDLogger.debug(@logger, "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table.")
+            %PeerData{peer_data | piece_table: Map.split(new_table, valid_indexes)}
+          _ -> peer_data
+        end
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
