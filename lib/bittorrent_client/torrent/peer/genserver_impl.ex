@@ -56,65 +56,15 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     {:noreply, peer_data}
   end
 
-  # Bread and butter
-  def handle_info({:timeout, timer, :send_message}, state) do
+  def handle_info({:timeout, timer, :send_message}, {peer_data}) do
     # this should look at the state of the message to determine what to send
     # to peer. the timer sends a signal to the peer handle when it is time to
     # send over a message.
     # JDLogger.debug(@logger, "What is this: #{inspect peer_data}")
-    {peer_data} = state
     :erlang.cancel_timer(timer)
-    ret = fn new_state ->
-      timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-      {:noreply, {%PeerData{new_state | timer: timer}}}
-    end
-    # JDLogger.debug(@logger, "#{peer_data.name} has received a timer event")
-    socket = peer_data.socket
-    case peer_data.state do
-      # No sharing is happening
-      :we_choke ->
-        msg = PeerProtocol.encode(:interested)
-        :gen_tcp.send(socket, msg)
-        JDLogger.debug(@logger, "#{peer_data.name} sent interested msg")
-        ret.(peer_data)
-
-      # Client does not give, Client request data from peer
-      :me_choke_it_interest ->
-        msg1 = PeerProtocol.encode(:keep_alive)
-        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
-          {:ok, next_piece_index} ->
-            next_sub_piece_index = 0
-            msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-            :gen_tcp.send(peer_data.socket, msg1 <> msg2)
-            JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
-          {:error, msg} ->
-            JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
-        end
-        ret.(peer_data)
-
-      # Peer is interest in data client has, client is not requesting data from peer
-      :me_interest_it_choke ->
-        # Cant send data yet
-        ret.(peer_data)
-
-      # Client and Peer are sending data back and forth
-      :we_interest ->
-        # Cant send data yet but switch between request/desired queues
-        msg1 = PeerProtocol.encode(:keep_alive)
-        case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
-          {:ok, next_piece_index} ->
-            next_sub_piece_index = 0
-            msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-            :gen_tcp.send(peer_data.socket, msg1 <> msg2)
-            JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
-          {:error, msg} ->
-            JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
-        end
-        ret.(peer_data)
-      _ ->
-        JDLogger.debug(@logger, "#{peer_data.name} is in #{inspect peer_data.state} state")
-        ret.(peer_data)
-    end
+    new_state = send_message(peer_data.state, peer_data)
+    timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+    {:noreply, {%PeerData{new_state | timer: timer}}}
   end
 
   def handle_info({:tcp, socket, msg}, peer_data) do
@@ -145,104 +95,117 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
-  # Utility
-  defp handle_message(msg, _socket, peer_data) do
-    # JDLogger.debug(@logger, "Within handle_message: #{inspect peer_data}")
-    unless msg.type == :keep_alive do
-      JDLogger.debug(@logger, "Stay-Alive: #{peer_data.name}")
-    end
-    peer_state = peer_data.state
-    case msg.type do
-      :handshake ->
-        if peer_data.handshake_check == false do
-          # TODO: check the recieved info hash?
-          JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
-          %PeerData{peer_data | state: :we_choke , handshake_check: true}
-        else
-          peer_data
-        end
-      :choke -> # Stop leaching
-        JDLogger.debug(@logger, "Choke MSG: #{peer_data.name}")
-        case peer_state do
-          :we_interest ->
-            %PeerData{peer_data | state: :me_choke_it_interest}
-          :me_interest_it_choke ->
-            %PeerData{peer_data | state: :we_choke}
-          _ ->
-            peer_data
-        end
-      :unchoke ->
-        # Start/Continue leaching
-        JDLogger.debug(@logger, "Unchoke MSG: #{peer_data.name}")
-        state = case peer_state do
-                  :we_choke ->
-                    :me_choke_it_interest
-                  :me_interest_it_choke ->
-                    :we_interest
-                end
-        %PeerData{peer_data | state: state}
-      :interested ->
-        # TODO Start seeding
-        JDLogger.debug(@logger, "Interested MSG: #{peer_data.name}")
-        JDLogger.debug(@logger, "Cannot seed yet so not changing peer state")
-        # have state changing code similar to choke/unchoke
-        peer_data
-      :not_interest ->
-        # TODO Stop seeding
-        JDLogger.debug(@logger, "Not_interested MSG: #{peer_data.name}")
-        JDLogger.debug(@logger, "Not seeding yet so no need to stop seeding")
-        # have state changing code similar to choke/unchoke
-        peer_data
-      :have ->
-        # Peer lets client know which pieces it has
-        # Could send message back to parent torrent process to log/add to known pieces
-        # TODO make this info useful
-        # Send the message payload back to the torrent process to put together to track
-        JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
-        {status, _} = @torrent_impl.add_new_piece_index(peer_data.torrent_id, peer_data.peer_id, msg.piece_index)
-        case status do
-          :ok ->
-            JDLogger.debug(@logger, "#{peer_data.name} successfully added #{msg.piece_index} to it's table.")
-            %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})}
-          _ -> peer_data
-        end
-      :bitfield ->
-        # Similar to :have but more compact
-        # TODO make this info useful
-        # Again, send the payload back to the torrent process to process and track
-        JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
-        new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
-        {status, valid_indexes} = @torrent_impl.add_multi_pieces(peer_data.torrent_id, peer_data.peer_id, Map.keys(new_table))
-        case status do
-          :ok ->
-            JDLogger.debug(@logger, "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table.")
-            %PeerData{peer_data | piece_table: Map.split(new_table, valid_indexes)}
-          _ -> peer_data
-        end
-      :piece ->
-        # TODO piece
-        # Send the piece information back to the torrent process to put the file together
-        JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
-        peer_data
-      :cancel ->
-        # TODO kills this peer handling process gracefull
-        JDLogger.debug(@logger, "Cancel MSG: #{peer_data.name}")
-        peer_data
-      :port ->
-        # TODO handle port change
-        JDLogger.debug(@logger, "Port MSG: #{peer_data.name}")
-        peer_data
-     _ ->
-        unless msg.type == :keep_alive do
-          JDLogger.error(@logger, "#{peer_state.name} could not handle this message: #{inspect msg}")
-          peer_data
-        end
+  defp handle_message(:keep_alive, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Stay-Alive: #{peer_data.name}")
+    peer_data
+  end
+
+  defp handle_message(:handle_message, _msg, _socket, peer_data) do
+    if peer_data.handshake_check == false do
+      # TODO: check the recieved info hash?
+      JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
+      %PeerData{peer_data | state: :we_choke , handshake_check: true}
+    else
+      peer_data
     end
   end
 
+  defp handle_message(:choke, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Choke MSG: #{peer_data.name} will stop leaching data")
+    case peer_data.state do
+      :we_interest ->
+        %PeerData{peer_data | state: :me_choke_it_interest}
+      :me_interest_it_choke ->
+        %PeerData{peer_data | state: :we_choke}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:unchoke, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Unchoke MSG: #{peer_data.name} will start leaching")
+    case peer_data.state do
+      :we_choke ->
+        %PeerData{peer_data | state:  :me_interest_it_choke}
+      :me_choke_it_interest ->
+        %PeerData{peer_data | state:  :we_interest}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:interested, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Interested MSG: #{peer_data.name} will start serving data")
+    case peer_data.state do
+      :we_choke ->
+        %PeerData{peer_data | state:  :me_choke_it_interest}
+      :me_interest_it_choke ->
+        %PeerData{peer_data | state:  :we_interest}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:not_interested, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Not_interested MSG: #{peer_data.name} will stop serving data")
+    case peer_data.state do
+      :we_interest ->
+        %PeerData{peer_data | state:  :me_interest_it_choke}
+      :me_choke_it_interest ->
+        %PeerData{peer_data | state:  :we_choke}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:have, msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
+    {status, _} = @torrent_impl.add_new_piece_index(peer_data.torrent_id, peer_data.peer_id, msg.piece_index)
+    case status do
+      :ok ->
+        JDLogger.debug(@logger, "#{peer_data.name} successfully added #{msg.piece_index} to it's table.")
+        %PeerData{peer_data | piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:bitfield, msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
+    new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
+    {status, valid_indexes} = @torrent_impl.add_multi_pieces(peer_data.torrent_id, peer_data.peer_id, Map.keys(new_table))
+    case status do
+      :ok ->
+        JDLogger.debug(@logger, "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table.")
+        %PeerData{peer_data | piece_table: Map.split(new_table, valid_indexes)}
+      _ ->
+        peer_data
+    end
+  end
+
+  defp handle_message(:piece, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}, cannot do anything yet")
+    peer_data
+  end
+
+  defp handle_message(:cancel, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Cancel MSG: #{peer_data.name}, Close port, kill process")
+    peer_data
+  end
+
+  defp handle_message(:port, _msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Port MSG: #{peer_data.name}, restablish new connect for new port")
+    peer_data
+  end
+
+  defp handle_message(unknown_type, msg, _socket, peer_data) do
+    JDLogger.error(@logger, "#{unknown_type} MSG: #{peer_data.name} could not handle this message: #{inspect msg}")
+    peer_data
+  end
+
   defp loop_msgs([msg | msgs], socket, peer_data) do
-    state = handle_message(msg, socket, peer_data)
-    loop_msgs(msgs, socket, state)
+    new_peer_data = handle_message(msg.type, msg, socket, peer_data)
+    loop_msgs(msgs, socket, new_peer_data)
   end
 
   defp loop_msgs(_, _, peer_data) do
@@ -278,5 +241,50 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
 
   defp parse_bitfield(_, queue, _acc) do
     queue
+  end
+
+  defp send_message(:me_choke_it_interest, peer_data) do
+    msg1 = PeerProtocol.encode(:keep_alive)
+    case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
+      {:ok, next_piece_index} ->
+        next_sub_piece_index = 0
+        msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+        JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
+      {:error, msg} ->
+        JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
+    end
+    peer_data
+  end
+
+  defp send_message(:me_interest_it_choke, peer_data) do
+    peer_data
+  end
+
+  defp send_message(:we_interest, peer_data) do
+    # Cant send data yet but switch between request/desired queues
+    msg1 = PeerProtocol.encode(:keep_alive)
+    case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
+      {:ok, next_piece_index} ->
+        next_sub_piece_index = 0
+        msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
+        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+        JDLogger.debug(@logger, "#{peer_data.name} has sent Request MSG: #{inspect msg2}")
+      {:error, msg} ->
+        JDLogger.error(@logger, "#{peer_data.data.name} was not able to get a available piece: #{msg}")
+    end
+    peer_data
+  end
+
+  defp send_message(:we_choke, peer_data) do
+    msg = PeerProtocol.encode(:interested)
+    :gen_tcp.send(peer_data.socket, msg)
+    JDLogger.debug(@logger, "#{peer_data.name} sent interested msg")
+    peer_data
+  end
+
+  defp send_message(_, peer_data) do
+    JDLogger.debug(@logger, "#{peer_data.name} is in #{inspect peer_data.state} state")
+    peer_data
   end
 end
