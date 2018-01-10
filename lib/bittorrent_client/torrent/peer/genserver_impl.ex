@@ -339,23 +339,23 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   end
 
   def create_bitstring(lst) do
-    x = create_bitstring_helper(lst, 0, <<0 :: size(8)>>)
+    x = create_bitstring_helper(lst, 0, <<0 :: size(32)>>)
     byte_reverse(x)
   end
 
 
   def create_bitstring_helper([a|lst], index, accum) do
     if a == index do
-      check = rem(8, index+1)
+      check = rem(32, index+1)
       cond do
         0 > check -> create_bitstring_helper(lst, index + 1, <<Bitwise.|||(accum, a)>>)
-        0 == check -> <<Bitwise.|||(accum, a)>> <> create_bitstring_helper(lst, index + 1, <<0 :: size(8)>>)
+        0 == check -> <<Bitwise.|||(accum, a)>> <> create_bitstring_helper(lst, index + 1, <<0 :: size(32)>>)
       end
     else
-      check = rem(8, index+1)
+      check = rem(32, index+1)
       cond do
         0 > check -> create_bitstring_helper([a|lst], index + 1, <<accum>>)
-        0 == check -> <<accum>> <> create_bitstring_helper([a|lst], index + 1, <<0 :: size(8)>>)
+        0 == check -> <<accum>> <> create_bitstring_helper([a|lst], index + 1, <<0 :: size(32)>>)
       end
     end
   end
@@ -364,11 +364,11 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     acc
   end
 
-  def byte_reverse(<<x :: size(8), rst>>) do
+  def byte_reverse(<<x :: size(32), rst>>) do
     String.reverse(x) <> byte_reverse(rst)
   end
 
-  def byte_reverse(<<x :: size(8)>>) do
+  def byte_reverse(<<x :: size(32)>>) do
     String.reverse(x)
   end
 
