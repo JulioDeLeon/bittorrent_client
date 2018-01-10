@@ -29,6 +29,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
       timer: nil,
       piece_index: 0,
       sub_piece_index: 0,
+      piece_length: metainfo.info."piece length",
       piece_table: %{},
       name: name
     }
@@ -124,6 +125,8 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
 
   defp handle_message(:unchoke, _msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Unchoke MSG: #{peer_data.name} will start leaching")
+    # get pieces
+    
     case peer_data.state do
       :we_choke ->
         %PeerData{peer_data | state:  :me_interest_it_choke}
@@ -183,9 +186,16 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:piece, _msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}, cannot do anything yet")
-    peer_data
+  defp handle_message(:piece, msg, _socket, peer_data) do
+    JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
+    if msg.piece_index == peer_data.piece_index do
+      JDLogger.debug(@logger, "Piece MSG: #{peer_data.name} recieved #{inspect msg}")
+      peer_data
+    else
+      JDLogger.debug(@logger,
+        "Piece MSG: #{peer_data.name} has recieved the wrong piece: #{msg.piece_index}, expected: #{peer_data.piece_index}")
+      peer_data
+    end
   end
 
   defp handle_message(:cancel, _msg, _socket, peer_data) do
@@ -258,12 +268,19 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   end
 
   defp send_message(:me_interest_it_choke, peer_data) do
+    _msg1 = PeerProtocol.encode(:keep_alive)
     peer_data
   end
 
   defp send_message(:we_interest, peer_data) do
     # Cant send data yet but switch between request/desired queues
     msg1 = PeerProtocol.encode(:keep_alive)
+    #msg3 = unless Application.get_env(:bittorrent_client, :upload_check) do
+    #  <<>>
+    #else
+    #  PeerProtocol.encode(:choke)
+    #end
+
     case @torrent_impl.get_next_piece_index(peer_data.torrent_id, Map.keys(peer_data.piece_table)) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0

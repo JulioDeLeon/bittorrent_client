@@ -106,7 +106,6 @@ defmodule BittorrentClient.Torrent.Peer.Protocol do
     decode_type(rest, [%{type: :bitfield, bitfield: bitfield} | acc])
   end
 
-  # TODO: DRY
   defp decode_type(<<
     @request_len::size(32),
     @request_id,
