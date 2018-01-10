@@ -5,6 +5,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   """
   @behaviour BittorrentClient.Torrent.Peer
   use GenServer
+  require Bitwise
   alias BittorrentClient.Torrent.Peer.Data, as: PeerData
   alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
@@ -24,6 +25,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
       interval: interval,
       info_hash: info_hash,
       handshake_check: false,
+      need_piece: true,
       state: :we_choke,
       metainfo: metainfo,
       timer: nil,
@@ -101,7 +103,7 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     peer_data
   end
 
-  defp handle_message(:handle_message, _msg, _socket, peer_data) do
+  defp handle_message(:handshake, _msg, _socket, peer_data) do
     if peer_data.handshake_check == false do
       # TODO: check the recieved info hash?
       JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
@@ -126,7 +128,6 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   defp handle_message(:unchoke, _msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Unchoke MSG: #{peer_data.name} will start leaching")
     # get pieces
-    
     case peer_data.state do
       :we_choke ->
         %PeerData{peer_data | state:  :me_interest_it_choke}
@@ -190,7 +191,31 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
     JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
     if msg.piece_index == peer_data.piece_index do
       JDLogger.debug(@logger, "Piece MSG: #{peer_data.name} recieved #{inspect msg}")
-      peer_data
+      {offset, _} = Integer.parse(msg.block_offsest)
+      {length, _} = Integer.parse(msg.block_length)
+      <<before::size(offset), aft>> = peer_data.piece_buffer
+      new_buffer = <<before, msg.block::size(length), aft>>
+      new_recieved = peer_data.bits_recieved + msg.block_length
+      piece_status = if new_recieved == peer_data.piece_length do
+        :incomplete
+      else
+        :completed
+      end
+      if piece_status == :completed do
+        {status, _} = @torrent_impl.mark_piece_index_done(peer_data.torrent_id, peer_data.piece_index, new_buffer)
+        case status do
+          :ok ->
+            JDLogger.debug(@logger, "#{peer_data.name} has completed #{peer_data.piece_index}")
+          _ ->
+            JDLogger.error(@logger, "#{peer_data.name} could not complete #{peer_data.piece_index}")
+        end
+        new_piece_table = Map.drop(peer_data.piece_table, peer_data.piece_index)
+        %PeerData{peer_data | piece_buffer: new_buffer, bits_recieved: new_recieved, piece_table: new_piece_table}
+      else
+        new_piece_table = %{peer_data.piece_data | piece_index: piece_status}
+        %PeerData{peer_data | piece_buffer: new_buffer, bits_recieved: new_recieved,
+                  piece_table: new_piece_table, need_piece: true}
+      end
     else
       JDLogger.debug(@logger,
         "Piece MSG: #{peer_data.name} has recieved the wrong piece: #{msg.piece_index}, expected: #{peer_data.piece_index}")
@@ -294,14 +319,60 @@ defmodule BittorrentClient.Torrent.Peer.GenServerImpl do
   end
 
   defp send_message(:we_choke, peer_data) do
-    msg = PeerProtocol.encode(:interested)
-    :gen_tcp.send(peer_data.socket, msg)
-    JDLogger.debug(@logger, "#{peer_data.name} sent interested msg")
+    {_status, lst} = @torrent_impl.get_completed_piece_list(peer_data.torrent_id)
+    bitfield = PeerProtocol.encode(:bitfield, create_bitstring(lst))
+    interest_msg = case peer_data.piece_table do
+                     %{} ->
+                       JDLogger.debug(@logger, "#{peer_data.name} has nothing of interest")
+                       PeerProtocol.encode(:not_interested)
+                     _ ->
+                       JDLogger.debug(@logger, "#{peer_data.name} has something of interest")
+                       PeerProtocol.encode(:interested)
+                   end
+    :gen_tcp.send(peer_data.socket, bitfield <> interest_msg)
     peer_data
   end
 
   defp send_message(_, peer_data) do
     JDLogger.debug(@logger, "#{peer_data.name} is in #{inspect peer_data.state} state")
     peer_data
+  end
+
+  def create_bitstring(lst) do
+    x = create_bitstring_helper(lst, 0, <<0 :: size(8)>>)
+    byte_reverse(x)
+  end
+
+
+  def create_bitstring_helper([a|lst], index, accum) do
+    if a == index do
+      check = rem(8, index+1)
+      cond do
+        0 > check -> create_bitstring_helper(lst, index + 1, <<Bitwise.|||(accum, a)>>)
+        0 == check -> <<Bitwise.|||(accum, a)>> <> create_bitstring_helper(lst, index + 1, <<0 :: size(8)>>)
+      end
+    else
+      check = rem(8, index+1)
+      cond do
+        0 > check -> create_bitstring_helper([a|lst], index + 1, <<accum>>)
+        0 == check -> <<accum>> <> create_bitstring_helper([a|lst], index + 1, <<0 :: size(8)>>)
+      end
+    end
+  end
+
+  def create_bitstring_helper([], _index, acc) do
+    acc
+  end
+
+  def byte_reverse(<<x :: size(8), rst>>) do
+    String.reverse(x) <> byte_reverse(rst)
+  end
+
+  def byte_reverse(<<x :: size(8)>>) do
+    String.reverse(x)
+  end
+
+  def byte_reverse(<<>>) do
+    <<>>
   end
 end
