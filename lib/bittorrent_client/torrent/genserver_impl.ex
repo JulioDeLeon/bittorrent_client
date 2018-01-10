@@ -3,7 +3,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
   @behaviour BittorrentClient.Torrent
-  use GenServer
   require HTTPoison
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
@@ -104,10 +103,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_call({:mark_piece_index_done, index}, _from, {metadata, data}) do
+  def handle_call({:mark_piece_index_done, index, buffer}, _from, {metadata, data}) do
     piece_table = data.piece
     if Map.has_key?(piece_table, index) do
-      new_piece_table = %{piece_table | index => :done}
+      new_piece_table = %{piece_table | index => {:done, buffer}}
       {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: new_piece_table}}}
     else
       {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
@@ -146,6 +145,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
     {_, _, {new_metadata, new_data}} = connect_to_tracker_helper({metadata, data})
     {:noreply, {new_metadata, new_data}}
+  end
+
+  def handle_call({:get_completed_piece_list}, {metadata, data}) do
+    completed_indexes = Enum.reduce(Map.keys(data.pieces), [], fn elem, acc ->
+      {status, _} = Map.fetch!(data.pieces, elem)
+      case status do
+        :completed -> [elem | acc]
+        _ -> acc
+      end
+    end)
   end
 
   #-------------------------------------------------------------------------------
@@ -197,10 +206,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       {:get_next_piece_index, known_list}, :infinity)
   end
 
-  def mark_piece_index_done(id, index) do
+  def mark_piece_index_done(id, index, buffer) do
     JDLogger.debug(@logger, "#{id}'s peerworker has marked #{index} as done!")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:mark_piece_index_done, index})
+      {:mark_piece_index_done, index, buffer})
   end
 
   def add_new_piece_index(id, peer_id, index) do
@@ -213,6 +222,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     JDLogger.debug(@logger, "#{id} is attempting to add multliple pieces")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
       {:add_piece_index, peer_id, lst})
+  end
+
+  def get_completed_piece_list(id) do
+    JDLogger.debug(@logger, "#{id} is sending completed list")
+    GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
+      {:get_completed_piece_list})
   end
 
   #-------------------------------------------------------------------------------
@@ -360,7 +375,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
             {progress, lst} = Map.fetch!(piece_table, index)
             case progress do
               :found -> {:ok, %TorrentData{piece_table | pieces: Map.put(piece_table, index, {:found, [peer_id | lst]})}, ""}
-              _ -> {:error, piece_table, "#{index} is currently #{progress}"}
+              _ -> {:error, piece_table, "#{index} is not available: #{inspect progress}"}
             end
           end.()
     end

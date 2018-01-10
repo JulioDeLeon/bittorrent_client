@@ -44,13 +44,17 @@ defmodule BittorrentClient.Torrent do
 
   @doc """
   """
-  @callback mark_piece_index_done(torrentID :: String.t, index :: integer()) :: {atom(), tuple(), tuple()}
+  @callback mark_piece_index_done(torrentID :: String.t, index :: integer(), buffer :: bitstring()) :: {atom(), tuple(), tuple()}
 
   @doc """
   """
-  @callback add_new_piece_index(torrentID :: String.t, peerID :: String.t, index :: integer()) :: {atom(), tuple(), tuple()}
+  @callback add_new_piece_index(torrentID :: String.t, peerID :: String.t, index :: integer) :: {atom(), tuple(), tuple()}
 
   @doc """
   """
   @callback add_multi_pieces(torrentID :: String.t, peerID :: String.t, indexes :: List.t) :: {atom(), tuple(), tuple()}
+
+  @doc """
+  """
+  @callback get_completed_piece_list(torrentID :: String.t) :: {atom(), Enum.t, tuple()}
 end

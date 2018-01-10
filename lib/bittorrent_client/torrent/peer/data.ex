@@ -39,11 +39,12 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :metainfo,
              :timer,
              :state,
+             :need_piece,
              :piece_index,
              :sub_piece_index,
              :piece_buffer,
              :request_queue, # pieces that you need to serve
-             :bytes_recieved, # track bytes received to compare to piece_length
+             :bits_recieved, # track bytes received to compare to piece_length
              :piece_length,
              :piece_table,   # pieces the peer has that you want
              :name
@@ -58,12 +59,14 @@ defmodule BittorrentClient.Torrent.Peer.Data do
     interval: integer,
     info_hash: String.t,
     handshake_check: boolean,
+    need_piece: boolean,
     # metainfo:
     # timer
-    # state
+    state: atom(),
     piece_index: integer,
     sub_piece_index: integer,
-    # request_queue:
+    request_queue: Enum.t,
+    bits_recieved: integer,
     # piece_queue
     name: String.t
   }
