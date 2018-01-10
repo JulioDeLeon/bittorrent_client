@@ -41,6 +41,7 @@ defmodule BittorrentClient.Torrent.Peer.Data do
              :state,
              :piece_index,
              :sub_piece_index,
+             :piece_buffer,
              :request_queue, # pieces that you need to serve
              :piece_table,   # pieces the peer has that you want
              :name

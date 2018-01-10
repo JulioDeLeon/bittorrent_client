@@ -114,23 +114,25 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_call({:add_piece_index, index}, _from, {metadata, data}) do
-    if index >= 0 and !(Map.has_key?(data.pieces, index)) do
-      {:reply, {:ok, index}, {metadata, %TorrentData{data | pieces: Map.put(data.pieces, index, :found)}}}
-    else
-      {:reply, {:error, "invalid index"}, {metadata, data}}
+  def handle_call({:add_piece_index, peer_id, index}, _from, {metadata, data}) do
+    {status, new_table, reason} = add_single_piece(peer_id, index, data.pieces)
+    case status do
+      :error ->
+        {:reply, {:error, "Could not add #{index} to piece table: #{reason}"}, {metadata, data}}
+      :ok ->
+        {:reply, {:ok, "Successfully added #{index} => #{peer_id} to piece table"}, {metadata, %TorrentData{data | pieces: new_table}}}
     end
   end
 
-  def handle_call({:add_multi_pieces, lst}, _from, {metadata, data}) do
-    new_pieces = Enum.reduce(lst, %{}, fn(elem, acc) ->
-      if elem >= 0 and !(Map.has_key?(acc, elem)) and !(Map.has_key?(data.pieces, elem)) do
-        %{acc | elem => "found"}
-      else
-        acc
+  def handle_call({:add_multi_pieces, peer_id, lst}, _from, {metadata, data}) do
+    {new_table, valid_indexes} = Enum.reduce(lst, {data.pieces, []}, fn(elem, {acc, valid}) ->
+      {status, temp_table, _reason} = add_single_piece(peer_id, elem, acc)
+      case status do
+        :ok -> {temp_table, [elem | valid]}
+        :error -> {temp_table, valid}
       end
     end)
-    {:reply, {:ok, new_pieces}, {metadata, %TorrentData{data | pieces: Map.merge(data.pieces, new_pieces)}}}
+    {:reply, {:ok, valid_indexes}, {metadata, %TorrentData{data | pieces: new_table}}}
   end
 
   def handle_call({:delete_piece_index, index}, _from, {metadata, data}) do
@@ -201,16 +203,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       {:mark_piece_index_done, index})
   end
 
-  def add_new_piece_index(id, index) do
+  def add_new_piece_index(id, peer_id, index) do
     JDLogger.debug(@logger, "#{id} is attempting to add new piece index: #{index}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:add_piece_index, index})
+      {:add_piece_index, peer_id, index})
   end
 
-  def add_multi_pieces(id, lst) do
+  def add_multi_pieces(id, peer_id, lst) do
     JDLogger.debug(@logger, "#{id} is attempting to add multliple pieces")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}),
-      {:add_piece_index, lst})
+      {:add_piece_index, peer_id, lst})
   end
 
   #-------------------------------------------------------------------------------
@@ -338,7 +340,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   defp determine_next_piece(piece_map, [fst | rst]) do
     if fst >= 0 and Map.has_key?(piece_map, fst) do
       case Map.fetch!(piece_map, fst) do
-        "found" -> {:ok, fst}
+        :found -> {:ok, fst}
         _ -> determine_next_piece(piece_map, rst)
       end
     else
@@ -348,5 +350,19 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp determine_next_piece(_, []) do
     {:error, "no possible pieces available"}
+  end
+
+  defp add_single_piece(peer_id, index, piece_table) do
+    cond do
+      index < 0 ->  {:error, piece_table, "Invalid index #{index}"}
+      !(Map.has_key?(piece_table, index)) -> {:ok, %TorrentData{piece_table | pieces: Map.put(piece_table, index, {:found, [peer_id]})}, ""}
+      true -> fn ->
+            {progress, lst} = Map.fetch!(piece_table, index)
+            case progress do
+              :found -> {:ok, %TorrentData{piece_table | pieces: Map.put(piece_table, index, {:found, [peer_id | lst]})}, ""}
+              _ -> {:error, piece_table, "#{index} is currently #{progress}"}
+            end
+          end.()
+    end
   end
 end
