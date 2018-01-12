@@ -2,13 +2,15 @@ defmodule BittorrentClient.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :bittorrent_client,
-     version: "0.1.0",
-     elixir: "~> 1.3",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps(),
-     dialyzer: [plt_add_deps: true]]
+    [
+      app: :bittorrent_client,
+      version: "0.1.0",
+      elixir: "~> 1.3",
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      dialyzer: [plt_add_deps: true]
+    ]
   end
 
   # Configuration for the OTP application
@@ -16,17 +18,26 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      applications: [:logger, :cowboy, :plug, :gproc, :httpoison, :gen_state_machine],
-      env: [key_file: [],
-            cert_file: [],
-            peer_id: [],
-            compact: [],
-            port: [],
-            no_peer_id: [],
-            ip: [],
-            numwant: [],
-            key: [],
-            trackerid: []],
+      applications: [
+        :logger,
+        :cowboy,
+        :plug,
+        :gproc,
+        :httpoison,
+        :gen_state_machine
+      ],
+      env: [
+        key_file: [],
+        cert_file: [],
+        peer_id: [],
+        compact: [],
+        port: [],
+        no_peer_id: [],
+        ip: [],
+        numwant: [],
+        key: [],
+        trackerid: []
+      ],
       mod: {BittorrentClient, []}
     ]
   end
@@ -42,15 +53,23 @@ defmodule BittorrentClient.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:cowboy, "1.0.0"},                      # http library
-      {:plug, "~> 1.0"},                       # http wrapper for cowboy
-      {:httpoison, "~> 0.11.1", runtime: true},                # framework for http library
-      {:meck, "~> 0.8.2", only: :test},        # mocking library
-      {:bento, "~> 0.9.2"},                    # bencoder...
+      # http library
+      {:cowboy, "1.0.0"},
+      # http wrapper for cowboy
+      {:plug, "~> 1.0"},
+      # framework for http library
+      {:httpoison, "~> 0.11.1", runtime: true},
+      # mocking library
+      {:meck, "~> 0.8.2", only: :test},
+      # bencoder...
+      {:bento, "~> 0.9.2"},
       {:hackney, "~> 1.6", override: true},
-      {:gproc, "~> 0.5"},					  # global process registry
-      {:credo, "~> 0.7", only: :dev}, 		  # code quality tool
-      {:dogma, "~> 0.1", only: :dev},         # linter
+      # global process registry
+      {:gproc, "~> 0.5"},
+      # code quality tool
+      {:credo, "~> 0.7", only: :dev},
+      # linter
+      {:dogma, "~> 0.1", only: :dev},
       {:gen_state_machine, "~> 2.0"},
       {:dialyxir, "~> 0.5", only: [:dev]},
       {:earmark, "~> 1.2.2", only: :dev},

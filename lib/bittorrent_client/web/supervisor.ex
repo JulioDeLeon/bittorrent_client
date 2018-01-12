@@ -12,8 +12,9 @@ defmodule BittorrentClient.Web.Supervisor do
 
   def start_link do
     JDLogger.info(@logger, "Starting Web Supervisor")
+
     children = [
-      Cowboy.child_spec(:http, Router, [], [port: 8080])
+      Cowboy.child_spec(:http, Router, [], port: 8080)
     ]
 
     opts = [strategy: :one_for_one, name: __MODULE__]

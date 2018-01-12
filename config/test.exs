@@ -1,4 +1,5 @@
 use Mix.Config
+
 config :bittorrent_client,
   peer_id: "-ET0001-aaaaaaaaaaaa",
   compact: 1,
