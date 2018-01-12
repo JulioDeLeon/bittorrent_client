@@ -5,11 +5,13 @@ defmodule BittorrentClient.Logger.Factory do
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
   def create_logger(mod_name, compact \\ false) do
-    new_string = if compact do
-      pack_module_name(mod_name)
-    else
-      mod_name
-    end
+    new_string =
+      if compact do
+        pack_module_name(mod_name)
+      else
+        mod_name
+      end
+
     %JDLogger{
       module_name: new_string
     }
@@ -17,9 +19,12 @@ defmodule BittorrentClient.Logger.Factory do
 
   defp pack_module_name(mod_name) do
     parts = String.split(mod_name, ".")
-    firsts_parts = parts
-    |> Enum.take(Enum.count(parts) - 1)
-    |> Enum.map(fn x -> String.at(x, 0) end)
+
+    firsts_parts =
+      parts
+      |> Enum.take(Enum.count(parts) - 1)
+      |> Enum.map(fn x -> String.at(x, 0) end)
+
     last = List.last(parts)
     Enum.join(Enum.concat(firsts_parts, [last]), ".")
   end

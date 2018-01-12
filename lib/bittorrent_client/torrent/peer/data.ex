@@ -21,53 +21,54 @@ defmodule BittorrentClient.Torrent.Peer.Data do
   * `tracker_id` - string which will represent the bittorrent clients identification.
   * `name` - name which identifies the peer work process which is formated `{torrent_id}_{ip}_{port}`.
   """
-  @derive {Poison.Encoder, except: [:torrent_id,
-                                    :socket,
-                                    :metainfo,
-                                    :timer,
-                                    :state
-                                   ]}
-  defstruct [:torrent_id,
-             :peer_id,
-             :filename,
-             :peer_ip,
-             :peer_port,
-             :socket,
-             :interval,
-             :info_hash,
-             :handshake_check,
-             :metainfo,
-             :timer,
-             :state,
-             :need_piece,
-             :piece_index,
-             :sub_piece_index,
-             :piece_buffer,
-             :request_queue, # pieces that you need to serve
-             :bits_recieved, # track bytes received to compare to piece_length
-             :piece_length,
-             :piece_table,   # pieces the peer has that you want
-             :name
-            ]
+  @derive {Poison.Encoder,
+           except: [:torrent_id, :socket, :metainfo, :timer, :state]}
+  defstruct [
+    :torrent_id,
+    :peer_id,
+    :filename,
+    :peer_ip,
+    :peer_port,
+    :socket,
+    :interval,
+    :info_hash,
+    :handshake_check,
+    :metainfo,
+    :timer,
+    :state,
+    :need_piece,
+    :piece_index,
+    :sub_piece_index,
+    :piece_buffer,
+    # pieces that you need to serve
+    :request_queue,
+    # track bytes received to compare to piece_length
+    :bits_recieved,
+    :piece_length,
+    # pieces the peer has that you want
+    :piece_table,
+    :name
+  ]
+
   @type __MODULE__ :: %__MODULE__{
-    torrent_id: String.t,
-    peer_id: String.t,
-    filename: String.t,
-    peer_ip: String.t,
-    peer_port: integer,
-    socket: integer,
-    interval: integer,
-    info_hash: String.t,
-    handshake_check: boolean,
-    need_piece: boolean,
-    # metainfo:
-    # timer
-    state: atom(),
-    piece_index: integer,
-    sub_piece_index: integer,
-    request_queue: Enum.t,
-    bits_recieved: integer,
-    # piece_queue
-    name: String.t
-  }
+          torrent_id: String.t(),
+          peer_id: String.t(),
+          filename: String.t(),
+          peer_ip: String.t(),
+          peer_port: integer,
+          socket: integer,
+          interval: integer,
+          info_hash: String.t(),
+          handshake_check: boolean,
+          need_piece: boolean,
+          # metainfo:
+          # timer
+          state: atom(),
+          piece_index: integer,
+          sub_piece_index: integer,
+          request_queue: Enum.t(),
+          bits_recieved: integer,
+          # piece_queue
+          name: String.t()
+        }
 end

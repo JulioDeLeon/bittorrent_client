@@ -3,7 +3,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   Torrent Supervisor will supervise torrent handler threads dynamically.
   """
   use Supervisor
-  #require Logger
+  # require Logger
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
@@ -17,13 +17,16 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def init(_) do
-    supervise([worker(@torrent_impl, [])],
-      strategy: :simple_one_for_one)
+    supervise([worker(@torrent_impl, [])], strategy: :simple_one_for_one)
   end
 
   def start_child({torrent_id, filename}) do
     # Logger.info fn -> "Adding torrent id for: #{torrent_id} for #{__MODULE__}" end
-    JDLogger.info(@logger, "Adding torrent id for: #{torrent_id} for #{__MODULE__}")
+    JDLogger.info(
+      @logger,
+      "Adding torrent id for: #{torrent_id} for #{__MODULE__}"
+    )
+
     Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
   end
 

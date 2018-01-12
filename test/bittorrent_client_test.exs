@@ -12,7 +12,7 @@ defmodule BittorrentClientTest do
     conn = conn(:get, "/ping")
     conn = BittorrentClient.Web.Router.call(conn, @opts)
 
-	  assert conn.state == :sent
+    assert conn.state == :sent
     assert conn.status == 200
     assert conn.resp_body == "pong"
   end
@@ -20,22 +20,31 @@ defmodule BittorrentClientTest do
   # create test for post and put request
   test "compute info hash" do
     file = "priv/debian2.torrent"
-    metadata = file
-    |> File.read!()
-    |> Bento.torrent!()
-    {check, info} = metadata.info
-    |> Map.from_struct()
-    |> Map.delete(:md5sum)
-    |> Map.delete(:private)
-    |> Bento.encode()
+
+    metadata =
+      file
+      |> File.read!()
+      |> Bento.torrent!()
+
+    {check, info} =
+      metadata.info
+      |> Map.from_struct()
+      |> Map.delete(:md5sum)
+      |> Map.delete(:private)
+      |> Bento.encode()
+
     if check == :error do
       assert false
     else
-      hash = :crypto.hash(:sha, info)
-      |> Base.encode16()
-      expected = "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
-      |> URI.decode()
-      |> Base.encode16()
+      hash =
+        :crypto.hash(:sha, info)
+        |> Base.encode16()
+
+      expected =
+        "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
+        |> URI.decode()
+        |> Base.encode16()
+
       assert hash == expected
       assert URI.encode(hash) == URI.encode(expected)
     end
