@@ -6,7 +6,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   require HTTPoison
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
-  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
