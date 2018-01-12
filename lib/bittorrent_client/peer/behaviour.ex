@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Torrent.Peer do
+defmodule BittorrentClient.Peer do
   @moduledoc """
   """
 

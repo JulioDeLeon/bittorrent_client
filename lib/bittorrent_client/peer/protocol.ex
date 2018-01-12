@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Torrent.Peer.Protocol do
+defmodule BittorrentClient.Peer.Protocol do
   @moduledoc """
   Peer protocol message decoder and encoder.
   Credit is given to https://github.com/unblevable/T.rex/tree/master/lib/trex/protocol.ex

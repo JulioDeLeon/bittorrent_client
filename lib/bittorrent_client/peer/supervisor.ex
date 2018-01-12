@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Torrent.Peer.Supervisor do
+defmodule BittorrentClient.Peer.Supervisor do
   @moduledoc """
   Peer supervisor which is created when a new torrent is created to mange peer connections
   """

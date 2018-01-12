@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Torrent.Peer.Data do
+defmodule BittorrentClient.Peer.Data do
   @moduledoc """
   Peer data struct to contain information about peer connection
   Fields are:

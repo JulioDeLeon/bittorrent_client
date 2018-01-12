@@ -7,7 +7,7 @@ defmodule BittorrentClient.Supervisor do
   alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
   alias BittorrentClient.Web.Supervisor, as: WebSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
-  alias BittorrentClient.Torrent.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
   def start_link do
     Supervisor.start_link(__MODULE__, :ok)
