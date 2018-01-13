@@ -508,7 +508,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def create_bitstring(lst) do
     x = create_bitstring_helper(lst, 0, <<0::size(32)>>)
-   # byte_reverse(x)
+    # byte_reverse(x)
   end
 
   def create_bitstring_helper([a | lst], index, accum) do
@@ -541,7 +541,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     acc
   end
 
-  def reverse_bitstring(<<fst :: size(1), rst>>) do
+  def reverse_bitstring(<<fst::size(1), rst>>) do
     reverse_bitstring(<<rst>>) <> <<fst>>
   end
 
@@ -549,24 +549,24 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     <<>>
   end
 
-  def bit_concat(<<f :: size(1)>>, <<s :: size(1)>>) do
-    <<f :: size(1), s :: size(1)>>
+  def bit_concat(<<f::size(1)>>, <<s::size(1)>>) do
+    <<f::size(1), s::size(1)>>
   end
 
-  def bit_concat(<<f :: size(1), rst :: bytes>>, <<s :: size(1)>>) do
-    bit_concat(<<f :: size(1)>>, bit_concat(<<rst>>, <<s :: size(1)>>))
+  def bit_concat(<<f::size(1), rst::bytes>>, <<s::size(1)>>) do
+    bit_concat(<<f::size(1)>>, bit_concat(<<rst>>, <<s::size(1)>>))
   end
 
-  def bit_concat(term, <<s :: size(1)>>) do
-    <<f :: size(1), rst::bytes>> = term
-    bit_concat(<<f :: size(1)>>, bit_concat(<<rst>>, <<s :: size(1)>>))
+  def bit_concat(term, <<s::size(1)>>) do
+    <<f::size(1), rst::bytes>> = term
+    bit_concat(<<f::size(1)>>, bit_concat(<<rst>>, <<s::size(1)>>))
   end
 
-  def bit_concat(<<>>, <<f :: size(1)>>) do
-    <<f :: size(1)>>
+  def bit_concat(<<>>, <<f::size(1)>>) do
+    <<f::size(1)>>
   end
 
-  def bit_concat(<<f :: size(1)>>, _) do
-    <<f :: size(1)>>
+  def bit_concat(<<f::size(1)>>, _) do
+    <<f::size(1)>>
   end
 end
