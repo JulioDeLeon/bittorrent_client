@@ -50,4 +50,20 @@ defmodule PeerTest do
     {status, _reason} = BitUtility.set_bit(l, 3, 9)
     assert(status = :error)
   end
+
+  test "create empty bitfield based on torrent piece info" do
+    piece_length = 32
+    pieces = 2
+    expected = <<0::size(64)>>
+    buff = BitUtility.create_empty_bitfield(pieces, piece_length)
+    assert(expected == buff)
+  end
+
+  test "create buffer with extra byte" do
+    piece_length = 6
+    pieces = 3
+    expected = <<0::size(64)>>
+    buff = BitUtility.create_empty_bitfield(pieces, piece_length)
+    assert(expected == buff)
+  end
 end

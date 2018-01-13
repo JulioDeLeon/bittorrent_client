@@ -34,8 +34,6 @@ defmodule BittorrentClient.Peer.BitUtility do
 
       {before, temp} = String.split_at(bitstr, bitstring_index)
       {_oldVal, aft} = String.split_at(temp, 1)
-      what = <<new_byte>>
-      ret = before <> <<new_byte>> <> aft
       {:ok, before <> <<new_byte>> <> aft}
     end
   end
@@ -45,22 +43,41 @@ defmodule BittorrentClient.Peer.BitUtility do
   end
 
   def set_bit(_bitstr, val, _pos) do
-    {:error, "invalid value"}
+    {:error, "invalid value: #{val}"}
   end
 
   def create_full_bitfield(num_pieces, piece_length) do
     max_bits = num_pieces * piece_length
-    bytes_needed = div(max_bits, @byte_size) + 1
-    excess_bits = (bytes_needed * @byte_size) - max_bits
-    max_binary_value = Bitwise.<<<(1, max_bits + 1) - 1
-    initial_buffer = <<max_binary_value::size(bytes_needed)>>
-    #zero out invalid piece indexes
-    
+    bytes_needed = div(max_bits, @byte_size)
+    bits_needed = bytes_needed * @byte_size
+    excess_bits = rem(max_bits, @byte_size)
+    max_binary_value = Bitwise.<<<(1, bytes_needed * @byte_size + 1) - 1
+    initial_buffer = <<max_binary_value::size(bits_needed)>>
+
+    extra_byte =
+      if excess_bits == 0 do
+        <<>>
+      else
+        Enum.reduce([0..excess_bits], <<0::size(0)>>, fn index, buff ->
+          set_bit(buff, 1, index)
+        end)
+      end
+
+    initial_buffer <> extra_byte
   end
 
   def create_empty_bitfield(num_pieces, piece_length) do
     max_bits = num_pieces * piece_length
-    bytes_needed = div(max_bits, @byte_size) + 1
-    <<0 :: size(bytes_needed)>>
+
+    extra_byte =
+      if rem(max_bits, @byte_size) == 0 do
+        0
+      else
+        1
+      end
+
+    bytes_needed = div(max_bits, @byte_size) + extra_byte
+    bits_needed = bytes_needed * @byte_size
+    <<0::size(bits_needed)>>
   end
 end
