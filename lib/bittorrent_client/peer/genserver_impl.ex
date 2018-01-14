@@ -10,6 +10,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
+  alias BittorrentClient.Peer.BitUtility, as: BitUtility
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
@@ -480,7 +481,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {_status, lst} =
       @torrent_impl.get_completed_piece_list(peer_data.torrent_id)
 
-    bitfield = PeerProtocol.encode(:bitfield, create_bitstring(lst))
+    #    current_bitfield = BitUtility.create_empty_bitfield()
+    #    bitfield_msg = PeerProtocol.encode(:bitfield,)
+    bitfield = <<>>
 
     interest_msg =
       case peer_data.piece_table do
@@ -504,69 +507,5 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     )
 
     peer_data
-  end
-
-  def create_bitstring(lst) do
-    x = create_bitstring_helper(lst, 0, <<0::size(32)>>)
-    # byte_reverse(x)
-  end
-
-  def create_bitstring_helper([a | lst], index, accum) do
-    if a == index do
-      check = rem(32, index + 1)
-
-      cond do
-        0 > check ->
-          create_bitstring_helper(lst, index + 1, <<Bitwise.|||(accum, a)>>)
-
-        0 == check ->
-          <<Bitwise.|||(accum, a)>> <>
-            create_bitstring_helper(lst, index + 1, <<0::size(32)>>)
-      end
-    else
-      check = rem(32, index + 1)
-
-      cond do
-        0 > check ->
-          create_bitstring_helper([a | lst], index + 1, <<accum>>)
-
-        0 == check ->
-          <<accum>> <>
-            create_bitstring_helper([a | lst], index + 1, <<0::size(32)>>)
-      end
-    end
-  end
-
-  def create_bitstring_helper([], _index, acc) do
-    acc
-  end
-
-  def reverse_bitstring(<<fst::size(1), rst>>) do
-    reverse_bitstring(<<rst>>) <> <<fst>>
-  end
-
-  def reverse_bitstring(<<>>) do
-    <<>>
-  end
-
-  def bit_concat(<<f::size(1)>>, <<s::size(1)>>) do
-    <<f::size(1), s::size(1)>>
-  end
-
-  def bit_concat(<<f::size(1), rst::bytes>>, <<s::size(1)>>) do
-    bit_concat(<<f::size(1)>>, bit_concat(<<rst>>, <<s::size(1)>>))
-  end
-
-  def bit_concat(term, <<s::size(1)>>) do
-    <<f::size(1), rst::bytes>> = term
-    bit_concat(<<f::size(1)>>, bit_concat(<<rst>>, <<s::size(1)>>))
-  end
-
-  def bit_concat(<<>>, <<f::size(1)>>) do
-    <<f::size(1)>>
-  end
-
-  def bit_concat(<<f::size(1)>>, _) do
-    <<f::size(1)>>
   end
 end

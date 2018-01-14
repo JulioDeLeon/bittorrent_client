@@ -59,12 +59,14 @@ defmodule BittorrentClient.Server.GenServerImpl do
     JDLogger.debug(@logger, "add_new_torrent Generated #{id}")
 
     if not Map.has_key?(torrents, id) do
-      {status, _} = TorrentSupervisor.start_child({id, torrentFile})
+      {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
       JDLogger.debug(@logger, "add_new_torrent Status: #{status}")
 
       case status do
         :error ->
-          {:reply, {:error, "Failed to add torrent for #{torrentFile}\n"},
+          {:reply,
+           {:error,
+            "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"},
            {db, serverName, torrents}}
 
         _ ->
