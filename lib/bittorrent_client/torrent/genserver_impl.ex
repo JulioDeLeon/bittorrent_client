@@ -395,7 +395,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  defp create_initial_data(id, file, metadata) do
+  def create_initial_data(id, file, metadata) do
     {check, info} =
       metadata.info
       |> Map.from_struct()
@@ -413,27 +413,23 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         id: id,
         pid: self(),
         file: file,
+        status: :initial,
+        info_hash: hash,
         peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-        compact: Application.fetch_env!(:bittorrent_client, :compact),
         port: Application.fetch_env!(:bittorrent_client, :port),
         uploaded: 0,
         downloaded: 0,
         left: metadata.info.length,
-        info_hash: hash,
+        compact: Application.fetch_env!(:bittorrent_client, :compact),
         no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
         ip: Application.fetch_env!(:bittorrent_client, :ip),
         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
         key: Application.fetch_env!(:bittorrent_client, :key),
         trackerid: Application.fetch_env!(:bittorrent_client, :trackerid),
         tracker_info: %TrackerInfo{},
-        # empty for now, will keep track of what this client will have
-        # for uploading
-        # OR add a key for each possible piece marking as "NOT STARTED"
         pieces: %{},
-        # This would be none zero if continueing, for now 0
         next_piece_index: 0,
-        connected_peers: [],
-        status: :initial
+        connected_peers: []
       }
     end
   end

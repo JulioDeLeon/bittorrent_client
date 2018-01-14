@@ -58,8 +58,15 @@ defmodule BittorrentClient.Peer.BitUtility do
       if excess_bits == 0 do
         <<>>
       else
-        Enum.reduce([0..excess_bits], <<0::size(0)>>, fn index, buff ->
-          set_bit(buff, 1, index)
+        excess_indexes = for x <- 0..excess_bits, do: x
+
+        Enum.reduce(excess_indexes, <<0::size(@byte_size)>>, fn index, buff ->
+          {status, new_buff} = set_bit(buff, 1, index)
+
+          case status do
+            :ok -> new_buff
+            _ -> buff
+          end
         end)
       end
 

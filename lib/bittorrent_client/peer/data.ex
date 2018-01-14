@@ -44,6 +44,7 @@ defmodule BittorrentClient.Peer.Data do
     :request_queue,
     # track bytes received to compare to piece_length
     :bits_recieved,
+    :num_pieces,
     :piece_length,
     # pieces the peer has that you want
     :piece_table,
@@ -68,6 +69,8 @@ defmodule BittorrentClient.Peer.Data do
           sub_piece_index: integer,
           request_queue: Enum.t(),
           bits_recieved: integer,
+          num_pieces: integer,
+          piece_length: integer,
           # piece_queue
           name: String.t()
         }

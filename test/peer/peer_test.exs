@@ -59,11 +59,27 @@ defmodule PeerTest do
     assert(expected == buff)
   end
 
-  test "create buffer with extra byte" do
+  test "create empty buffer" do
     piece_length = 6
     pieces = 3
-    expected = <<0::size(64)>>
+    expected = <<0::size(24)>>
     buff = BitUtility.create_empty_bitfield(pieces, piece_length)
     assert(expected == buff)
+  end
+
+  test "create full bitfield with extra byte" do
+    piece_length = 6
+    pieces = 3
+    expected = <<255, 255, 224>>
+    buff = BitUtility.create_full_bitfield(pieces, piece_length)
+    assert(buff == expected)
+  end
+
+  test "create full bitfield" do
+    piece_length = 8
+    pieces = 3
+    expected = <<255, 255, 255>>
+    buff = BitUtility.create_full_bitfield(pieces, piece_length)
+    assert(buff == expected)
   end
 end
