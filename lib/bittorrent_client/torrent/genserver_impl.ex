@@ -25,7 +25,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> Bento.torrent!()
 
     JDLogger.debug(@logger, "Metadata: #{inspect(torrent_metadata)}")
-    torrent_data = create_initial_data(id, filename, torrent_metadata)
+    #    torrent_data = create_initial_data(id, filename, torrent_metadata)
+    torrent_data = %TorrentData{}
     JDLogger.debug(@logger, "Data: #{inspect(torrent_data)}")
 
     GenServer.start_link(
@@ -409,7 +410,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     else
       hash = :crypto.hash(:sha, info)
 
-      %TorrentData{
+      x = %TorrentData{
         id: id,
         pid: self(),
         file: file,
@@ -425,12 +426,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         ip: Application.fetch_env!(:bittorrent_client, :ip),
         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
         key: Application.fetch_env!(:bittorrent_client, :key),
-        trackerid: Application.fetch_env!(:bittorrent_client, :trackerid),
+        trackerid: "",
         tracker_info: %TrackerInfo{},
         pieces: %{},
         next_piece_index: 0,
         connected_peers: []
       }
+
+      x
     end
   end
 

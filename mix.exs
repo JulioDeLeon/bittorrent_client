@@ -35,8 +35,7 @@ defmodule BittorrentClient.Mixfile do
         no_peer_id: [],
         ip: [],
         numwant: [],
-        key: [],
-        trackerid: []
+        key: []
       ],
       mod: {BittorrentClient, []}
     ]

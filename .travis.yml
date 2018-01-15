@@ -1,6 +1,8 @@
 language: elixir
 elixir:
   - 1.5.1
+  - 1.5.3
+  - 1.6.0
 otp_releases:
   - 19.0
   - 20.0
@@ -10,6 +12,7 @@ env:
     - mix local.hex --force
     - mix local.rebar --force
     - mix deps.get
+    - mix deps.compile
   script:
     - mix test
   notifications:
