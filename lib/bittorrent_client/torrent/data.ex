@@ -28,8 +28,8 @@ defmodule BittorrentClient.Torrent.Data do
     :key,
     :trackerid,
     :tracker_info,
-    :next_piece_index,
     :pieces,
+    :next_piece_index,
     :connected_peers
   ]
 

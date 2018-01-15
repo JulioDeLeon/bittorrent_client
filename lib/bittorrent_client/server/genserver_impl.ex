@@ -64,6 +64,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
       case status do
         :error ->
+          JDLogger.error(
+            @logger,
+            "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"
+          )
+
           {:reply,
            {:error,
             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"},
