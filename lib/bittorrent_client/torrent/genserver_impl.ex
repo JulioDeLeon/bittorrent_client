@@ -37,7 +37,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     )
   end
 
-  def init(torrent_metadata, torrent_data) do
+  def init({torrent_metadata, torrent_data}) do
     {:ok, {torrent_metadata, torrent_data}}
   end
 
