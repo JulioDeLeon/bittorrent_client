@@ -103,8 +103,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
+      data = Map.fetch!(torrent_data, "data")
+      torrent_pid = data.id
+        |> @torrent_impl.whereis()
       JDLogger.debug(@logger, "TorrentData: #{inspect(torrent_data)}")
-      TorrentSupervisor.terminate_child(torrent_data.pid)
+      Process.exit(torrent_pid, :normal)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
