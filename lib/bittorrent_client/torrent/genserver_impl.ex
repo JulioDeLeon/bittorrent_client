@@ -3,6 +3,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   TorrentWorker handles on particular torrent magnet, manages the connections allowed and other settings.
   """
   @behaviour BittorrentClient.Torrent
+  use GenServer
   require HTTPoison
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
