@@ -17,11 +17,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def init(_) do
-    supervise(
-      [worker(@torrent_impl, [])],
-      strategy: :simple_one_for_one,
-      restart: :temporary
-    )
+    supervise([worker(@torrent_impl, [])], strategy: :simple_one_for_one, restart: :transient)
   end
 
   def start_child({torrent_id, filename}) do
@@ -38,6 +34,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   def terminate_child(torrent_pid) do
     # Logger.info fn -> "Request to terminate #{torrent_pid}" end
     JDLogger.info(@logger, "Request to terminate #{torrent_pid}")
-    Supervisor.terminate_child(__MODULE__, torrent_pid)
+    #    Supervisor.terminate_child(__MODULE__, torrent_pid)
+    Process.exit(torrent_pid, :normal)
   end
 end

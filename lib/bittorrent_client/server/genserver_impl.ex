@@ -112,7 +112,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
         |> @torrent_impl.whereis()
 
       JDLogger.debug(@logger, "TorrentData: #{inspect(torrent_data)}")
-      Process.exit(torrent_pid, :normal)
+      TorrentSupervisor.terminate_child(torrent_pid)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
