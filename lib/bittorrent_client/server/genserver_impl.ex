@@ -111,7 +111,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
-      {:reply, {:error, "Bad ID was given\n"}, {db, serverName, torrents}}
+      JDLogger.debug(@logger, "Bad ID was given to delete")
+      {:reply, {:error, {403, "Bad ID was given\n"}}, {db, serverName, torrents}}
     end
   end
 
