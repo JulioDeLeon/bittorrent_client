@@ -139,7 +139,9 @@ defmodule BittorrentClient.Web.Router do
 
     case status do
       :ok -> send_resp(conn, 200, data)
-      _ -> send_resp(conn, 500, "Don't know what happened")
+      :error ->
+        {code, err_msg} = data
+        send_resp(conn, code, err_msg)
     end
   end
 
