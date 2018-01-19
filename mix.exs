@@ -23,8 +23,7 @@ defmodule BittorrentClient.Mixfile do
         :cowboy,
         :plug,
         :gproc,
-        :httpoison,
-        :gen_state_machine
+        :httpoison
       ],
       env: [
         key_file: [],
