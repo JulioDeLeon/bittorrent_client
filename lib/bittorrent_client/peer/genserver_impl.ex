@@ -89,7 +89,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_info({:tcp, socket, msg}, peer_data) do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
-    # JDLogger.debug(@logger, "Basic socket event:  msg -> #{inspect msg} peer_data -> #{inspect peer_data}")
     {msgs, _} = PeerProtocol.decode(msg)
     {a_pd} = peer_data
 
