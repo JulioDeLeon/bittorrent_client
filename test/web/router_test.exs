@@ -9,6 +9,7 @@ defmodule BittorrentClient.Web.RouterTest do
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @opts WebRouter.init({})
   @torrent_file "priv/ubuntu.torrent"
+  @torrent_file_2 "priv/arch.torrent"
   test "addition of new torrent file" do
     json_body =
       %{"filename" => @torrent_file}
