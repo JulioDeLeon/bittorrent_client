@@ -27,7 +27,7 @@ defmodule BittorrentClient.Web.RouterTest do
       conn.resp_body
       |> Poison.decode!()
 
-    #TODO: DELETE THIS LINE IO.inspect(returned_data)
+    # TODO: DELETE THIS LINE IO.inspect(returned_data)
     torrent_id = Map.get(returned_data, "torrent id")
 
     # TODO: Add server name to application configurations
