@@ -89,7 +89,9 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
             _ ->
               updated_torrents = Map.put(torrents, id, data)
-              {:reply, {:ok, id}, {db, serverName, updated_torrents}}
+
+              {:reply, {:ok, %{"torrent id" => id}},
+               {db, serverName, updated_torrents}}
           end
       end
     else
@@ -104,15 +106,20 @@ defmodule BittorrentClient.Server.GenServerImpl do
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
       data = Map.fetch!(torrent_data, "data")
-      torrent_pid = data.id
+
+      torrent_pid =
+        data.id
         |> @torrent_impl.whereis()
+
       JDLogger.debug(@logger, "TorrentData: #{inspect(torrent_data)}")
       Process.exit(torrent_pid, :normal)
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
       JDLogger.debug(@logger, "Bad ID was given to delete")
-      {:reply, {:error, {403, "Bad ID was given\n"}}, {db, serverName, torrents}}
+
+      {:reply, {:error, {403, "Bad ID was given\n"}},
+       {db, serverName, torrents}}
     end
   end
 
