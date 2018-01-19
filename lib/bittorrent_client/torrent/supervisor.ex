@@ -34,7 +34,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   def terminate_child(torrent_pid) do
     # Logger.info fn -> "Request to terminate #{torrent_pid}" end
     JDLogger.info(@logger, "Request to terminate #{torrent_pid}")
-    #    Supervisor.terminate_child(__MODULE__, torrent_pid)
-    Process.exit(torrent_pid, :normal)
+    pid = Torrent.GenServerImpl.whereis(torrent_pid)
+    Process.exit(pid, :normal)
   end
 end
