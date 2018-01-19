@@ -133,12 +133,13 @@ defmodule BittorrentClient.Web.Router do
   end
 
   delete "#{@api_root}/:id/remove" when byte_size(id) > 3 do
-    # TODO: NOT TESTED YET
-    JDLogger.info(@logger, "Received the following filename: #{id}")
+    JDLogger.info(@logger, "Received the following torrent id: #{id} to delete")
     {status, data} = @server_impl.delete_torrent_by_id("GenericName", id)
 
     case status do
-      :ok -> send_resp(conn, 200, data)
+      :ok ->
+        send_resp(conn, 200, data)
+
       :error ->
         {code, err_msg} = data
         send_resp(conn, code, err_msg)
