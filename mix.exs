@@ -66,10 +66,8 @@ defmodule BittorrentClient.Mixfile do
       # global process registry
       {:gproc, "~> 0.5"},
       # code quality tool
-      {:credo, "~> 0.7", only: :dev},
-      # linter
+      {:credo, "~> 0.9.0-rc1", only: :dev},
       {:dogma, "~> 0.1", only: :dev},
-      {:gen_state_machine, "~> 2.0"},
       {:dialyxir, "~> 0.5", only: [:dev]},
       {:earmark, "~> 1.2.2", only: :dev},
       {:ex_doc, "~> 0.16", only: :dev}
