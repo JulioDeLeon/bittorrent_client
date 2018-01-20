@@ -20,6 +20,7 @@ defmodule BittorrentClient.Web.Router do
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
 
+  @server_name Application.get_env(:bittorrent_client, :server_name)
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
   @api_root "/api/v1"
@@ -30,7 +31,7 @@ defmodule BittorrentClient.Web.Router do
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Getting status for #{id}")
-    {status, msg} = @server_impl.get_torrent_info_by_id("GenericName", id)
+    {status, msg} = @server_impl.get_torrent_info_by_id(@server_name, id)
 
     case status do
       :ok ->
@@ -58,7 +59,7 @@ defmodule BittorrentClient.Web.Router do
 
   get "#{@api_root}/:id/info" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Getting info for #{id}")
-    {status, msg} = @server_impl.get_torrent_info_by_id("GenericName", id)
+    {status, msg} = @server_impl.get_torrent_info_by_id(@server_name, id)
 
     case status do
       :ok ->
@@ -75,7 +76,7 @@ defmodule BittorrentClient.Web.Router do
 
   put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker")
-    {status, msg} = @server_impl.connect_torrent_to_tracker("GenericName", id)
+    {status, msg} = @server_impl.connect_torrent_to_tracker(@server_name, id)
 
     case status do
       :ok ->
@@ -88,14 +89,14 @@ defmodule BittorrentClient.Web.Router do
 
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker async")
-    _status = @server_impl.connect_torrent_to_tracker_async("GenericName", id)
+    _status = @server_impl.connect_torrent_to_tracker_async(@server_name, id)
     JDLogger.debug(@logger, "connect returning success")
     send_resp(conn, 204, "")
   end
 
   put "#{@api_root}/:id/startTorrent/" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker async")
-    {status, msg} = @server_impl.start_torrent("GenericName", id)
+    {status, msg} = @server_impl.start_torrent(@server_name, id)
 
     case status do
       :error ->
@@ -111,7 +112,7 @@ defmodule BittorrentClient.Web.Router do
 
   put "#{@api_root}/:id/startTorrent/async" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Connecting #{id} to tracker async")
-    _status = @server_impl.start_torrent_async("GenericName", id)
+    _status = @server_impl.start_torrent_async(@server_name, id)
     send_resp(conn, 204, "")
   end
 
@@ -119,7 +120,7 @@ defmodule BittorrentClient.Web.Router do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
     JDLogger.info(@logger, "Received the following filename: #{filename}")
-    {status, data} = @server_impl.add_new_torrent("GenericName", filename)
+    {status, data} = @server_impl.add_new_torrent(@server_name, filename)
 
     case status do
       :ok ->
@@ -134,7 +135,7 @@ defmodule BittorrentClient.Web.Router do
 
   delete "#{@api_root}/:id/remove" when byte_size(id) > 3 do
     JDLogger.info(@logger, "Received the following torrent id: #{id} to delete")
-    {status, data} = @server_impl.delete_torrent_by_id("GenericName", id)
+    {status, data} = @server_impl.delete_torrent_by_id(@server_name, id)
 
     case status do
       :ok ->
@@ -147,7 +148,7 @@ defmodule BittorrentClient.Web.Router do
   end
 
   get "#{@api_root}/all" do
-    {status, data} = @server_impl.list_current_torrents("GenericName")
+    {status, data} = @server_impl.list_current_torrents(@server_name)
 
     case status do
       :ok ->
@@ -167,7 +168,7 @@ defmodule BittorrentClient.Web.Router do
 
   delete "#{@api_root}/remove/all" do
     # TODO: NOT TESTED YET
-    {status, _} = @server_impl.delete_all_torrents("GenericName")
+    {status, _} = @server_impl.delete_all_torrents(@server_name)
 
     case status do
       :ok -> send_resp(conn, 204, "")
