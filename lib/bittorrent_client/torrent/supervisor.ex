@@ -18,9 +18,8 @@ defmodule BittorrentClient.Torrent.Supervisor do
 
   def init(_) do
     supervise(
-      [worker(@torrent_impl, [])],
+      [worker(@torrent_impl, [], restart: :temporary)],
       strategy: :simple_one_for_one,
-      restart: :transient
     )
   end
 

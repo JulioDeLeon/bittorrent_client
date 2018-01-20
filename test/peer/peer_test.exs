@@ -2,9 +2,14 @@ defmodule PeerTest do
   use ExUnit.Case
   doctest BittorrentClient.Peer.GenServerImpl
   alias BittorrentClient.Peer.BitUtility, as: BitUtility
+  alias BittorrentClient.Peer.Superviso, as: PeerSupervisor
 
   setup_all do
     {:ok, sample_arrary: [2, 8, 17]}
+  end
+
+  test "Peer Processes are temporary" do
+    assert Supervisor.child_spec(PeerSupervisor, []).restart == :temporary
   end
 
   test "simple bitwise operating setting <<0,2>>" do
