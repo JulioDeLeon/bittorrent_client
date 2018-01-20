@@ -8,14 +8,14 @@ defmodule BittorrentClient.Supervisor do
   alias BittorrentClient.Web.Supervisor, as: WebSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
-
+  @server_name Application.get_env(:bittorrent_client, :server_name)
   def start_link do
     Supervisor.start_link(__MODULE__, :ok)
   end
 
   def init(:ok) do
     children = [
-      worker(ServerSupervisor, ["GenericName"]),
+      worker(ServerSupervisor, [@server_name]),
       worker(WebSupervisor, []),
       worker(TorrentSupervisor, []),
       worker(PeerSupervisor, [])

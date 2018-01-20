@@ -107,12 +107,9 @@ defmodule BittorrentClient.Server.GenServerImpl do
       torrent_data = Map.get(torrents, id)
       data = Map.fetch!(torrent_data, "data")
 
-      torrent_pid =
-        data.id
-        |> @torrent_impl.whereis()
-
       JDLogger.debug(@logger, "TorrentData: #{inspect(torrent_data)}")
-      TorrentSupervisor.terminate_child(torrent_pid)
+      ret = stop_torrent_process_helper(data.id)
+      JDLogger.debug(@logger, "TorrentSupervisor.stop_child ret: #{inspect(ret)}")
       torrents = Map.delete(torrents, id)
       {:reply, {:ok, id}, {db, serverName, torrents}}
     else
@@ -342,5 +339,21 @@ defmodule BittorrentClient.Server.GenServerImpl do
       :global.whereis_name({:btc_server, serverName}),
       {:delete_all}
     )
+  end
+
+# -------------------------------------------------------------------------------
+# Utility Functions
+# -------------------------------------------------------------------------------
+
+  defp stop_torrent_process_helper(torrent_id) do
+    torrent_pid =
+      torrent_id
+      |> @torrent_impl.whereis()
+    case torrent_pid do
+      :undefined ->
+        {:error, "could not find torrent process with id of #{torrent_id}"}
+      _ ->
+        TorrentSupervisor.terminate_child(torrent_pid)
+    end
   end
 end
