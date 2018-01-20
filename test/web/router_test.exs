@@ -56,7 +56,7 @@ defmodule BittorrentClient.Web.RouterTest do
     assert status = :ok
   end
 
-  test "deletion of a torrent from client", context do
+  test "deletion of a torrent from Web Layer", context do
     json_body =
       %{"filename" => @torrent_file}
       |> Poison.encode!()

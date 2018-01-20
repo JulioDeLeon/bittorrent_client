@@ -25,8 +25,14 @@ defmodule BittorrentClient.ServerTest do
            file_2_bento_contents: file_2_bento_contents]}
   end
 
-  test "Addition of a new torrent on the Server layer", context do
+  test "Addition of a new torrent from Server layer", context do
     {status, data} = @server_impl.add_new_torrent(@server_name, @file_name_1)
+    assert status == :ok
+  end
+
+  test "Deletion of all torrents from Server Layer", context do
+    {status, torrent_table} = @server_impl.list_current_torrents(@server_name)
+    IO.inspect torrent_table
     assert status == :ok
   end
 end
