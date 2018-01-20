@@ -30,7 +30,7 @@ defmodule BittorrentClient.Web.RouterTest do
     {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
   end
 
-  test "addition of new torrent file", context do
+  test "addition of new torrent file on Web Layer" do
     json_body =
       %{"filename" => @torrent_file}
       |> Poison.encode!()
