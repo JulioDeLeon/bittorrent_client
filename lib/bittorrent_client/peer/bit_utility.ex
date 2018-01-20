@@ -1,4 +1,7 @@
 defmodule BittorrentClient.Peer.BitUtility do
+  @moduledoc """
+  Bitutility provides functions which handle the encoding of bitstrings to bitfields.
+  """
   require Bitwise
   require Logger
   @byte_size 8
@@ -14,7 +17,7 @@ defmodule BittorrentClient.Peer.BitUtility do
       <<desired_byte_val>> = String.at(bitstr, bitstring_index)
       new_byte = Bitwise.|||(desired_byte_val, Bitwise.<<<(1, bit_index - 1))
       {before, temp} = String.split_at(bitstr, bitstring_index)
-      {_oldVal, aft} = String.split_at(temp, 1)
+      {_old_val, aft} = String.split_at(temp, 1)
       {:ok, before <> <<new_byte>> <> aft}
     end
   end
@@ -33,7 +36,7 @@ defmodule BittorrentClient.Peer.BitUtility do
         Bitwise.&&&(desired_byte_val, 255 - Bitwise.<<<(1, bit_index - 1))
 
       {before, temp} = String.split_at(bitstr, bitstring_index)
-      {_oldVal, aft} = String.split_at(temp, 1)
+      {_old_val, aft} = String.split_at(temp, 1)
       {:ok, before <> <<new_byte>> <> aft}
     end
   end

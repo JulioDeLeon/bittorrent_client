@@ -137,7 +137,9 @@ defmodule BittorrentClient.Web.Router do
     {status, data} = @server_impl.delete_torrent_by_id("GenericName", id)
 
     case status do
-      :ok -> send_resp(conn, 200, data)
+      :ok ->
+        send_resp(conn, 200, data)
+
       :error ->
         {code, err_msg} = data
         send_resp(conn, code, err_msg)

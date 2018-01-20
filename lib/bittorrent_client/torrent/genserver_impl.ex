@@ -93,23 +93,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
          {metadata, data}}
 
       _ ->
-        peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
-
-        if length(peer_list) == 0 do
-          {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
-        else
-          returned_pids =
-            Enum.map(peer_list, fn {ip, port} ->
-              PeerSupervisor.start_child(
-                {metadata, Map.get(data, :id), Map.get(data, :info_hash),
-                 Map.get(data, :filename),
-                 data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
-              )
-            end)
-
-          {:reply, {:ok, "started torrent #{id}", returned_pids},
-           {metadata, %TorrentData{data | status: :started}}}
-        end
+        start_torrent_helper(id, {metadata, data})
     end
   end
 
@@ -498,6 +482,28 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
                 "#{index} is not available: #{inspect(progress)}"}
            end
          end).()
+    end
+  end
+
+  defp start_torrent_helper(id, {metadata, data}) do
+    peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
+
+    case peer_list do
+      [] ->
+        {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
+
+      _ ->
+        returned_pids =
+          Enum.map(peer_list, fn {ip, port} ->
+            PeerSupervisor.start_child(
+              {metadata, Map.get(data, :id), Map.get(data, :info_hash),
+               Map.get(data, :filename),
+               data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
+            )
+          end)
+
+        {:reply, {:ok, "started torrent #{id}", returned_pids},
+         {metadata, %TorrentData{data | status: :started}}}
     end
   end
 end
