@@ -125,6 +125,54 @@ defmodule ServerTest do
     assert torrent_table == %{}
   end
 
+  test "Updating torrent status by id at the Server Layer", context do
+    expected_status = :started
+    {add_torrent_status, resp_map} =
+      @server_impl.add_new_torrent(@server_name, @file_name_1)
+
+    assert add_torrent_status == :ok
+    torrent_id = Map.get(resp_map, "torrent id")
+
+    {torrent_info_status, torrent_info} =
+      @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
+
+    assert torrent_info_status == :ok
+    assert Map.has_key?(torrent_info, "data")
+    assert Map.has_key?(torrent_info, "metadata")
+
+    curr_status =
+      torrent_info
+      |> Map.get("data")
+      |> Map.get("status")
+
+    metadata = Map.get(torrent_info, "metadata")
+
+    assert compare_bento_data_to_metadata(
+      context.file_2_bento_contents,
+      metadata
+    )
+
+    {update_status, ret_data} = @server_impl.update_torrent_status_by_id(@server_name, torrent_id, expected_status)
+
+    assert update_status == :ok
+    IO.inspect ret_data
+
+    {second_torrent_info_status, new_torrent_data} = @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
+    assert second_torrent_info_status == :ok
+    assert Map.has_key?(new_torrent_data, "data")
+    assert Map.has_key?(new_torrent_data, "metadata")
+
+    new_meta_data = Map.get(new_torrent_data, "metadata")
+    assert compare_bento_data_to_metadata(context.file_2_bento_contents, new_meta_data)
+
+    new_torrent_status =
+      new_torrent_data
+      |> Map.get("data")
+      |> Map.get("status")
+    assert new_torrent_status == expected_status
+  end
+
+  # TODO: Write test for connecting to tracker and starting torrent logic
   defp compare_bento_data_to_metadata(bento_data, metadata) do
     Enum.reduce(Map.keys(bento_data), true, fn key, acc ->
       bento_field_val = Map.get(bento_data, key)
