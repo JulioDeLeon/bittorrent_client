@@ -19,7 +19,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   def init(_) do
     supervise(
       [worker(@torrent_impl, [], restart: :temporary)],
-      strategy: :simple_one_for_one,
+      strategy: :simple_one_for_one
     )
   end
 
@@ -34,10 +34,18 @@ defmodule BittorrentClient.Torrent.Supervisor do
     ret
   end
 
-  def terminate_child(torrent_pid) do
+  def terminate_child(torrent_id) do
     # Logger.info fn -> "Request to terminate #{torrent_pid}" end
-    JDLogger.info(@logger, "Request to terminate #{torrent_pid}")
-    pid = @torrent_impl.whereis(torrent_pid)
-    Process.exit(pid, :normal)
+    JDLogger.info(@logger, "Request to terminate #{inspect(torrent_id)}")
+    pid = @torrent_impl.whereis(torrent_id)
+
+    case pid do
+      :undefined ->
+        {:error, "Torrent id: #{torrent_id} could not be found"}
+
+      _ ->
+        # tell torrent process to terminate it's related_children
+        {:ok, Process.exit(pid, :kill)}
+    end
   end
 end

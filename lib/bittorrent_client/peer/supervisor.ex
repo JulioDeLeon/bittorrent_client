@@ -17,7 +17,7 @@ defmodule BittorrentClient.Peer.Supervisor do
   def init(_) do
     supervise(
       [worker(@peer_impl, [], restart: :temporary)],
-      strategy: :simple_one_for_one,
+      strategy: :simple_one_for_one
     )
   end
 

@@ -11,7 +11,7 @@ defmodule BittorrentClient.Web.RouterTest do
   @torrent_file "priv/ubuntu.torrent"
   @torrent_file_2 "priv/arch.torrent"
 
-  setup_all do
+  setup do
     file_1_bento_content =
       @torrent_file
       |> File.read!()
@@ -21,11 +21,6 @@ defmodule BittorrentClient.Web.RouterTest do
       @torrent_file_2
       |> File.read!()
       |> Bento.torrent!()
-
-    on_exit fn ->
-      IO.puts "on_exit"
-      @server_impl.delete_all_torrents(@server_name)
-    end
 
     {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
   end
