@@ -25,6 +25,12 @@ defmodule BittorrentClient.Web.RouterTest do
     {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
   end
 
+  setup do
+    on_exit(fn ->
+      _ret = @server_impl.delete_all_torrents(@server_name)
+    end)
+  end
+
   test "addition of new torrent file on Web Layer" do
     json_body =
       %{"filename" => @torrent_file}

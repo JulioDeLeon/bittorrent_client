@@ -26,10 +26,7 @@ defmodule ServerTest do
 
   setup do
     on_exit(fn ->
-      # attempt to delete torrents on server layer
-      @server_impl.delete_all_torrents(@server_name)
-      {_s, table} = @server_impl.list_current_torrents(@server_name)
-      IO.puts("Current table: #{inspect(table)}")
+      _ret = @server_impl.delete_all_torrents(@server_name)
     end)
   end
 
