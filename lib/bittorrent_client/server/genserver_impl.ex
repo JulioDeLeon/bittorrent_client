@@ -123,7 +123,9 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
         _ ->
           torrents = Map.delete(torrents, id)
-          {:reply, {:ok, {200, id}}, {db, server_name, torrents}}
+
+          {:reply, {:ok, {200, %{"torrent id" => id, "torrent data" => data}}},
+           {db, server_name, torrents}}
       end
     else
       JDLogger.debug(@logger, "Bad ID was given to delete")
@@ -183,12 +185,29 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_call({:delete_all}, _from, {db, server_name, torrents}) do
-    ids = Map.keys(torrents)
-    status_table = Enum.reduce(ids, %{}, fn key, id ->
+    status_table =
+      Enum.reduce(Map.keys(torrents), %{}, fn key, acc ->
+        {status, _data} = TorrentSupervisor.terminate_child(key)
 
-    end)
-    torrents = Map.drop(torrents, Map.keys(torrents))
-    {:reply, {:ok, torrents}, {db, server_name, torrents}}
+        case status do
+          :error ->
+            JDLogger.error(@logger, "Could not kill #{key}")
+            acc
+
+          _ ->
+            Map.put(acc, key, status)
+        end
+      end)
+
+    torrents = Map.drop(torrents, Map.keys(status_table))
+
+    case torrents do
+      %{} ->
+        {:reply, {:ok, torrents}, {db, server_name, torrents}}
+
+      _ ->
+        {:reply, {:error, torrents}, {db, server_name, torrents}}
+    end
   end
 
   def handle_call({:start_torrent, id}, _from, {db, server_name, torrents}) do
@@ -356,12 +375,5 @@ defmodule BittorrentClient.Server.GenServerImpl do
       :global.whereis_name({:btc_server, server_name}),
       {:delete_all}
     )
-  end
-
-  # -------------------------------------------------------------------------------
-  # Utility Functions
-  # -------------------------------------------------------------------------------
-
-  defp stop_torrent_process_helper(torrent_id) do
   end
 end
