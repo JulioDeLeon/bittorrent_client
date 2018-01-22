@@ -157,18 +157,16 @@ defmodule ServerTest do
     assert update_status == :ok
     IO.inspect ret_data
 
-    {second_torrent_info_status, new_torrent_data} = @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
+    {second_torrent_info_status, new_torrent_info} = @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
     assert second_torrent_info_status == :ok
-    assert Map.has_key?(new_torrent_data, "data")
-    assert Map.has_key?(new_torrent_data, "metadata")
+    assert Map.has_key?(new_torrent_info, "data")
+    assert Map.has_key?(new_torrent_info, "metadata")
+    IO.inspect new_torrent_info
 
-    new_meta_data = Map.get(new_torrent_data, "metadata")
+    new_meta_data = Map.get(new_torrent_info, "metadata")
     assert compare_bento_data_to_metadata(context.file_2_bento_contents, new_meta_data)
 
-    new_torrent_status =
-      new_torrent_data
-      |> Map.get("data")
-      |> Map.get("status")
+    new_torrent_status = Map.get(new_torrent_info, "data").status
     assert new_torrent_status == expected_status
   end
 

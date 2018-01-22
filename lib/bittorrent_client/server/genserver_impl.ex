@@ -173,12 +173,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
         {db, server_name, torrents}
       ) do
     if Map.has_key?(torrents, id) do
-      torrents =
-        Map.update!(torrents, id, fn dataPoint ->
-          %TorrentData{dataPoint | status: status}
-        end)
-
-      {:reply, {:ok, torrents}, {db, server_name, torrents}}
+      torrent_info = Map.get(torrents, id)
+      torrent_data = Map.get(torrent_info, "data")
+      new_torrent_data = %TorrentData{torrent_data | status: status}
+      new_torrent_info = Map.put(torrent_info, "data", new_torrent_data)
+      updated_torrents = Map.put(torrents, id, new_torrent_info)
+      {:reply, {:ok, updated_torrents}, {db, server_name, updated_torrents}}
     else
       {:reply, {:error, "Bad ID was given"}, {db, server_name, torrents}}
     end
