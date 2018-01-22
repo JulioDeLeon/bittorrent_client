@@ -30,6 +30,16 @@ defmodule ServerTest do
     end)
   end
 
+  test "Server.whereis returnes a pid when looking for valid server name from Server layer" do
+    assert is_pid(@server_impl.whereis(@server_name))
+  end
+
+  test "Server.whereis returns :undefined when given a invalid server name from Server layer" do
+    fake_server_name = "not real"
+    assert !is_pid(@server_impl.whereis(fake_server_name))
+    assert @server_impl.whereis(fake_server_name) == :undefined
+  end
+
   test "Addition of a new torrent from Server layer", context do
     {add_torrent_status, resp_map} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
@@ -155,19 +165,47 @@ defmodule ServerTest do
     {update_status, ret_data} = @server_impl.update_torrent_status_by_id(@server_name, torrent_id, expected_status)
 
     assert update_status == :ok
-    IO.inspect ret_data
 
     {second_torrent_info_status, new_torrent_info} = @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
     assert second_torrent_info_status == :ok
     assert Map.has_key?(new_torrent_info, "data")
     assert Map.has_key?(new_torrent_info, "metadata")
-    IO.inspect new_torrent_info
 
     new_meta_data = Map.get(new_torrent_info, "metadata")
     assert compare_bento_data_to_metadata(context.file_2_bento_contents, new_meta_data)
 
     new_torrent_status = Map.get(new_torrent_info, "data").status
     assert new_torrent_status == expected_status
+  end
+
+  test "Addition of the same torrent file will fail from the Server Layer", context do
+    {add_torrent_status, _resp_map} =
+      @server_impl.add_new_torrent(@server_name, @file_name_1)
+
+    assert add_torrent_status == :ok
+
+    {add_torrent_status_2, _resp_map} =
+      @server_impl.add_new_torrent(@server_name, @file_name_1)
+
+    assert add_torrent_status_2 == :error
+  end
+
+  test "Updating status of a torrent process that does not exist from Server layer" do
+    {update_status, _msg} = @server_impl.update_torrent_status_by_id(@server_name, "fake id", :some_status)
+    assert update_status == :error
+  end
+
+  test "Add a torrent file that does not exist from the Server layer" do
+    {add_status, _msg} = @server_impl.add_new_torrent(@server_name, "some_file")
+    assert add_status = :error
+  end
+
+  test "Deletion of a torrent process that does not exist" do
+    some_torrent_id = "superfake"
+    assert @torrent_impl.whereis(some_torrent_id) == :undefined
+
+    {deletion_status, _msg} = @server_impl.delete_torrent_by_id(@server_name, some_torrent_id)
+    assert deletion_status == :error
   end
 
   # TODO: Write test for connecting to tracker and starting torrent logic
