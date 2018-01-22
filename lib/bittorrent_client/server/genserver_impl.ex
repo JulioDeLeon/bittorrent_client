@@ -40,7 +40,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
       {_, d} = Map.fetch(torrents, id)
       {:reply, {:ok, d}, {db, server_name, torrents}}
     else
-      {:reply, {:error, {400, "Bad ID was given\n"}},
+      {:reply, {:error, {403, "Bad ID was given\n"}},
        {db, server_name, torrents}}
     end
   end
@@ -71,7 +71,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
           {:reply,
            {:error,
-            {400,
+            {403,
              "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
            {db, server_name, torrents}}
 
@@ -128,7 +128,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
         _ ->
           torrents = Map.delete(torrents, id)
 
-          {:reply, {:ok, {200, %{"torrent id" => id, "torrent data" => data}}},
+          {:reply, {:ok, %{"torrent id" => id, "torrent data" => data}},
            {db, server_name, torrents}}
       end
     else
@@ -210,7 +210,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
         {:reply, {:ok, torrents}, {db, server_name, torrents}}
 
       _ ->
-        {:reply, {:error, torrents}, {db, server_name, torrents}}
+        {:reply, {:error, {500, torrents}}, {db, server_name, torrents}}
     end
   end
 

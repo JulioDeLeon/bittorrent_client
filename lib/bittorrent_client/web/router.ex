@@ -139,7 +139,8 @@ defmodule BittorrentClient.Web.Router do
 
     case status do
       :ok ->
-        send_resp(conn, 200, data)
+        put_resp_content_type(conn, "application/json")
+        send_resp(conn, 200, Poison.encode!(data))
 
       :error ->
         {code, err_msg} = data

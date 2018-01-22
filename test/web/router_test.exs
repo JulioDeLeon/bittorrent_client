@@ -64,15 +64,114 @@ defmodule BittorrentClient.Web.RouterTest do
 
     conn = create_json_request("#{@api_root}/add/file", json_body)
     conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
 
-    json_body_2 =
-      %{"filename" => @torrent_file_2}
-      |> Poison.encode!()
+    returned_data =
+      conn.resp_body
+      |> Poison.decode!()
 
-    conn = create_json_request("#{@api_root}/add/file", json_body_2)
+    torrent_id = Map.get(returned_data, "torrent id")
+    torrent_pid = @torrent_impl.whereis(torrent_id)
+    assert torrent_pid != :undefined
+
+    conn = conn(:get, "#{@api_root}/all")
     conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
 
-    assert 1 == 1
+    returned_table =
+      conn.resp_body
+      |> Poison.decode!()
+
+    assert Map.has_key?(returned_table, torrent_id) == true
+
+    conn = conn(:delete, "#{@api_root}/#{torrent_id}/remove")
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
+
+    conn = conn(:get, "#{@api_root}/all")
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
+
+    returned_table =
+      conn.resp_body
+      |> Poison.decode!()
+
+    assert Map.has_key?(returned_table, torrent_id) != true
+  end
+
+  test "deletion of all torrents from Web Layer", context do
+    json_body =
+      %{"filename" => @torrent_file}
+    |> Poison.encode!()
+
+    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+
+    returned_data =
+      conn.resp_body
+      |> Poison.decode!()
+
+    torrent_id = Map.get(returned_data, "torrent id")
+
+    conn = conn(:get, "#{@api_root}/all")
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
+
+    returned_table =
+      conn.resp_body
+      |> Poison.decode!()
+
+    assert Map.has_key?(returned_table, torrent_id) == true
+
+    conn = conn(:delete, "#{@api_root}/remove/all")
+    conn = WebRouter.call(conn, @opts)
+    IO.inspect conn.resp_body
+    assert conn.state == :sent
+    assert conn.status == 204
+    assert conn.resp_body != nil
+
+    conn = conn(:get, "#{@api_root}/all")
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body != nil
+
+    returned_table =
+      conn.resp_body
+      |> Poison.decode!()
+
+    assert returned_table == %{}
+  end
+
+  test "deletion of a nonexistent torrent should return 400 from Web Layer", context do
+    fake_id = "superfake"
+    conn = conn(:delete, "#{@api_root}/#{fake_id}/remove")
+    conn = WebRouter.call(conn, @opts)
+    IO.inspect conn.resp_body
+    assert conn.state == :sent
+    assert conn.status == 403
+    assert conn.resp_body != nil
+ end
+
+  test "status of a nonexistent torrent process should return 400 from Web layer", context do
+    fake_id = "superfake"
+    conn = conn(:get, "#{@api_root}/#{fake_id}/status")
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 403
+    assert conn.resp_body != nil
   end
 
   defp create_json_request(path, body, content_type \\ "application/json") do
