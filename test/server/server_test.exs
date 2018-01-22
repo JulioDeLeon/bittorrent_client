@@ -137,6 +137,7 @@ defmodule ServerTest do
 
   test "Updating torrent status by id at the Server Layer", context do
     expected_status = :started
+
     {add_torrent_status, resp_map} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
 
@@ -158,27 +159,39 @@ defmodule ServerTest do
     metadata = Map.get(torrent_info, "metadata")
 
     assert compare_bento_data_to_metadata(
-      context.file_2_bento_contents,
-      metadata
-    )
+             context.file_2_bento_contents,
+             metadata
+           )
 
-    {update_status, ret_data} = @server_impl.update_torrent_status_by_id(@server_name, torrent_id, expected_status)
+    {update_status, ret_data} =
+      @server_impl.update_torrent_status_by_id(
+        @server_name,
+        torrent_id,
+        expected_status
+      )
 
     assert update_status == :ok
 
-    {second_torrent_info_status, new_torrent_info} = @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
+    {second_torrent_info_status, new_torrent_info} =
+      @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
+
     assert second_torrent_info_status == :ok
     assert Map.has_key?(new_torrent_info, "data")
     assert Map.has_key?(new_torrent_info, "metadata")
 
     new_meta_data = Map.get(new_torrent_info, "metadata")
-    assert compare_bento_data_to_metadata(context.file_2_bento_contents, new_meta_data)
+
+    assert compare_bento_data_to_metadata(
+             context.file_2_bento_contents,
+             new_meta_data
+           )
 
     new_torrent_status = Map.get(new_torrent_info, "data").status
     assert new_torrent_status == expected_status
   end
 
-  test "Addition of the same torrent file will fail from the Server Layer", context do
+  test "Addition of the same torrent file will fail from the Server Layer",
+       context do
     {add_torrent_status, _resp_map} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
 
@@ -191,7 +204,13 @@ defmodule ServerTest do
   end
 
   test "Updating status of a torrent process that does not exist from Server layer" do
-    {update_status, _msg} = @server_impl.update_torrent_status_by_id(@server_name, "fake id", :some_status)
+    {update_status, _msg} =
+      @server_impl.update_torrent_status_by_id(
+        @server_name,
+        "fake id",
+        :some_status
+      )
+
     assert update_status == :error
   end
 
@@ -204,7 +223,9 @@ defmodule ServerTest do
     some_torrent_id = "superfake"
     assert @torrent_impl.whereis(some_torrent_id) == :undefined
 
-    {deletion_status, _msg} = @server_impl.delete_torrent_by_id(@server_name, some_torrent_id)
+    {deletion_status, _msg} =
+      @server_impl.delete_torrent_by_id(@server_name, some_torrent_id)
+
     assert deletion_status == :error
   end
 

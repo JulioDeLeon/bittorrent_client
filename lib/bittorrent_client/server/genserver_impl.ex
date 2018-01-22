@@ -71,7 +71,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
           {:reply,
            {:error,
-            {400, "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
+            {400,
+             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
            {db, server_name, torrents}}
 
         _ ->
@@ -84,7 +85,10 @@ defmodule BittorrentClient.Server.GenServerImpl do
                 "Failed to add new torrent for #{torrentFile}"
               )
 
-              {:reply, {:error, {500, "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
+              {:reply,
+               {:error,
+                {500,
+                 "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
                {db, server_name, torrents}}
 
             _ ->
