@@ -137,7 +137,6 @@ defmodule BittorrentClient.Web.RouterTest do
 
     conn = conn(:delete, "#{@api_root}/remove/all")
     conn = WebRouter.call(conn, @opts)
-    IO.inspect conn.resp_body
     assert conn.state == :sent
     assert conn.status == 204
     assert conn.resp_body != nil
@@ -173,7 +172,6 @@ defmodule BittorrentClient.Web.RouterTest do
     fake_id = "superfake"
     conn = conn(:delete, "#{@api_root}/#{fake_id}/remove")
     conn = WebRouter.call(conn, @opts)
-    IO.inspect conn.resp_body
     assert conn.state == :sent
     assert conn.status == 403
     assert conn.resp_body != nil
