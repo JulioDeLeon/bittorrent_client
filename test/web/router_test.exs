@@ -155,7 +155,21 @@ defmodule BittorrentClient.Web.RouterTest do
     assert returned_table == %{}
   end
 
-  test "deletion of a nonexistent torrent should return 400 from Web Layer", context do
+  test "addition of a nonexistent torrent file should return 403 from Web layer", context do
+    fake_file = "superfakefile"
+    json_body =
+      %{"filename" => fake_file}
+    |> Poison.encode!()
+
+    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = WebRouter.call(conn, @opts)
+    assert conn.state == :sent
+    assert conn.status == 403
+    assert conn.resp_body != nil
+
+  end
+
+  test "deletion of a nonexistent torrent should return 403 from Web ayer", context do
     fake_id = "superfake"
     conn = conn(:delete, "#{@api_root}/#{fake_id}/remove")
     conn = WebRouter.call(conn, @opts)
