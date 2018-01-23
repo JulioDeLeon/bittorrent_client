@@ -72,6 +72,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     )
 
     # terminate genserver gracefully?
+    TorrentSupervisor.terminate_child(peer_data.peer_id)
     {:noreply, peer_data}
   end
 
@@ -111,6 +112,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     )
 
     # Gracefully stop this peer process OR get a new peer
+    TorrentSupervisor.terminate_child(peer_data.peer_id)
     {:noreply, {peer_data}}
   end
 

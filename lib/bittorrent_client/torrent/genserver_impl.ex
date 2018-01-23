@@ -380,7 +380,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def create_initial_data(id, file, metadata) do
+  defp create_initial_data(id, file, metadata) do
     {check, info} =
       metadata.info
       |> Map.from_struct()
