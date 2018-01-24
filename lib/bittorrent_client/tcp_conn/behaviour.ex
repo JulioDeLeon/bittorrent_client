@@ -52,7 +52,7 @@ defmodule BittorrentClient.TCPConn do
   assigns a new parent process to the tcp conn
   """
   @callback controlling_process(conn :: __MODULE__.t(), pid :: pid()) ::
-              {:ok, __MODULE__.t} | {:error, reason}
+              {:ok, __MODULE__.t()} | {:error, reason}
 
   @doc """
   setups a conn to listen on a given port
@@ -65,8 +65,10 @@ defmodule BittorrentClient.TCPConn do
   """
   @type length :: integer()
   @type packet :: bitstring() | binary() | :gen_tcp.httpPacket()
-  @callback recv(__MODULE__.t, len :: length()) :: {:ok, packet} | {:error, reason}
-  @callback recv(__MODULE__.t, len :: length(), timeout :: :gen_tcp.timeout()) :: {:ok, packet} | {:error, reason}
+  @callback recv(__MODULE__.t(), len :: length()) ::
+              {:ok, packet} | {:error, reason}
+  @callback recv(__MODULE__.t(), len :: length(), timeout :: :gen_tcp.timeout()) ::
+              {:ok, packet} | {:error, reason}
 
   @doc """
   sends bitstring into connection
@@ -83,5 +85,5 @@ defmodule BittorrentClient.TCPConn do
   closes in one or two ways. `how` == write closes the conn for writing but still can be read from. `how` == read closes the conn for reading, but still be written to.
   """
   @type how :: :read | :write | :read_write
-  @callback shutdown(__MODULE__.t, how :: how) :: :ok | {:error, reason}
+  @callback shutdown(__MODULE__.t(), how :: how) :: :ok | {:error, reason}
 end

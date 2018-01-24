@@ -5,35 +5,42 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   @behaviour BittorrentClient.TCPConn
   alias BittorrentClient.TCPConn, as: TCPConn
 
-  def connect(ip, port, opts \\ [])do
+  def connect(ip, port, opts \\ []) do
     {status, ret} = :gen_tcp.connect(ip, port, opts)
+
     case status do
       :ok ->
-        {:ok, %TCPConn{
-            socket: ret,
-            parent_pid: self()
+        {:ok,
+         %TCPConn{
+           socket: ret,
+           parent_pid: self()
          }}
-      _ -> 
+
+      _ ->
         {status, ret}
     end
   end
 
   def connect(ip, port, opts, timeout) do
     {status, socket} = :gen_tcp.connect(ip, port, opts, timeout)
+
     case status do
       :ok ->
-        {:ok, %TCPConn{
-            socket: socket,
-            parent_pid: self()
+        {:ok,
+         %TCPConn{
+           socket: socket,
+           parent_pid: self()
          }}
     end
   end
 
   def accept(tcp_conn) do
     {status, ret} = :gen_tcp.accept(tcp_conn.socket)
+
     case status do
       :ok ->
         {:ok, %TCPConn{tcp_conn | socket: ret}}
+
       _ ->
         {status, ret}
     end
@@ -41,19 +48,23 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
 
   def accept(tcp_conn, timeout) do
     {status, ret} = :gen_tcp.accept(tcp_conn.socket, timeout)
+
     case status do
       :ok ->
         {:ok, %TCPConn{tcp_conn | socket: ret}}
+
       _ ->
         {status, ret}
     end
   end
-  
+
   def controlling_process(tcp_conn, pid) do
-    ret =  :gen_tcp.controlling_process(tcp_conn.socket, pid) 
+    ret = :gen_tcp.controlling_process(tcp_conn.socket, pid)
+
     case ret do
-      :ok -> 
+      :ok ->
         {:ok, %TCPConn{tcp_conn | parent_pid: pid}}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -61,9 +72,11 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
 
   def listen(port, opts) do
     {status, ret} = :gen_tcp.listen(port, opts)
+
     case status do
       :ok ->
         {:ok, %TCPConn{socket: ret, parent_pid: self()}}
+
       _ ->
         {:error, ret}
     end
@@ -78,7 +91,7 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   end
 
   def send(tcp_conn, packet) do
-    :gen_tcp.send(tcp_conn.socket, packet) 
+    :gen_tcp.send(tcp_conn.socket, packet)
   end
 
   def close(tcp_conn) do
