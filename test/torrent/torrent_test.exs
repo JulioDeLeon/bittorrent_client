@@ -15,14 +15,17 @@ defmodule TorrentTest do
   end
 
   test "whereis should return a valid pid from Torrent layer", context do
-    {add_status, data} = @server_impl.add_new_torrent(@server_name, @file_name_1)
+    {add_status, data} =
+      @server_impl.add_new_torrent(@server_name, @file_name_1)
+
     assert add_status == :ok
     torrent_pid = Map.get(data, "torrent id")
 
     assert is_pid(@torrent_impl.whereis(torrent_pid))
   end
 
-  test "whereis should return undefined when given invalid id from Torrent layer", context do
+  test "whereis should return undefined when given invalid id from Torrent layer",
+       context do
     assert @torrent_impl.whereis("fake id") == :undefined
   end
 end

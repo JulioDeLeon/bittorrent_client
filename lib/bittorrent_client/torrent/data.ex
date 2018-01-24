@@ -33,7 +33,7 @@ defmodule BittorrentClient.Torrent.Data do
     :connected_peers
   ]
 
-  @type __MODULE__ :: %__MODULE__{
+  @type t :: %__MODULE__{
           id: integer,
           # pid
           file: String.t(),
