@@ -121,7 +121,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_message(:keep_alive, _msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Stay-Alive: #{peer_data.name}")
+    JDLogger.debug(@logger, "Stay-Alive MSG: #{peer_data.name}")
     peer_data
   end
 
@@ -378,7 +378,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     "#{f}.#{s}.#{t}.#{fr}"
   end
 
-  defp send_handshake(socket, msg) do
+  def send_handshake(socket, msg) do
     :gen_tcp.send(socket, msg)
   end
 
@@ -407,7 +407,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     queue
   end
 
-  defp send_message(:me_choke_it_interest, peer_data) do
+  def send_message(:me_choke_it_interest, peer_data) do
     msg1 = PeerProtocol.encode(:keep_alive)
 
     case @torrent_impl.get_next_piece_index(
@@ -437,12 +437,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp send_message(:me_interest_it_choke, peer_data) do
+  def send_message(:me_interest_it_choke, peer_data) do
     _msg1 = PeerProtocol.encode(:keep_alive)
     peer_data
   end
 
-  defp send_message(:we_interest, peer_data) do
+  def send_message(:we_interest, peer_data) do
     # Cant send data yet but switch between request/desired queues
     msg1 = PeerProtocol.encode(:keep_alive)
     # msg3 = unless Application.get_env(:bittorrent_client, :upload_check) do
@@ -478,7 +478,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp send_message(:we_choke, peer_data) do
+  def send_message(:we_choke, peer_data) do
     {_status, lst} =
       @torrent_impl.get_completed_piece_list(peer_data.torrent_id)
 
@@ -501,7 +501,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp send_message(_, peer_data) do
+  def send_message(_, peer_data) do
     JDLogger.debug(
       @logger,
       "#{peer_data.name} is in #{inspect(peer_data.state)} state"
