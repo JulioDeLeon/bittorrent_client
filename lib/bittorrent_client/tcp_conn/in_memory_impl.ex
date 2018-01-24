@@ -5,100 +5,64 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   @behaviour BittorrentClient.TCPConn
   alias BittorrentClient.TCPConn, as: TCPConn
 
-  def connect(ip, port, opts \\ []) do
-    {status, ret} = :gen_tcp.connect(ip, port, opts)
-
-    case status do
-      :ok ->
-        {:ok,
-         %TCPConn{
-           socket: ret,
-           parent_pid: self()
-         }}
-
-      _ ->
-        {status, ret}
-    end
+  def connect(_ip, _port, _opts) do
+    {:ok,
+     %TCPConn{
+      socket: :mock,
+      parent_pid: self()
+    }}
   end
 
-  def connect(ip, port, opts, timeout) do
-    {status, socket} = :gen_tcp.connect(ip, port, opts, timeout)
+  def connect({0,0,0,0}, _port, _opts) do
+    {:error, "Bad IP was given"}
+  end
+  
+  def connect(ip, _port, _opts, _timeout) do
+    {:ok,
+      %TCPConn{
+        socket: :mock,
+        parent_pid: self()
+      }}
+  end
 
-    case status do
-      :ok ->
-        {:ok,
-         %TCPConn{
-           socket: socket,
-           parent_pid: self()
-         }}
-    end
+  def connect({0,0,0,0}, _port, _opts, _timeout) do
+    {:error, "Bad IP was given"}
   end
 
   def accept(tcp_conn) do
-    {status, ret} = :gen_tcp.accept(tcp_conn.socket)
-
-    case status do
-      :ok ->
-        {:ok, %TCPConn{tcp_conn | socket: ret}}
-
-      _ ->
-        {status, ret}
-    end
+    {:ok, %TCPConn{tcp_conn | socket: :mock}}
   end
 
-  def accept(tcp_conn, timeout) do
-    {status, ret} = :gen_tcp.accept(tcp_conn.socket, timeout)
-
-    case status do
-      :ok ->
-        {:ok, %TCPConn{tcp_conn | socket: ret}}
-
-      _ ->
-        {status, ret}
-    end
+  def accept(tcp_conn, _timeout) do
+    {:ok, %TCPConn{tcp_conn | socket: :mock}}
   end
 
   def controlling_process(tcp_conn, pid) do
-    ret = :gen_tcp.controlling_process(tcp_conn.socket, pid)
-
-    case ret do
-      :ok ->
-        {:ok, %TCPConn{tcp_conn | parent_pid: pid}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+   {:ok, %TCPConn{tcp_conn | parent_pid: pid}}
   end
 
-  def listen(port, opts) do
-    {status, ret} = :gen_tcp.listen(port, opts)
-
-    case status do
-      :ok ->
-        {:ok, %TCPConn{socket: ret, parent_pid: self()}}
-
-      _ ->
-        {:error, ret}
-    end
+  def listen(_port, _opts) do
+   {:ok, %TCPConn{socket: :mock, parent_pid: self()}}
   end
 
   def recv(tcp_conn, len) do
-    :gen_tcp.recv(tcp_conn.socket, len)
+    # have multlple for the various bit protocols?
+    {:ok, <<0::size(len)>>}
   end
 
-  def recv(tcp_conn, len, timeout) do
-    :gen_tcp.recv(tcp_conn.socket, len, timeout)
+  def recv(_tcp_conn, len, _timeout) do
+    {:ok, <<0::size(len)>>}
   end
 
-  def send(tcp_conn, packet) do
-    :gen_tcp.send(tcp_conn.socket, packet)
+  def send(_tcp_conn, _packet) do
+    :ok
   end
 
-  def close(tcp_conn) do
-    :gen_tcp.close(tcp_conn.socket)
+  def close(_tcp_conn) do
+    :ok
   end
 
-  def shutdown(tcp_conn, how) do
-    :gen_tcp.close(tcp_conn.socket)
+  def shutdown(_tcp_conn, _how) do
+    :ok
   end
 end
