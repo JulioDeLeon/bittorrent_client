@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Peer.TCPConn do
+defmodule BittorrentClient.TCPConn do
   @moduledoc """
   This module exist to decouple the Peer module from :gen_tcp for local testing, and wrap :gen_tcp for production
   """
@@ -57,7 +57,15 @@ defmodule BittorrentClient.Peer.TCPConn do
   @doc """
   setups a conn to listen on a given port
   """
-  @callback listen(conn :: __MODULE__.t, opts :: [:gen_tcp.listen_opts()]) :: {:ok, __MODULE__.t} | {:error, reason}
+  @callback listen(conn :: __MODULE__.t(), opts :: [:gen_tcp.listen_opts()]) ::
+              {:ok, __MODULE__.t()} | {:error, reason}
+
+  @doc """
+  receive packets from conn in passive mode, a closed conn will return an error. Optional timeout specifies a timeout in milliseconds. Default is infinity
+  """
+  @type length :: integer()
+  @callback recv(__MODULE__.t, len :: length()) :: {:ok, bitstring()} | {:error, reason}
+  @callback recv(__MODULE__.t, len :: length(), timeout :: :gen_tcp.timeout()) :: {:ok, bitstring()} | {:error, reason}
 
   @doc """
   sends bitstring into connection
@@ -69,4 +77,10 @@ defmodule BittorrentClient.Peer.TCPConn do
   closes the tcp connection
   """
   @callback close(conn :: __MODULE__.t()) :: :ok
+
+  @doc """
+  closes in one or two ways. `how` == write closes the conn for writing but still can be read from. `how` == read closes the conn for reading, but still be written to.
+  """
+  @type how :: :read | :write | :read_write
+  @callback shutdown(__MODULE__.t, how :: how) :: {:ok} | {:error, reason}
 end
