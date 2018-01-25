@@ -99,7 +99,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
           end
       end
     else
-      {:reply, {:error, "That torrent already exist, Here's the ID: #{id}\n"},
+      {:reply, {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
        {db, server_name, torrents}}
     end
   end
@@ -147,7 +147,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
       case status do
         :error ->
-          {:reply, {:error, msg}, {db, server_name, torrents}}
+          {:reply, {:error, {500, msg}}, {db, server_name, torrents}}
 
         _ ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
@@ -167,7 +167,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
       torrents = Map.update!(torrents, id, fn _dataPoint -> data end)
       {:reply, {:ok, torrents}, {db, server_name, torrents}}
     else
-      {:reply, {:error, "Bad ID was given"}, {db, server_name, torrents}}
+      {:reply, {:error, {403, "Bad ID was given"}}, {db, server_name, torrents}}
     end
   end
 
@@ -184,7 +184,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
       updated_torrents = Map.put(torrents, id, new_torrent_info)
       {:reply, {:ok, updated_torrents}, {db, server_name, updated_torrents}}
     else
-      {:reply, {:error, "Bad ID was given"}, {db, server_name, torrents}}
+      {:reply, {:error, {403, "Bad ID was given"}}, {db, server_name, torrents}}
     end
   end
 
@@ -220,7 +220,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
       case status do
         :error ->
-          {:reply, {:error, msg}, {db, server_name, torrents}}
+          {:reply, {:error, {500, msg}}, {db, server_name, torrents}}
 
         _ ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
