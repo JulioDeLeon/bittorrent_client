@@ -5,7 +5,7 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   @behaviour BittorrentClient.HTTPHandle
 
   def get(_url, headers, _opts) do
-    #get example for test files
+    # get example for test files
     %HTTPoison.Response{
       body: "",
       headers: headers,

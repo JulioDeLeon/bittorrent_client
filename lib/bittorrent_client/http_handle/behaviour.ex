@@ -6,5 +6,11 @@ defmodule BittorrentClient.HTTPHandle do
   @doc """
   Issues a GET request to the given url.
   """
-  @callback get(url :: binary(), headers :: [HTTPoison.headers()], opts :: [Keyword.t]) :: {:ok, HTTPoison.Response.t | HTTPoison.AsyncResponse.t} | {:error, HTTPoison.Error.t}
+  @callback get(
+              url :: binary(),
+              headers :: [HTTPoison.headers()],
+              opts :: [Keyword.t()]
+            ) ::
+              {:ok, HTTPoison.Response.t() | HTTPoison.AsyncResponse.t()}
+              | {:error, HTTPoison.Error.t()}
 end
