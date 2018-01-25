@@ -357,16 +357,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :error ->
         JDLogger.error(@logger, "Failed to fetch #{url}")
         JDLogger.error(@logger, "Resp: #{inspect(resp)}")
-        {:reply, {:error, {504, "failed to fetch #{url}"}}, {metadata, data}}
+        {:reply, {:error, "failed to fetch #{url}"}, {metadata, data}}
 
       _ ->
         # response returns a text/plain object
-        IO.inspect resp
+        IO.inspect(resp)
         {status, tracker_info} = parse_tracker_response(resp.body)
 
         case status do
           :error ->
-            {:reply, {:error, {500, "Failed to connect to tracker"}},
+            {:reply, {:error, "Failed to connect to tracker"},
              {metadata, Map.put(data, :status, :error)}}
 
           _ ->

@@ -8,9 +8,9 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   def connect(_ip, _port, _opts) do
     {:ok,
      %TCPConn{
-      socket: :mock,
-      parent_pid: self()
-    }}
+       socket: :mock,
+       parent_pid: self()
+     }}
   end
 
   def connect({0, 0, 0, 0}, _port, _opts) do
@@ -19,10 +19,10 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
 
   def connect(ip, _port, _opts, _timeout) do
     {:ok,
-      %TCPConn{
-        socket: :mock,
-        parent_pid: self()
-      }}
+     %TCPConn{
+       socket: :mock,
+       parent_pid: self()
+     }}
   end
 
   def connect({0, 0, 0, 0}, _port, _opts, _timeout) do
@@ -38,11 +38,11 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   end
 
   def controlling_process(tcp_conn, pid) do
-   {:ok, %TCPConn{tcp_conn | parent_pid: pid}}
+    {:ok, %TCPConn{tcp_conn | parent_pid: pid}}
   end
 
   def listen(_port, _opts) do
-   {:ok, %TCPConn{socket: :mock, parent_pid: self()}}
+    {:ok, %TCPConn{socket: :mock, parent_pid: self()}}
   end
 
   def recv(tcp_conn, len) do
