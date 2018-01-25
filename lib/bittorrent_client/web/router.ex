@@ -83,7 +83,8 @@ defmodule BittorrentClient.Web.Router do
         send_resp(conn, 204, "")
 
       :error ->
-        send_resp(conn, 400, msg)
+        {code, err_msg} = msg
+        send_resp(conn, code, err_msg)
     end
   end
 
@@ -163,17 +164,20 @@ defmodule BittorrentClient.Web.Router do
         send_resp(conn, 200, Poison.encode!(ret))
 
       :error ->
-        send_resp(conn, 500, "Couldn't get all torrents")
+        {code, err_msg} = data
+        send_resp(conn, code, err_msg)
     end
   end
 
   delete "#{@api_root}/remove/all" do
     # TODO: NOT TESTED YET
-    {status, _} = @server_impl.delete_all_torrents(@server_name)
+    {status, data} = @server_impl.delete_all_torrents(@server_name)
 
     case status do
       :ok -> send_resp(conn, 204, "")
-      :error -> send_resp(conn, 500, "Something went wrong")
+      :error ->
+        {code, err_msg} = data
+        send_resp(conn, code, err_msg)
     end
   end
 
