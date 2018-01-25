@@ -31,7 +31,13 @@ defmodule BittorrentClient.Peer.Supervisor do
     ])
   end
 
-  def terminate_child(peer_pid) do
-    Supervisor.terminate_child(__MODULE__, peer_pid)
+  def terminate_child(peer_id) do
+    pid = @peer_impl.whereis(peer_id)
+    case pid do
+      :undefined ->
+        {:error, "invalid peer id was given: #{peer_id}"}
+      _ ->
+        Supervisor.terminate_child(__MODULE__, peer_id)
+    end
   end
 end

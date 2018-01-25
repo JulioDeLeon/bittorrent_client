@@ -10,7 +10,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
-  alias BittorrentClient.Peer.BitUtility, as: BitUtility
+  alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
@@ -72,7 +72,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     )
 
     # terminate genserver gracefully?
-    TorrentSupervisor.terminate_child(peer_data.peer_id)
+    PeerSupervisor.terminate_child(peer_data.peer_id)
     {:noreply, peer_data}
   end
 
@@ -112,7 +112,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     )
 
     # Gracefully stop this peer process OR get a new peer
-    TorrentSupervisor.terminate_child(peer_data.peer_id)
+    PeerSupervisor.terminate_child(peer_data.peer_id)
     {:noreply, {peer_data}}
   end
 
@@ -120,12 +120,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
-  defp handle_message(:keep_alive, _msg, _socket, peer_data) do
+  def handle_message(:keep_alive, _msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Stay-Alive MSG: #{peer_data.name}")
     peer_data
   end
 
-  defp handle_message(:handshake, _msg, _socket, peer_data) do
+  def handle_message(:handshake, _msg, _socket, peer_data) do
     if peer_data.handshake_check == false do
       # TODO: check the recieved info hash?
       JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
@@ -135,7 +135,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:choke, _msg, _socket, peer_data) do
+  def handle_message(:choke, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Choke MSG: #{peer_data.name} will stop leaching data"
@@ -153,7 +153,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:unchoke, _msg, _socket, peer_data) do
+  def handle_message(:unchoke, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Unchoke MSG: #{peer_data.name} will start leaching"
@@ -172,7 +172,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:interested, _msg, _socket, peer_data) do
+  def handle_message(:interested, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Interested MSG: #{peer_data.name} will start serving data"
@@ -190,7 +190,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:not_interested, _msg, _socket, peer_data) do
+  def handle_message(:not_interested, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Not_interested MSG: #{peer_data.name} will stop serving data"
@@ -208,7 +208,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:have, msg, _socket, peer_data) do
+  def handle_message(:have, msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
 
     {status, _} =
@@ -236,7 +236,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:bitfield, msg, _socket, peer_data) do
+  def handle_message(:bitfield, msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
     new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
 
@@ -261,7 +261,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:piece, msg, _socket, peer_data) do
+  def handle_message(:piece, msg, _socket, peer_data) do
     JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
 
     if msg.piece_index == peer_data.piece_index do
@@ -336,7 +336,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp handle_message(:cancel, _msg, _socket, peer_data) do
+  def handle_message(:cancel, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Cancel MSG: #{peer_data.name}, Close port, kill process"
@@ -345,7 +345,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp handle_message(:port, _msg, _socket, peer_data) do
+  def handle_message(:port, _msg, _socket, peer_data) do
     JDLogger.debug(
       @logger,
       "Port MSG: #{peer_data.name}, restablish new connect for new port"
@@ -354,7 +354,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp handle_message(unknown_type, msg, _socket, peer_data) do
+  def handle_message(unknown_type, msg, _socket, peer_data) do
     JDLogger.error(
       @logger,
       "#{unknown_type} MSG: #{peer_data.name} could not handle this message: #{
@@ -365,16 +365,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  defp loop_msgs([msg | msgs], socket, peer_data) do
+  def loop_msgs([msg | msgs], socket, peer_data) do
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(msgs, socket, new_peer_data)
   end
 
-  defp loop_msgs(_, _, peer_data) do
+  def loop_msgs(_, _, peer_data) do
     peer_data
   end
 
-  defp ip_to_str({f, s, t, fr}) do
+  def ip_to_str({f, s, t, fr}) do
     "#{f}.#{s}.#{t}.#{fr}"
   end
 
@@ -382,7 +382,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :gen_tcp.send(socket, msg)
   end
 
-  defp connect(ip, port) do
+  def connect(ip, port) do
     {status, sock} = :gen_tcp.connect(ip, port, [:binary, active: 1], 2_000)
 
     case status do
@@ -395,7 +395,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
+  def parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
     if bit == 1 do
       parse_bitfield(rest, Map.merge(queue, %{acc => :found}), acc + 1)
     else
@@ -403,7 +403,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  defp parse_bitfield(_, queue, _acc) do
+  def parse_bitfield(_, queue, _acc) do
     queue
   end
 
@@ -479,7 +479,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(:we_choke, peer_data) do
-    {_status, lst} =
+    {_status, _lst} =
       @torrent_impl.get_completed_piece_list(peer_data.torrent_id)
 
     #    current_bitfield = BitUtility.create_empty_bitfield()

@@ -13,10 +13,10 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
     }}
   end
 
-  def connect({0,0,0,0}, _port, _opts) do
+  def connect({0, 0, 0, 0}, _port, _opts) do
     {:error, "Bad IP was given"}
   end
-  
+
   def connect(ip, _port, _opts, _timeout) do
     {:ok,
       %TCPConn{
@@ -25,7 +25,7 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
       }}
   end
 
-  def connect({0,0,0,0}, _port, _opts, _timeout) do
+  def connect({0, 0, 0, 0}, _port, _opts, _timeout) do
     {:error, "Bad IP was given"}
   end
 

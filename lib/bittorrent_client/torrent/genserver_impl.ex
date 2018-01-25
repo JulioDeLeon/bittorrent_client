@@ -361,6 +361,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       _ ->
         # response returns a text/plain object
+        IO.inspect resp
         {status, tracker_info} = parse_tracker_response(resp.body)
 
         case status do
