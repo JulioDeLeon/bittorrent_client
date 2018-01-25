@@ -12,4 +12,5 @@ config :bittorrent_client,
   server_impl: BittorrentClient.Server.GenServerImpl,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
   upload_check: false
