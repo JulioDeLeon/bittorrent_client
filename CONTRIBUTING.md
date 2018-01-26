@@ -10,11 +10,20 @@
 
 
 # Style guides 
+Run ```mix format```
+
 # elixir code
+Run 
+```
+mix dialyzer --ply; mix dialyzer
+mix credo --strict
+```
+Address the issues introduced by your changes. 
+
 # git commit mesages
 
-
-# Recognitiion Model
+# Recognition Model
+Your name will go under contributors unless you opt out?
 
 # Questions?
 email Julio at jangelod@gmail.com
