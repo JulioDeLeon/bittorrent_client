@@ -10,8 +10,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
   alias BittorrentClient.Logger.JDLogger, as: JDLogger
-
+  @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
+
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
   # -------------------------------------------------------------------------------
@@ -349,7 +350,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     url = create_tracker_request(metadata.announce, params)
     # connect to tracker, respond based on what the http response is
     {status, resp} =
-      HTTPoison.get(url, [], [{:timeout, 10_000}, {:recv_timeout, 10_000}])
+      @http_handle_impl.get(url, [], [
+        {:timeout, 10_000},
+        {:recv_timeout, 10_000}
+      ])
 
     JDLogger.debug(@logger, "Response from tracker: #{inspect(resp)}")
 
@@ -361,7 +365,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       _ ->
         # response returns a text/plain object
-        IO.inspect(resp)
         {status, tracker_info} = parse_tracker_response(resp.body)
 
         case status do
