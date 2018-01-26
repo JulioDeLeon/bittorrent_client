@@ -4,12 +4,18 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   """
   @behaviour BittorrentClient.HTTPHandle
 
-  def get(_url, headers, _opts) do
+  def get(_url, _headers, []) do
+    {:error,
+     %HTTPoison.Error{__exception__: nil, id: nil, reason: "Empty opts?"}}
+  end
+
+  def get(_url, headers, opts) do
     # get example for test files
-    %HTTPoison.Response{
-      body: "",
-      headers: headers,
-      status_code: 200
-    }
+    {:ok,
+     %HTTPoison.Response{
+       body: "",
+       headers: headers,
+       status_code: 200
+     }}
   end
 end

@@ -99,7 +99,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
           end
       end
     else
-      {:reply, {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
+      {:reply,
+       {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
        {db, server_name, torrents}}
     end
   end
@@ -205,11 +206,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
     torrents = Map.drop(torrents, Map.keys(status_table))
 
-    case torrents do
-      %{} ->
+    case Map.equal?(torrents, %{}) do
+      true ->
         {:reply, {:ok, torrents}, {db, server_name, torrents}}
 
-      _ ->
+      false ->
         {:reply, {:error, {500, torrents}}, {db, server_name, torrents}}
     end
   end

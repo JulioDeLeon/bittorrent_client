@@ -13,6 +13,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
+  @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
   @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link(
@@ -50,7 +51,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     JDLogger.info(@logger, "Starting peer worker for #{peer_data.name}")
-    sock = connect(peer_data.peer_ip, peer_data.peer_port)
+    sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
+    # sock = connect(peer_data.peer_ip, peer_data.peer_port)
 
     msg =
       PeerProtocol.encode(
@@ -379,20 +381,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_handshake(socket, msg) do
-    :gen_tcp.send(socket, msg)
+    @tcp_conn_impl.send(socket, msg)
   end
 
   def connect(ip, port) do
-    {status, sock} = :gen_tcp.connect(ip, port, [:binary, active: 1], 2_000)
-
-    case status do
-      :error ->
-        raise "#{ip_to_str(ip)}:#{port} could not connect"
-
-      :ok ->
-        JDLogger.debug(@logger, "#{ip_to_str(ip)}:#{port} is connected")
-        sock
-    end
+    @tcp_conn_impl.connect(ip, port, [:binary, active: 1], 2_000)
   end
 
   def parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
@@ -420,7 +413,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         msg2 =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
 
-        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+        @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
         JDLogger.debug(
           @logger,
@@ -461,7 +454,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         msg2 =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
 
-        :gen_tcp.send(peer_data.socket, msg1 <> msg2)
+        @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
         JDLogger.debug(
           @logger,
@@ -497,7 +490,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           PeerProtocol.encode(:interested)
       end
 
-    :gen_tcp.send(peer_data.socket, bitfield <> interest_msg)
+    @tcp_conn_impl.send(peer_data.socket, bitfield <> interest_msg)
     peer_data
   end
 

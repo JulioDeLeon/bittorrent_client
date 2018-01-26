@@ -17,7 +17,7 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
     {:error, "Bad IP was given"}
   end
 
-  def connect(ip, _port, _opts, _timeout) do
+  def connect(_ip, _port, _opts, _timeout) do
     {:ok,
      %TCPConn{
        socket: :mock,
@@ -45,7 +45,7 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
     {:ok, %TCPConn{socket: :mock, parent_pid: self()}}
   end
 
-  def recv(tcp_conn, len) do
+  def recv(_tcp_conn, len) do
     # have multlple for the various bit protocols?
     {:ok, <<0::size(len)>>}
   end

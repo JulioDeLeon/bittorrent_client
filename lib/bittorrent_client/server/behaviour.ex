@@ -4,7 +4,7 @@ defmodule BittorrentClient.Server do
   """
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
-  @type torrent_entry :: %{bitstring() => TorrentMetainfo.t | TorrentData.t}
+  @type torrent_entry :: %{bitstring() => TorrentMetainfo.t() | TorrentData.t()}
   @type torrent_table :: %{bitstring() => %{bitstring() => torrent_entry}}
   @type http_status :: integer()
   @type reason :: bitstring()
@@ -18,13 +18,15 @@ defmodule BittorrentClient.Server do
   @doc """
   Returns a GenServer call replay which contains a map of all torrents and their data
   """
-  @callback list_current_torrents(serverName :: String.t()) :: {:ok, torrent_table}
+  @callback list_current_torrents(serverName :: String.t()) ::
+              {:ok, torrent_table}
 
   @doc """
   Attempts to add a new torrent when given a torrent file path. If sucessful, a hash will be returned.
   """
   @callback add_new_torrent(serverName :: String.t(), torrentFile :: String.t()) ::
-              {:ok, %{bitstring() => torrent_id}} | {:error, {http_status, reason}}
+              {:ok, %{bitstring() => torrent_id}}
+              | {:error, {http_status, reason}}
 
   @doc """
   Attempts to connect a torrent process to it's relative tracker.
@@ -70,7 +72,9 @@ defmodule BittorrentClient.Server do
   @callback delete_torrent_by_id(
               serverName :: String.t(),
               torrentID :: String.t()
-            ) :: {:ok, %{bitstring => torrent_id | torrent_entry}} | {:error, {http_status, reason}}
+            ) ::
+              {:ok, %{bitstring => torrent_id | torrent_entry}}
+              | {:error, {http_status, reason}}
 
   @doc """
   Updated the torrent process's data.
@@ -88,7 +92,8 @@ defmodule BittorrentClient.Server do
   @callback update_torrent_status_by_id(
               serverName :: String.t(),
               torrentID :: String.t(),
-              status :: torrent_status) :: {:ok, torrent_table} | {:error, {http_status, reason}}
+              status :: torrent_status
+            ) :: {:ok, torrent_table} | {:error, {http_status, reason}}
 
   @doc """
   Deletes all torrents associated with the server.
