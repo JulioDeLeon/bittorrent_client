@@ -20,7 +20,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # -------------------------------------------------------------------------------
   def start_link({id, filename}) do
     JDLogger.info(@logger, "Starting Torrent worker for #{filename}")
-
+    JDLogger.debug(@logger, "Using http_handle_impl: #{@http_handle_impl}")
     torrent_metadata =
       filename
       |> File.read!()
