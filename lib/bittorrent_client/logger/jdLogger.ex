@@ -30,4 +30,10 @@ defmodule BittorrentClient.Logger.JDLogger do
       "[#{Map.get(data, :module_name)}] [#{inspect(self())}] #{msg}"
     end)
   end
+
+  def warn(data, msg) do
+    Logger.warn(fn ->
+      "[#{Map.get(data, :module_name)}] [#{inspect(self())}] #{msg}"
+    end)
+  end
 end
