@@ -7,7 +7,11 @@ defmodule BittorrentClient.HTTPHandle.HTTPoisonImpl do
   @logger LoggerFactory.create_logger(__MODULE__)
 
   def get(url, headers, opts) do
-    JDLogger.debug(@logger, "URL #{inspect url}, HEADERS #{inspect headers}, OPTS #{inspect opts}")
+    JDLogger.debug(
+      @logger,
+      "URL #{inspect(url)}, HEADERS #{inspect(headers)}, OPTS #{inspect(opts)}"
+    )
+
     HTTPoison.get(url, headers, opts)
   end
 end
