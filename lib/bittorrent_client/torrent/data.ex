@@ -6,8 +6,9 @@ defmodule BittorrentClient.Torrent.Data do
   * `pid` - Erlang assigned PID for reference (MAY NOT BE NEEDED).
   * `status` - the status of the torrent process, :initial | :started | :finished | :seeding | ???.
   * `info_hash` - 20-byte SHA1 hash to be used in handshake and fact checking steps.
-  * `peer_id` - 
+  * `peer_id` -
   """
+  @type torrent_state :: :initial | :connected | :started | :completed | :paused | :error
   @derive {Poison.Encoder,
            except: [:pid, :tracker_info, :info_hash, :conected_peers]}
   defstruct [
