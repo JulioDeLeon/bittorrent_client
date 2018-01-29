@@ -13,6 +13,7 @@ env:
     - mix deps.get
     - mix deps.compile
   script:
+    - mix format --check-formatted --check-equivalent --dry-run
     - mix test
   notifications:
     - jangelod@gmail.com
