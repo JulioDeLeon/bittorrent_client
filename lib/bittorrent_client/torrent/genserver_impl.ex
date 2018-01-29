@@ -299,7 +299,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # -------------------------------------------------------------------------------
   # Utility Functions
   # -------------------------------------------------------------------------------
-  defp create_tracker_request(url, params) do
+  def create_tracker_request(url, params) do
     url_params =
       for key <- Map.keys(params),
           do: "#{key}" <> "=" <> "#{Map.get(params, key)}"
