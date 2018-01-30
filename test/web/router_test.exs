@@ -22,13 +22,11 @@ defmodule BittorrentClient.Web.RouterTest do
       |> File.read!()
       |> Bento.torrent!()
 
-    {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
-  end
+        on_exit(fn ->
+          _ret = @server_impl.delete_all_torrents(@server_name)
+        end)
 
-  setup do
-    on_exit(fn ->
-      _ret = @server_impl.delete_all_torrents(@server_name)
-    end)
+    {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
   end
 
   test "addition of new torrent file on Web Layer" do
@@ -152,6 +150,28 @@ defmodule BittorrentClient.Web.RouterTest do
       |> Poison.decode!()
 
     assert returned_table == %{}
+  end
+
+  test "connect existing torrent to tracker, should return 204 from Web Layer." do
+        json_body =
+          %{"filename" => @torrent_file_2}
+          |> Poison.encode!()
+
+        conn = create_json_request("#{@api_root}/add/file", json_body)
+        conn = WebRouter.call(conn, @opts)
+        assert conn.state == :sent
+        assert conn.status == 200
+
+        returned_data =
+          conn.resp_body
+          |> Poison.decode!()
+
+        torrent_id = Map.get(returned_data, "torrent id")
+
+        conn = conn(:put, "#{@api_root}/#{torrent_id}/connect")
+        conn = WebRouter.call(conn, @opts)
+        assert conn.state == :sent
+        assert conn.status == 204
   end
 
   test "addition of a nonexistent torrent file should return 403 from Web layer",
