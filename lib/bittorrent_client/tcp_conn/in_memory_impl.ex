@@ -8,19 +8,6 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
   alias BittorrentClient.TCPConn, as: TCPConn
   @logger LoggerFactory.create_logger(__MODULE__)
 
-  def connect(_ip, _port, _opts) do
-    JDLogger.warn(
-      @logger,
-      "Using #{__MODULE__} implementation of :gen_tcp.connect/3"
-    )
-
-    {:ok,
-     %TCPConn{
-       socket: :mock,
-       parent_pid: self()
-     }}
-  end
-
   def connect({0, 0, 0, 0}, _port, _opts) do
     JDLogger.warn(
       @logger,
@@ -30,10 +17,10 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
     {:error, "Bad IP was given"}
   end
 
-  def connect(_ip, _port, _opts, _timeout) do
+  def connect(_ip, _port, _opts) do
     JDLogger.warn(
       @logger,
-      "Using #{__MODULE__} implementation of :gen_tcp.connect/4"
+      "Using #{__MODULE__} implementation of :gen_tcp.connect/3"
     )
 
     {:ok,
@@ -50,6 +37,19 @@ defmodule BittorrentClient.TCPConn.InMemoryImpl do
     )
 
     {:error, "Bad IP was given"}
+  end
+
+  def connect(_ip, _port, _opts, _timeout) do
+    JDLogger.warn(
+      @logger,
+      "Using #{__MODULE__} implementation of :gen_tcp.connect/4"
+    )
+
+    {:ok,
+     %TCPConn{
+       socket: :mock,
+       parent_pid: self()
+     }}
   end
 
   def accept(tcp_conn) do
