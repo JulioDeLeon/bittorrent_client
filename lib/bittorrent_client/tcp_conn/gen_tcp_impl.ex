@@ -99,6 +99,6 @@ defmodule BittorrentClient.TCPConn.GenTCPImpl do
   end
 
   def shutdown(tcp_conn, how) do
-    :gen_tcp.close(tcp_conn.socket)
+    :gen_tcp.shutdown(tcp_conn.socket, how)
   end
 end
