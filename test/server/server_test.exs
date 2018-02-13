@@ -236,11 +236,12 @@ defmodule ServerTest do
     assert add_torrent_status == :ok
     torrent_id = Map.get(resp_map, "torrent id")
 
-    {status, _ret} = @server_impl.connect_torrent_to_tracker(@server_name, torrent_id)
+    {status, _ret} =
+      @server_impl.connect_torrent_to_tracker(@server_name, torrent_id)
+
     assert status == :ok
   end
 
-  # TODO: Write test for connecting to tracker and starting torrent logic
   defp compare_bento_data_to_metadata(bento_data, metadata) do
     Enum.reduce(Map.keys(bento_data), true, fn key, acc ->
       bento_field_val = Map.get(bento_data, key)
