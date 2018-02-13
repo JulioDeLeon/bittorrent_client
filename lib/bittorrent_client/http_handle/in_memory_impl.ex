@@ -32,13 +32,19 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
     case status do
       :ok ->
         {:ok,
-              %HTTPoison.Response{
-                body: bento_body_resp,
-                headers: resp_headers,
-                status_code: 200
-              }}
+         %HTTPoison.Response{
+           body: bento_body_resp,
+           headers: resp_headers,
+           status_code: 200
+         }}
+
       _ ->
-        {:error, %HTTPoison.Error{__exception__: nil, id: nil, reason: "could not bento encode #{bento_body}"}}
+        {:error,
+         %HTTPoison.Error{
+           __exception__: nil,
+           id: nil,
+           reason: "could not bento encode #{bento_body}"
+         }}
     end
   end
 
