@@ -128,15 +128,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  def handle_message(:handshake, _msg, _socket, peer_data) do
-    if peer_data.handshake_check == false do
-      # TODO: check the recieved info hash?
-      JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
-      %PeerData{peer_data | state: :we_choke, handshake_check: true}
-    else
-      peer_data
+  def handle_message(:handshake, msg, _socket, peer_data) do
+    # TODO: check the recieved info hash?
+    expected = Map.get(peer_data, "info_hash")
+    if msg != expected do
+      JDLogger.error(@logger, "INFO HASH did not match #{msg} != #{expected}")
+      JDLogger.error(@logger, "Not acting upon this")
     end
+    JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
+    %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
+
 
   def handle_message(:choke, _msg, _socket, peer_data) do
     JDLogger.debug(
