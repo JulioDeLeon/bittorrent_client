@@ -29,4 +29,22 @@ config :logger, :console,
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
+config :bittorrent_client,
+  upload_check: false,
+  server_name: "GenericName",
+  peer_id: "-ET0001-aaaaaaaaaaaa",
+  compact: 1,
+  port: 36562,
+  no_peer_id: 0,
+  ip: "127.0.0.1",
+  numwant: 80,
+  key: "",
+  trackerid: "",
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl
+
+
 import_config "#{Mix.env()}.exs"
