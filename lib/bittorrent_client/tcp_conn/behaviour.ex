@@ -3,6 +3,9 @@ defmodule BittorrentClient.TCPConn do
   This module exist to decouple the Peer module from :gen_tcp for local testing, and wrap :gen_tcp for production
   """
 
+  @doc """
+  TCPConn struct wraps :gen_tcp socket
+  """
   @derive {Poison.Encoder, except: []}
   defstruct [
     :socket,
@@ -57,7 +60,8 @@ defmodule BittorrentClient.TCPConn do
   @doc """
   setups a conn to listen on a given port
   """
-  @callback listen(conn :: __MODULE__.t(), opts :: [:gen_tcp.listen_opts()]) ::
+  @type port_number :: 0..65_535
+  @callback listen(conn :: port_number, opts :: [:gen_tcp.listen_opts()]) ::
               {:ok, __MODULE__.t()} | {:error, reason}
 
   @doc """
