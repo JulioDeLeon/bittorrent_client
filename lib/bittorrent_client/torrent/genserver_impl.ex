@@ -17,17 +17,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link({id, filename}) do
-    Logger.info( "Starting Torrent worker for #{filename}")
-    Logger.debug( "Using http_handle_impl: #{@http_handle_impl}")
+    Logger.info("Starting Torrent worker for #{filename}")
+    Logger.debug("Using http_handle_impl: #{@http_handle_impl}")
 
     torrent_metadata =
       filename
       |> File.read!()
       |> Bento.torrent!()
 
-    Logger.debug( "Metadata: #{inspect(torrent_metadata)}")
+    Logger.debug("Metadata: #{inspect(torrent_metadata)}")
     torrent_data = create_initial_data(id, filename, torrent_metadata)
-    Logger.debug( "Data: #{inspect(torrent_data)}")
+    Logger.debug("Data: #{inspect(torrent_data)}")
 
     GenServer.start_link(
       __MODULE__,
@@ -67,7 +67,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     case s do
       :error ->
-        Logger.error( "Error: #{inspect(peer_data)}")
+        Logger.error("Error: #{inspect(peer_data)}")
 
         {:reply,
          {:error,
@@ -195,7 +195,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def start_torrent(id) do
-    Logger.info( "Starting torrent: #{id}")
+    Logger.info("Starting torrent: #{id}")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -205,12 +205,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def get_torrent_data(id) do
-    Logger.info( "Getting torrent data for #{id}")
+    Logger.info("Getting torrent data for #{id}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}), {:get_data})
   end
 
   def connect_to_tracker(id) do
-    Logger.debug( "Torrent #{id} attempting to connect tracker")
+    Logger.debug("Torrent #{id} attempting to connect tracker")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -220,7 +220,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def connect_to_tracker_async(id) do
-    Logger.debug( "Torrent #{id} attempting to connect tracker")
+    Logger.debug("Torrent #{id} attempting to connect tracker")
 
     GenServer.cast(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -229,13 +229,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def get_peers(id) do
-    Logger.debug( "Getting peer list of #{id}")
+    Logger.debug("Getting peer list of #{id}")
     GenServer.call(:global.whereis_name({:btc_torrentworker, id}), {:get_peers})
   end
 
   def start_single_peer(id, {ip, port}) do
     Logger.debug(
-      
       "Starting a single peer for #{id} with #{inspect(ip)}:#{inspect(port)}"
     )
 
@@ -246,7 +245,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def get_next_piece_index(id, known_list) do
-    Logger.debug( "#{id} is retrieving next_piece_index")
+    Logger.debug("#{id} is retrieving next_piece_index")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -256,7 +255,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def mark_piece_index_done(id, index, buffer) do
-    Logger.debug( "#{id}'s peerworker has marked #{index} as done!")
+    Logger.debug("#{id}'s peerworker has marked #{index} as done!")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -265,10 +264,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def add_new_piece_index(id, peer_id, index) do
-    Logger.debug(
-      
-      "#{id} is attempting to add new piece index: #{index}"
-    )
+    Logger.debug("#{id} is attempting to add new piece index: #{index}")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -277,7 +273,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def add_multi_pieces(id, peer_id, lst) do
-    Logger.debug( "#{id} is attempting to add multliple pieces")
+    Logger.debug("#{id} is attempting to add multliple pieces")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -286,7 +282,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def get_completed_piece_list(id) do
-    Logger.debug( "#{id} is sending completed list")
+    Logger.debug("#{id} is sending completed list")
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -307,7 +303,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp parse_tracker_response(body) do
     {status, track_resp} = Bento.decode(body)
-    Logger.debug( "tracker response decode -> #{inspect(track_resp)}")
+    Logger.debug("tracker response decode -> #{inspect(track_resp)}")
 
     case status do
       :error ->
@@ -325,7 +321,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp connect_to_tracker_helper({metadata, data}) do
     # These either dont relate to tracker req or are not implemented yet
-    Logger.debug( "connect_to_tracker_helper")
+    Logger.debug("connect_to_tracker_helper")
 
     unwanted_params = [
       :status,
@@ -354,12 +350,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         {:recv_timeout, 10_000}
       ])
 
-    Logger.debug( "Response from tracker: #{inspect(resp)}")
+    Logger.debug("Response from tracker: #{inspect(resp)}")
 
     case status do
       :error ->
-        Logger.error( "Failed to fetch #{url}")
-        Logger.error( "Resp: #{inspect(resp)}")
+        Logger.error("Failed to fetch #{url}")
+        Logger.error("Resp: #{inspect(resp)}")
         {:reply, {:error, "failed to fetch #{url}"}, {metadata, data}}
 
       _ ->
@@ -392,7 +388,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> Bento.encode()
 
     if check == :error do
-      Logger.debug( "Failed to extract info from metadata")
+      Logger.debug("Failed to extract info from metadata")
       raise "Failed to extract info from metadata"
     else
       hash = :crypto.hash(:sha, info)

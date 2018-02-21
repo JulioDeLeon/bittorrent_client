@@ -4,11 +4,11 @@ defmodule BittorrentClient.Peer.Supervisor do
   """
   use Supervisor
   require Logger
-  
+
   @peer_impl Application.get_env(:bittorrent_client, :peer_impl)
 
   def start_link do
-    Logger.info( "Starting Peer supervisor")
+    Logger.info("Starting Peer supervisor")
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -22,7 +22,7 @@ defmodule BittorrentClient.Peer.Supervisor do
   def start_child(
         {metainfo, torrent_id, info_hash, filename, interval, ip, port}
       ) do
-    Logger.info( "Starting peer connection for #{torrent_id}")
+    Logger.info("Starting peer connection for #{torrent_id}")
     # This also looks like this can be shipped at a list
     Supervisor.start_child(__MODULE__, [
       {metainfo, torrent_id, info_hash, filename, interval, ip, port}
