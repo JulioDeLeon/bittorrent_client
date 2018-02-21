@@ -9,7 +9,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   require Logger
   alias BittorrentClient.Peer.Data, as: PeerData
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
-  alias BittorrentClient.Logger.Factory, as: LoggerFactory
+  alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
