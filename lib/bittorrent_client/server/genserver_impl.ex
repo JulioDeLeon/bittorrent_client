@@ -14,7 +14,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(db_dir, name) do
-    Logger.info( "Starting BTC server for #{name}")
+    Logger.info("Starting BTC server for #{name}")
 
     GenServer.start_link(
       __MODULE__,
@@ -53,16 +53,15 @@ defmodule BittorrentClient.Server.GenServerImpl do
       |> (fn x -> :crypto.hash(:md5, x) end).()
       |> Base.encode32()
 
-    Logger.debug( "add_new_torrent Generated #{id}")
+    Logger.debug("add_new_torrent Generated #{id}")
 
     if not Map.has_key?(torrents, id) do
       {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
-      Logger.debug( "add_new_torrent Status: #{status}")
+      Logger.debug("add_new_torrent Status: #{status}")
 
       case status do
         :error ->
           Logger.error(
-            
             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"
           )
 
@@ -77,10 +76,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
           case check do
             :error ->
-              Logger.error(
-                
-                "Failed to add new torrent for #{torrentFile}"
-              )
+              Logger.error("Failed to add new torrent for #{torrentFile}")
 
               {:reply,
                {:error,
@@ -103,19 +99,16 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, server_name, torrents}) do
-    Logger.debug( "Entered delete_by_id")
+    Logger.debug("Entered delete_by_id")
 
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
       data = Map.fetch!(torrent_data, "data")
 
-      Logger.debug( "TorrentData: #{inspect(torrent_data)}")
+      Logger.debug("TorrentData: #{inspect(torrent_data)}")
       {stop_status, ret} = TorrentSupervisor.terminate_child(id)
 
-      Logger.debug(
-        
-        "TorrentSupervisor.stop_child ret: #{inspect(ret)}"
-      )
+      Logger.debug("TorrentSupervisor.stop_child ret: #{inspect(ret)}")
 
       case stop_status do
         :error ->
@@ -130,7 +123,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
            {db, server_name, torrents}}
       end
     else
-      Logger.debug( "Bad ID was given to delete")
+      Logger.debug("Bad ID was given to delete")
 
       {:reply, {:error, {403, "Bad ID was given\n"}},
        {db, server_name, torrents}}
@@ -138,7 +131,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_call({:connect_to_tracker, id}, _from, {db, server_name, torrents}) do
-    Logger.info( "Entered callback of connect_to_tracker")
+    Logger.info("Entered callback of connect_to_tracker")
 
     if Map.has_key?(torrents, id) do
       {status, msg} = @torrent_impl.connect_to_tracker(id)
@@ -193,7 +186,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
         case status do
           :error ->
-            Logger.error( "Could not kill #{key}")
+            Logger.error("Could not kill #{key}")
             acc
 
           _ ->
@@ -251,7 +244,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_cast({:connect_to_tracker_async, id}, {db, server_name, torrents}) do
-    Logger.info( "Entered callback of connect_to_tracker_async")
+    Logger.info("Entered callback of connect_to_tracker_async")
 
     if Map.has_key?(torrents, id) do
       {status, _} = @torrent_impl.connect_to_tracker(id)
@@ -263,11 +256,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
         _ ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
-          Logger.info( "connect_to_tracker_async #{id} completed")
+          Logger.info("connect_to_tracker_async #{id} completed")
           {:noreply, {db, server_name, updated_torrents}}
       end
     else
-      Logger.error( "Bad id was given #{id}")
+      Logger.error("Bad id was given #{id}")
       {:noreply, {db, server_name, torrents}}
     end
   end
@@ -280,7 +273,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def list_current_torrents(server_name) do
-    Logger.info( "Entered list_current_torrents")
+    Logger.info("Entered list_current_torrents")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -289,7 +282,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def add_new_torrent(server_name, torrentFile) do
-    Logger.info( "Entered add_new_torrent #{torrentFile}")
+    Logger.info("Entered add_new_torrent #{torrentFile}")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -298,7 +291,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def connect_torrent_to_tracker(server_name, id) do
-    Logger.info( "Entered connect_torrent_to_tracker #{id}")
+    Logger.info("Entered connect_torrent_to_tracker #{id}")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -308,7 +301,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def connect_torrent_to_tracker_async(server_name, id) do
-    Logger.info( "Entered connect_torrent_to_tracker #{id}")
+    Logger.info("Entered connect_torrent_to_tracker #{id}")
 
     GenServer.cast(
       :global.whereis_name({:btc_server, server_name}),
@@ -317,7 +310,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def start_torrent(server_name, id) do
-    Logger.info( "Entered start_torrent #{id}")
+    Logger.info("Entered start_torrent #{id}")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -326,7 +319,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def start_torrent_async(server_name, id) do
-    Logger.info( "Entered start_torrent #{id}")
+    Logger.info("Entered start_torrent #{id}")
 
     GenServer.cast(
       :global.whereis_name({:btc_server, server_name}),
@@ -335,7 +328,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def get_torrent_info_by_id(server_name, id) do
-    Logger.info( "Entered get_torrent_info_by_id #{id}")
+    Logger.info("Entered get_torrent_info_by_id #{id}")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -344,7 +337,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def delete_torrent_by_id(server_name, id) do
-    Logger.info( "Entered delete_torrent_by id #{id}")
+    Logger.info("Entered delete_torrent_by id #{id}")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -353,7 +346,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def update_torrent_status_by_id(server_name, id, status) do
-    Logger.info( "Entered update_torrent_status_by_id")
+    Logger.info("Entered update_torrent_status_by_id")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -362,7 +355,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def update_torrent_by_id(server_name, id, data) do
-    Logger.info( "Entered update_torrent_by_id")
+    Logger.info("Entered update_torrent_by_id")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),
@@ -371,7 +364,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def delete_all_torrents(server_name) do
-    Logger.info( "Entered delete_all_torrents")
+    Logger.info("Entered delete_all_torrents")
 
     GenServer.call(
       :global.whereis_name({:btc_server, server_name}),

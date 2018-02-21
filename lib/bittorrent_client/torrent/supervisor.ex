@@ -7,7 +7,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
 
   def start_link do
-    Logger.info( "Starting Torrent Supervisor")
+    Logger.info("Starting Torrent Supervisor")
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -19,17 +19,14 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def start_child({torrent_id, filename}) do
-    Logger.info(
-      
-      "Adding torrent id for: #{torrent_id} for #{__MODULE__}"
-    )
+    Logger.info("Adding torrent id for: #{torrent_id} for #{__MODULE__}")
 
     ret = Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
     ret
   end
 
   def terminate_child(torrent_id) do
-    Logger.info( "Request to terminate #{inspect(torrent_id)}")
+    Logger.info("Request to terminate #{inspect(torrent_id)}")
     pid = @torrent_impl.whereis(torrent_id)
 
     case pid do
