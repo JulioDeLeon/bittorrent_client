@@ -4,6 +4,7 @@ defmodule BittorrentClient.Web.Router do
   """
   use Plug.Router
   alias Plug.Conn, as: Conn
+  require Logger
 
   plug(Plug.Logger)
 
@@ -17,12 +18,8 @@ defmodule BittorrentClient.Web.Router do
   plug(:match)
   plug(:dispatch)
 
-  alias BittorrentClient.Logger.Factory, as: LoggerFactory
-  alias BittorrentClient.Logger.JDLogger, as: JDLogger
-
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
-  @logger LoggerFactory.create_logger(__MODULE__)
   @api_root "/api/v1"
 
   get "/ping" do
@@ -30,12 +27,12 @@ defmodule BittorrentClient.Web.Router do
   end
 
   get "#{@api_root}/:id/status" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Getting status for #{id}")
+    Logger.info("Getting status for #{id}")
     {status, msg} = @server_impl.get_torrent_info_by_id(@server_name, id)
 
     case status do
       :ok ->
-        JDLogger.debug(@logger, "Retrieved info for #{id}")
+        Logger.debug("Retrieved info for #{id}")
         put_resp_content_type(conn, "application/json")
         data = msg["data"]
 
@@ -51,31 +48,31 @@ defmodule BittorrentClient.Web.Router do
         )
 
       :error ->
-        JDLogger.debug(@logger, "Failed to retrieve info for #{id}")
+        Logger.debug("Failed to retrieve info for #{id}")
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
   end
 
   get "#{@api_root}/:id/info" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Getting info for #{id}")
+    Logger.info("Getting info for #{id}")
     {status, msg} = @server_impl.get_torrent_info_by_id(@server_name, id)
 
     case status do
       :ok ->
-        JDLogger.debug(@logger, "Retrieved info for #{id}")
+        Logger.debug("Retrieved info for #{id}")
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
 
       :error ->
-        JDLogger.debug(@logger, "Failed to retrieve info for #{id}")
+        Logger.debug("Failed to retrieve info for #{id}")
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
   end
 
   put "#{@api_root}/:id/connect" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Connecting #{id} to tracker")
+    Logger.info("Connecting #{id} to tracker")
     {status, msg} = @server_impl.connect_torrent_to_tracker(@server_name, id)
 
     case status do
@@ -89,30 +86,30 @@ defmodule BittorrentClient.Web.Router do
   end
 
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    Logger.info("Connecting #{id} to tracker async")
     _status = @server_impl.connect_torrent_to_tracker_async(@server_name, id)
-    JDLogger.debug(@logger, "connect returning success")
+    Logger.debug("connect returning success")
     send_resp(conn, 204, "")
   end
 
   put "#{@api_root}/:id/startTorrent/" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    Logger.info("Connecting #{id} to tracker async")
     {status, msg} = @server_impl.start_torrent(@server_name, id)
 
     case status do
       :error ->
-        JDLogger.debug(@logger, "Could not start #{id}, returning error")
+        Logger.debug("Could not start #{id}, returning error")
         {err_code, msg} = msg
         send_resp(conn, err_code, msg)
 
       :ok ->
-        JDLogger.debug(@logger, "connect returning success")
+        Logger.debug("connect returning success")
         send_resp(conn, 204, "")
     end
   end
 
   put "#{@api_root}/:id/startTorrent/async" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Connecting #{id} to tracker async")
+    Logger.info("Connecting #{id} to tracker async")
     _status = @server_impl.start_torrent_async(@server_name, id)
     send_resp(conn, 204, "")
   end
@@ -120,7 +117,7 @@ defmodule BittorrentClient.Web.Router do
   post "#{@api_root}/add/file" do
     conn = Conn.fetch_query_params(conn)
     filename = conn.params["filename"]
-    JDLogger.info(@logger, "Received the following filename: #{filename}")
+    Logger.info("Received the following filename: #{filename}")
     {status, data} = @server_impl.add_new_torrent(@server_name, filename)
 
     case status do
@@ -135,7 +132,7 @@ defmodule BittorrentClient.Web.Router do
   end
 
   delete "#{@api_root}/:id/remove" when byte_size(id) > 3 do
-    JDLogger.info(@logger, "Received the following torrent id: #{id} to delete")
+    Logger.info("Received the following torrent id: #{id} to delete")
     {status, data} = @server_impl.delete_torrent_by_id(@server_name, id)
 
     case status do

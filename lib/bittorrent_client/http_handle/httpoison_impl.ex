@@ -2,13 +2,10 @@ defmodule BittorrentClient.HTTPHandle.HTTPoisonImpl do
   @moduledoc """
   HTTPoison implementation of HTTPhandle, meant for real world use
   """
-  alias BittorrentClient.Logger.Factory, as: LoggerFactory
-  alias BittorrentClient.Logger.JDLogger, as: JDLogger
-  @logger LoggerFactory.create_logger(__MODULE__)
+  require Logger
 
   def get(url, headers, opts) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
       "URL #{inspect(url)}, HEADERS #{inspect(headers)}, OPTS #{inspect(opts)}"
     )
 

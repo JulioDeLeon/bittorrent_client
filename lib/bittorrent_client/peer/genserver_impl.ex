@@ -6,15 +6,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @behaviour BittorrentClient.Peer
   use GenServer
   require Bitwise
+  require Logger
   alias BittorrentClient.Peer.Data, as: PeerData
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Logger.Factory, as: LoggerFactory
-  alias BittorrentClient.Logger.JDLogger, as: JDLogger
-  alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
-  @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link(
         {metainfo, torrent_id, info_hash, filename, interval, ip, port}
@@ -50,8 +48,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-    JDLogger.info(@logger, "Starting peer worker for #{peer_data.name}")
-    JDLogger.debug(@logger, "Using tcp_conn_imp: #{@tcp_conn_impl}")
+    Logger.info( "Starting peer worker for #{peer_data.name}")
+    Logger.debug( "Using tcp_conn_imp: #{@tcp_conn_impl}")
     sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
     # sock = connect(peer_data.peer_ip, peer_data.peer_port)
 
@@ -69,8 +67,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   # these handle_info calls come from the socket for attention
   def handle_info({:error, reason}, peer_data) do
-    JDLogger.error(
-      @logger,
+    Logger.error(
+      
       "#{peer_data.name} has come across and error: #{reason}"
     )
 
@@ -83,7 +81,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # this should look at the state of the message to determine what to send
     # to peer. the timer sends a signal to the peer handle when it is time to
     # send over a message.
-    # JDLogger.debug(@logger, "What is this: #{inspect peer_data}")
+    # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
     new_state = send_message(peer_data.state, peer_data)
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
@@ -96,9 +94,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {msgs, _} = PeerProtocol.decode(msg)
     {a_pd} = peer_data
 
-    # JDLogger.debug(@logger, "Messages #{inspect msgs} for #{inspect peer_data}")
+    # Logger.debug( "Messages #{inspect msgs} for #{inspect peer_data}")
     ret = loop_msgs(msgs, socket, a_pd)
-    # JDLogger.debug(@logger, "Returning this: #{inspect ret}")
+    # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {ret}}
   end
 
@@ -109,8 +107,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
-    JDLogger.info(
-      @logger,
+    Logger.info(
+      
       "#{peer_data.name} has closed socket, should terminate"
     )
 
@@ -124,25 +122,26 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:keep_alive, _msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Stay-Alive MSG: #{peer_data.name}")
+    Logger.debug( "Stay-Alive MSG: #{peer_data.name}")
     peer_data
   end
 
   def handle_message(:handshake, msg, _socket, peer_data) do
     # TODO: check the recieved info hash?
     expected = Map.get(peer_data, "info_hash")
+
     if msg != expected do
-      JDLogger.error(@logger, "INFO HASH did not match #{msg} != #{expected}")
-      JDLogger.error(@logger, "Not acting upon this")
+      Logger.error( "INFO HASH did not match #{msg} != #{expected}")
+      Logger.error( "Not acting upon this")
     end
-    JDLogger.debug(@logger, "Handshake MSG: #{peer_data.name}")
+
+    Logger.debug( "Handshake MSG: #{peer_data.name}")
     %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
-
   def handle_message(:choke, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Choke MSG: #{peer_data.name} will stop leaching data"
     )
 
@@ -159,8 +158,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:unchoke, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Unchoke MSG: #{peer_data.name} will start leaching"
     )
 
@@ -178,8 +177,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:interested, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Interested MSG: #{peer_data.name} will start serving data"
     )
 
@@ -196,8 +195,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:not_interested, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Not_interested MSG: #{peer_data.name} will stop serving data"
     )
 
@@ -214,7 +213,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:have, msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Have MSG: #{peer_data.name}")
+    Logger.debug( "Have MSG: #{peer_data.name}")
 
     {status, _} =
       @torrent_impl.add_new_piece_index(
@@ -225,8 +224,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case status do
       :ok ->
-        JDLogger.debug(
-          @logger,
+        Logger.debug(
+          
           "#{peer_data.name} successfully added #{msg.piece_index} to it's table."
         )
 
@@ -242,7 +241,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:bitfield, msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Bitfield MSG: #{peer_data.name}")
+    Logger.debug( "Bitfield MSG: #{peer_data.name}")
     new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
 
     {status, valid_indexes} =
@@ -254,8 +253,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case status do
       :ok ->
-        JDLogger.debug(
-          @logger,
+        Logger.debug(
+          
           "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table."
         )
 
@@ -267,11 +266,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:piece, msg, _socket, peer_data) do
-    JDLogger.debug(@logger, "Piece MSG: #{peer_data.name}")
+    Logger.debug( "Piece MSG: #{peer_data.name}")
 
     if msg.piece_index == peer_data.piece_index do
-      JDLogger.debug(
-        @logger,
+      Logger.debug(
+        
         "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}"
       )
 
@@ -298,14 +297,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         case status do
           :ok ->
-            JDLogger.debug(
-              @logger,
+            Logger.debug(
+              
               "#{peer_data.name} has completed #{peer_data.piece_index}"
             )
 
           _ ->
-            JDLogger.error(
-              @logger,
+            Logger.error(
+              
               "#{peer_data.name} could not complete #{peer_data.piece_index}"
             )
         end
@@ -330,8 +329,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         }
       end
     else
-      JDLogger.debug(
-        @logger,
+      Logger.debug(
+        
         "Piece MSG: #{peer_data.name} has recieved the wrong piece: #{
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
@@ -342,8 +341,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:cancel, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Cancel MSG: #{peer_data.name}, Close port, kill process"
     )
 
@@ -351,8 +350,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:port, _msg, _socket, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "Port MSG: #{peer_data.name}, restablish new connect for new port"
     )
 
@@ -360,8 +359,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(unknown_type, msg, _socket, peer_data) do
-    JDLogger.error(
-      @logger,
+    Logger.error(
+      
       "#{unknown_type} MSG: #{peer_data.name} could not handle this message: #{
         inspect(msg)
       }"
@@ -418,14 +417,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
-        JDLogger.debug(
-          @logger,
+        Logger.debug(
+          
           "#{peer_data.name} has sent Request MSG: #{inspect(msg2)}"
         )
 
       {:error, msg} ->
-        JDLogger.error(
-          @logger,
+        Logger.error(
+          
           "#{peer_data.data.name} was not able to get a available piece: #{msg}"
         )
     end
@@ -459,14 +458,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
-        JDLogger.debug(
-          @logger,
+        Logger.debug(
+          
           "#{peer_data.name} has sent Request MSG: #{inspect(msg2)}"
         )
 
       {:error, msg} ->
-        JDLogger.error(
-          @logger,
+        Logger.error(
+          
           "#{peer_data.data.name} was not able to get a available piece: #{msg}"
         )
     end
@@ -485,11 +484,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     interest_msg =
       case peer_data.piece_table do
         %{} ->
-          JDLogger.debug(@logger, "#{peer_data.name} has nothing of interest")
+          Logger.debug( "#{peer_data.name} has nothing of interest")
           PeerProtocol.encode(:not_interested)
 
         _ ->
-          JDLogger.debug(@logger, "#{peer_data.name} has something of interest")
+          Logger.debug( "#{peer_data.name} has something of interest")
           PeerProtocol.encode(:interested)
       end
 
@@ -498,8 +497,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(_, peer_data) do
-    JDLogger.debug(
-      @logger,
+    Logger.debug(
+      
       "#{peer_data.name} is in #{inspect(peer_data.state)} state"
     )
 

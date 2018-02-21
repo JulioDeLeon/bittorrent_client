@@ -3,16 +3,11 @@ defmodule BittorrentClient.Torrent.Supervisor do
   Torrent Supervisor will supervise torrent handler threads dynamically.
   """
   use Supervisor
-  # require Logger
-  alias BittorrentClient.Logger.Factory, as: LoggerFactory
-  alias BittorrentClient.Logger.JDLogger, as: JDLogger
-
+  require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @logger LoggerFactory.create_logger(__MODULE__)
 
   def start_link do
-    # Logger.info fn -> "Starting Torrent Supervisor" end
-    JDLogger.info(@logger, "Starting Torrent Supervisor")
+    Logger.info( "Starting Torrent Supervisor")
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -24,9 +19,8 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def start_child({torrent_id, filename}) do
-    # Logger.info fn -> "Adding torrent id for: #{torrent_id} for #{__MODULE__}" end
-    JDLogger.info(
-      @logger,
+    Logger.info(
+      
       "Adding torrent id for: #{torrent_id} for #{__MODULE__}"
     )
 
@@ -35,8 +29,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   end
 
   def terminate_child(torrent_id) do
-    # Logger.info fn -> "Request to terminate #{torrent_pid}" end
-    JDLogger.info(@logger, "Request to terminate #{inspect(torrent_id)}")
+    Logger.info( "Request to terminate #{inspect(torrent_id)}")
     pid = @torrent_impl.whereis(torrent_id)
 
     case pid do

@@ -3,13 +3,11 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   In memory implementation of the HTTPHandle behaviour for testing locally
   """
   @behaviour BittorrentClient.HTTPHandle
-  alias BittorrentClient.Logger.Factory, as: LoggerFactory
-  alias BittorrentClient.Logger.JDLogger, as: JDLogger
-  @logger LoggerFactory.create_logger(__MODULE__)
+  require Logger
   @arch_tracker_req_url "http://tracker.archlinux.org:6969/announce?compact=1&connected_peers=&downloaded=0&info_hash=-;=e%B3i%BAQ%92%92%DD%8C%E4%20%AF%E9Q%20%DF%1E&left=547356672&next_piece_index=0&numwant=80&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
   def get(@arch_tracker_req_url, _headers, _opts) do
-    JDLogger.warn(
-      @logger,
+    Logger.warn(
+      
       "Using #{__MODULE__} implementation for HTTPoison.get"
     )
 
@@ -49,8 +47,8 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   end
 
   def get(_url, _headers, []) do
-    JDLogger.warn(
-      @logger,
+    Logger.warn(
+      
       "Using #{__MODULE__} implementation for HTTPoison.get"
     )
 
