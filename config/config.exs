@@ -19,7 +19,8 @@ use Mix.Config
 # Or configure a 3rd-party app:
 #
 config :logger, :console,
-  format: "$time [$level] $message\n",
+  format: "$time [$level] [$metadata] $message\n",
+  metadata: [:module, :function, :line, :pid],
   colors: [warn: :yellow, error: :red],
   level: :debug
 
@@ -45,6 +46,5 @@ config :bittorrent_client,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
   tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
   http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl
-
 
 import_config "#{Mix.env()}.exs"
