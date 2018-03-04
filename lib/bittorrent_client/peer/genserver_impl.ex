@@ -120,6 +120,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
+  # :DONE
   def handle_message(:keep_alive, _msg, _socket, peer_data) do
     Logger.debug(fn -> "Stay-Alive MSG: #{peer_data.name}" end)
     peer_data
@@ -137,10 +138,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
+  # :DONE
   def handle_message(:choke, _msg, _socket, peer_data) do
-    Logger.debug(fn ->
-      "Choke MSG: #{peer_data.name} will stop leaching data"
-    end)
+    Logger.debug(fn -> "Choke MSG: #{peer_data.name} will stop leaching data" end)
 
     case peer_data.state do
       :we_interest ->
@@ -154,10 +154,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-  def handle_message(:unchoke, _msg, _socket, peer_data) do
-    Logger.debug("Unchoke MSG: #{peer_data.name} will start leaching")
 
-    # get pieces
+  # :DONE
+  def handle_message(:unchoke, _msg, _socket, peer_data) do
+    Logger.debug(fn -> "Unchoke MSG: #{peer_data.name} will start leaching" end)
+
     case peer_data.state do
       :we_choke ->
         %PeerData{peer_data | state: :me_interest_it_choke}
@@ -170,8 +171,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  # :DONE
   def handle_message(:interested, _msg, _socket, peer_data) do
-    Logger.debug("Interested MSG: #{peer_data.name} will start serving data")
+    Logger.debug(fn -> "Interested MSG: #{peer_data.name} will start serving data" end)
 
     case peer_data.state do
       :we_choke ->
@@ -185,8 +187,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  # :DONE
   def handle_message(:not_interested, _msg, _socket, peer_data) do
-    Logger.debug("Not_interested MSG: #{peer_data.name} will stop serving data")
+    Logger.debug(fn -> "Not_interested MSG: #{peer_data.name} will stop serving data" end)
 
     case peer_data.state do
       :we_interest ->
@@ -201,7 +204,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:have, msg, _socket, peer_data) do
-    Logger.debug("Have MSG: #{peer_data.name}")
+    Logger.debug(fn -> "Have MSG: #{peer_data.name}" end)
 
     {status, _} =
       @torrent_impl.add_new_piece_index(
@@ -212,9 +215,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case status do
       :ok ->
-        Logger.debug(
+        Logger.debug(fn ->
           "#{peer_data.name} successfully added #{msg.piece_index} to it's table."
-        )
+        end)
 
         %PeerData{
           peer_data
@@ -228,7 +231,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:bitfield, msg, _socket, peer_data) do
-    Logger.debug("Bitfield MSG: #{peer_data.name}")
+    Logger.debug(fn -> "Bitfield MSG: #{peer_data.name}" end)
     new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
 
     {status, valid_indexes} =
@@ -240,9 +243,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case status do
       :ok ->
-        Logger.debug(
+        Logger.debug(fn ->
           "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table."
-        )
+        end)
 
         %PeerData{peer_data | piece_table: Map.split(new_table, valid_indexes)}
 
@@ -252,10 +255,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:piece, msg, _socket, peer_data) do
-    Logger.debug("Piece MSG: #{peer_data.name}")
+    Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
 
     if msg.piece_index == peer_data.piece_index do
-      Logger.debug("Piece MSG: #{peer_data.name} recieved #{inspect(msg)}")
+      Logger.debug(fn -> "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}" end)
 
       {offset, _} = Integer.parse(msg.block_offsest)
       {length, _} = Integer.parse(msg.block_length)
@@ -321,15 +324,15 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:cancel, _msg, _socket, peer_data) do
-    Logger.debug("Cancel MSG: #{peer_data.name}, Close port, kill process")
+    Logger.debug(fn -> "Cancel MSG: #{peer_data.name}, Close port, kill process" end)
 
     peer_data
   end
 
   def handle_message(:port, _msg, _socket, peer_data) do
-    Logger.debug(
+    Logger.debug(fn ->
       "Port MSG: #{peer_data.name}, restablish new connect for new port"
-    )
+    end)
 
     peer_data
   end
@@ -392,7 +395,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
-        Logger.debug("#{peer_data.name} has sent Request MSG: #{inspect(msg2)}")
+        Logger.debug(fn -> "#{peer_data.name} has sent Request MSG: #{inspect(msg2)}" end)
 
       {:error, msg} ->
         Logger.error(
@@ -429,7 +432,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
-        Logger.debug("#{peer_data.name} has sent Request MSG: #{inspect(msg2)}")
+        Logger.debug(fn -> "#{peer_data.name} has sent Request MSG: #{inspect(msg2)}" end)
 
       {:error, msg} ->
         Logger.error(
@@ -451,11 +454,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     interest_msg =
       case peer_data.piece_table do
         %{} ->
-          Logger.debug("#{peer_data.name} has nothing of interest")
+          Logger.debug(fn -> "#{peer_data.name} has nothing of interest" end)
           PeerProtocol.encode(:not_interested)
 
         _ ->
-          Logger.debug("#{peer_data.name} has something of interest")
+          Logger.debug(fn -> "#{peer_data.name} has something of interest" end)
           PeerProtocol.encode(:interested)
       end
 
@@ -464,7 +467,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(_, peer_data) do
-    Logger.debug("#{peer_data.name} is in #{inspect(peer_data.state)} state")
+    Logger.debug(fn -> "#{peer_data.name} is in #{inspect(peer_data.state)} state" end)
 
     peer_data
   end
