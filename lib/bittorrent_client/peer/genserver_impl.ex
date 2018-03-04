@@ -49,7 +49,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
-    Logger.debug("Using tcp_conn_imp: #{@tcp_conn_impl}")
+    Logger.debug(fn -> "Using tcp_conn_imp: #{@tcp_conn_impl}" end)
     sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
     # sock = connect(peer_data.peer_ip, peer_data.peer_port)
 
@@ -74,6 +74,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply, peer_data}
   end
 
+  # :DONE
   def handle_info({:timeout, timer, :send_message}, {peer_data}) do
     # this should look at the state of the message to determine what to send
     # to peer. the timer sends a signal to the peer handle when it is time to
@@ -85,6 +86,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply, {%PeerData{new_state | timer: timer}}}
   end
 
+  # :DONE
   def handle_info({:tcp, socket, msg}, peer_data) do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
@@ -98,11 +100,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   # Extra use cases
+  # :DONE
   def handle_info({:tcp_passive, socket}, peer_data) do
     :inet.setopts(socket, active: 1)
     {:noreply, peer_data}
   end
 
+  # :DONE
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
     Logger.info("#{peer_data.name} has closed socket, should terminate")
 
@@ -111,17 +115,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply, {peer_data}}
   end
 
+  # :DONE
   def whereis(pworker_id) do
     :global.whereis_name({:btc_peerworker, pworker_id})
   end
 
   def handle_message(:keep_alive, _msg, _socket, peer_data) do
-    Logger.debug("Stay-Alive MSG: #{peer_data.name}")
+    Logger.debug(fn -> "Stay-Alive MSG: #{peer_data.name}" end)
     peer_data
   end
 
   def handle_message(:handshake, msg, _socket, peer_data) do
-    # TODO: check the recieved info hash?
     expected = Map.get(peer_data, "info_hash")
 
     if msg != expected do
@@ -129,12 +133,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       Logger.error("Not acting upon this")
     end
 
-    Logger.debug("Handshake MSG: #{peer_data.name}")
+    Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
     %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
   def handle_message(:choke, _msg, _socket, peer_data) do
-    Logger.debug("Choke MSG: #{peer_data.name} will stop leaching data")
+    Logger.debug(fn ->
+      "Choke MSG: #{peer_data.name} will stop leaching data"
+    end)
 
     case peer_data.state do
       :we_interest ->
