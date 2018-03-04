@@ -264,7 +264,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def add_new_piece_index(id, peer_id, index) do
-    Logger.debug(fn -> "#{id} is attempting to add new piece index: #{index}" end)
+    Logger.debug(fn ->
+      "#{id} is attempting to add new piece index: #{index}"
+    end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),

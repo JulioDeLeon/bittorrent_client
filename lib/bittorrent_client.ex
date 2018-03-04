@@ -3,7 +3,7 @@ defmodule BittorrentClient do
   @moduledoc """
   BittorrentClient is a torrent client written in Elixir. This module is the entry point of the application
   """
-  def start(_type \\ [], _args \\ []) do
+  def start(_type, _args) do
     BittorrentClient.Supervisor.start_link()
   end
 
