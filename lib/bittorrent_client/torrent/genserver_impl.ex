@@ -18,16 +18,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # -------------------------------------------------------------------------------
   def start_link({id, filename}) do
     Logger.info("Starting Torrent worker for #{filename}")
-    Logger.debug("Using http_handle_impl: #{@http_handle_impl}")
+    Logger.debug(fn -> "Using http_handle_impl: #{@http_handle_impl}" end)
 
     torrent_metadata =
       filename
       |> File.read!()
       |> Bento.torrent!()
 
-    Logger.debug("Metadata: #{inspect(torrent_metadata)}")
+    Logger.debug(fn -> "Metadata: #{inspect(torrent_metadata)}" end)
     torrent_data = create_initial_data(id, filename, torrent_metadata)
-    Logger.debug("Data: #{inspect(torrent_data)}")
+    Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
 
     GenServer.start_link(
       __MODULE__,
