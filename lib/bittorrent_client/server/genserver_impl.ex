@@ -53,11 +53,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
       |> (fn x -> :crypto.hash(:md5, x) end).()
       |> Base.encode32()
 
-    Logger.debug("add_new_torrent Generated #{id}")
+    Logger.debug(fn -> "add_new_torrent Generated #{id}" end)
 
     if not Map.has_key?(torrents, id) do
       {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
-      Logger.debug("add_new_torrent Status: #{status}")
+      Logger.debug(fn -> "add_new_torrent Status: #{status}" end)
 
       case status do
         :error ->
@@ -105,10 +105,10 @@ defmodule BittorrentClient.Server.GenServerImpl do
       torrent_data = Map.get(torrents, id)
       data = Map.fetch!(torrent_data, "data")
 
-      Logger.debug("TorrentData: #{inspect(torrent_data)}")
+      Logger.debug(fn -> "TorrentData: #{inspect(torrent_data)}" end)
       {stop_status, ret} = TorrentSupervisor.terminate_child(id)
 
-      Logger.debug("TorrentSupervisor.stop_child ret: #{inspect(ret)}")
+      Logger.debug(fn -> "TorrentSupervisor.stop_child ret: #{inspect(ret)}" end)
 
       case stop_status do
         :error ->

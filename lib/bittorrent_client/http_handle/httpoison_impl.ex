@@ -5,9 +5,9 @@ defmodule BittorrentClient.HTTPHandle.HTTPoisonImpl do
   require Logger
 
   def get(url, headers, opts) do
-    Logger.debug(
+    Logger.debug(fn ->
       "URL #{inspect(url)}, HEADERS #{inspect(headers)}, OPTS #{inspect(opts)}"
-    )
+    end)
 
     HTTPoison.get(url, headers, opts)
   end

@@ -154,7 +154,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
-
   # :DONE
   def handle_message(:unchoke, _msg, _socket, peer_data) do
     Logger.debug(fn -> "Unchoke MSG: #{peer_data.name} will start leaching" end)
@@ -283,9 +282,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         case status do
           :ok ->
-            Logger.debug(
+            Logger.debug(fn ->
               "#{peer_data.name} has completed #{peer_data.piece_index}"
-            )
+            end)
 
           _ ->
             Logger.error(
@@ -313,11 +312,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         }
       end
     else
-      Logger.debug(
+      Logger.debug(fn ->
         "Piece MSG: #{peer_data.name} has recieved the wrong piece: #{
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
-      )
+        end)
 
       peer_data
     end

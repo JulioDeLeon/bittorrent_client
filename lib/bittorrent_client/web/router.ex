@@ -32,7 +32,7 @@ defmodule BittorrentClient.Web.Router do
 
     case status do
       :ok ->
-        Logger.debug("Retrieved info for #{id}")
+        Logger.debug(fn -> "Retrieved info for #{id}" end)
         put_resp_content_type(conn, "application/json")
         data = msg["data"]
 
@@ -48,7 +48,7 @@ defmodule BittorrentClient.Web.Router do
         )
 
       :error ->
-        Logger.debug("Failed to retrieve info for #{id}")
+        Logger.debug(fn -> "Failed to retrieve info for #{id}" end)
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
@@ -60,12 +60,12 @@ defmodule BittorrentClient.Web.Router do
 
     case status do
       :ok ->
-        Logger.debug("Retrieved info for #{id}")
+        Logger.debug(fn -> "Retrieved info for #{id}" end)
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
 
       :error ->
-        Logger.debug("Failed to retrieve info for #{id}")
+        Logger.debug(fn -> "Failed to retrieve info for #{id}" end)
         {code, err_msg} = msg
         send_resp(conn, code, err_msg)
     end
@@ -88,7 +88,7 @@ defmodule BittorrentClient.Web.Router do
   put "#{@api_root}/:id/connect/async" when byte_size(id) > 3 do
     Logger.info("Connecting #{id} to tracker async")
     _status = @server_impl.connect_torrent_to_tracker_async(@server_name, id)
-    Logger.debug("connect returning success")
+    Logger.debug(fn -> "connect returning success" end)
     send_resp(conn, 204, "")
   end
 
@@ -98,12 +98,12 @@ defmodule BittorrentClient.Web.Router do
 
     case status do
       :error ->
-        Logger.debug("Could not start #{id}, returning error")
+        Logger.debug(fn -> "Could not start #{id}, returning error" end)
         {err_code, msg} = msg
         send_resp(conn, err_code, msg)
 
       :ok ->
-        Logger.debug("connect returning success")
+        Logger.debug(fn -> "connect returning success" end)
         send_resp(conn, 204, "")
     end
   end
