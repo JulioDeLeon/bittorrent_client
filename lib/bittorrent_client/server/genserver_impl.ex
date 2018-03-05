@@ -59,38 +59,13 @@ defmodule BittorrentClient.Server.GenServerImpl do
       {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
       Logger.debug(fn -> "add_new_torrent Status: #{status}" end)
 
-      case status do
-        :error ->
-          Logger.error(
-            "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"
-          )
-
-          {:reply,
-           {:error,
-            {403,
-             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
-           {db, server_name, torrents}}
-
-        _ ->
-          {check, data} = @torrent_impl.get_torrent_data(id)
-
-          case check do
-            :error ->
-              Logger.error("Failed to add new torrent for #{torrentFile}")
-
-              {:reply,
-               {:error,
-                {500,
-                 "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
-               {db, server_name, torrents}}
-
-            _ ->
-              updated_torrents = Map.put(torrents, id, data)
-
-              {:reply, {:ok, %{"torrent id" => id}},
-               {db, server_name, updated_torrents}}
-          end
-      end
+      add_new_torrent_process(
+        status,
+        id,
+        torrentFile,
+        secondary,
+        {db, server_name, torrents}
+      )
     else
       {:reply,
        {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
@@ -370,5 +345,52 @@ defmodule BittorrentClient.Server.GenServerImpl do
       :global.whereis_name({:btc_server, server_name}),
       {:delete_all}
     )
+  end
+
+  # -------------------------------------------------------------------------------
+  # Private Functions
+  # ------------------------------------------------------------------------------
+  defp add_new_torrent_procees(
+         :error,
+         id,
+         torrentFile,
+         errorMSG,
+         {db, server_name, torrents}
+       ) do
+    Logger.error(
+      "Failed to add torrent for #{torrentFile}: #{inspect(errorMSG)}\n"
+    )
+
+    {:reply,
+     {:error,
+      {403, "Failed to add torrent for #{torrentFile}: #{inspect(errorMSG)}\n"}},
+     {db, server_name, torrents}}
+  end
+
+  defp add_new_torrent_process(
+         :ok,
+         id,
+         torrentFile,
+         _errorMessage,
+         {db, server_name, torrents}
+       ) do
+    {check, data} = @torrent_impl.get_torrent_data(id)
+
+    case check do
+      :error ->
+        Logger.error("Failed to add new torrent for #{torrentFile}")
+
+        {:reply,
+         {:error,
+          {500,
+           "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
+         {db, server_name, torrents}}
+
+      _ ->
+        updated_torrents = Map.put(torrents, id, data)
+
+        {:reply, {:ok, %{"torrent id" => id}},
+         {db, server_name, updated_torrents}}
+    end
   end
 end

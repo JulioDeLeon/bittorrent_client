@@ -8,6 +8,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   require Bitwise
   require Logger
   alias BittorrentClient.Peer.Data, as: PeerData
+  alias BittorrentClient.Peer.ConnInfo, as: ConnInfo
+  alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
 
@@ -19,23 +21,34 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
-    peer_data = %PeerData{
-      torrent_id: torrent_id,
-      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-      filename: filename,
-      peer_ip: ip,
-      peer_port: port,
+    conn_info = %ConnInfo{
+      ip: ip,
+      port: port,
       interval: interval,
-      info_hash: info_hash,
-      handshake_check: false,
-      need_piece: true,
-      state: :we_choke,
-      metainfo: metainfo,
+      socket: nil,
       timer: nil,
-      piece_index: 0,
-      sub_piece_index: 0,
+    }
+
+    torrent_track_info = %TorrentTrackingInfo{
+      id: torrent_id,
+      infohash: info_hash,
+      expected_piece_index: 0,
+      expected_sub_piece_index: 0,
       piece_length: metainfo.info."piece length",
       piece_table: %{},
+      bits_recieved: 0,
+      piece_buffer: <<>>
+    }
+
+    peer_data = %PeerData{
+      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+      conn_info: conn_info,
+      handshake_check: false,
+      need_piece: true,
+      filename: filename,
+      state: :we_choke,
+      metainfo: metainfo,
+      torrent_tracking_info: torrent_track_info,
       name: name
     }
 
@@ -52,7 +65,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.debug(fn -> "Using tcp_conn_imp: #{@tcp_conn_impl}" end)
     sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
     # sock = connect(peer_data.peer_ip, peer_data.peer_port)
-
+    conn_info = peer_data.conn_info
     msg =
       PeerProtocol.encode(
         :handshake,
@@ -62,7 +75,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       )
 
     send_handshake(sock, msg)
-    {:ok, {%PeerData{peer_data | timer: timer, socket: sock}}}
+    {:ok, {%PeerData{peer_data | conn_info: %{conn_info | timer: timer, socket: sock}}}}
   end
 
   # these handle_info calls come from the socket for attention
@@ -83,7 +96,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :erlang.cancel_timer(timer)
     new_state = send_message(peer_data.state, peer_data)
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-    {:noreply, {%PeerData{new_state | timer: timer}}}
+    {:noreply, {%PeerData{new_state | conn_info: %ConnInfo{peer_data.conn_info | timer: timer}}}}
   end
 
   # :DONE
@@ -226,8 +239,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         %PeerData{
           peer_data
-          | piece_table:
-              Map.merge(peer_data.piece_table, %{msg.piece_index => :found})
+          | torrent_tracking_info: %TorrentTrackingInfo{
+            peer_data.torrent_tracking_info | 
+            piece_table: Map.merge(peer_data.piece_table, %{msg.piece_index => :found})
+        }
         }
 
       _ ->
@@ -252,7 +267,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table."
         end)
 
-        %PeerData{peer_data | piece_table: Map.split(new_table, valid_indexes)}
+        %PeerData{peer_data | torrent_tracking_info: %TorrentTrackingInfo{
+          peer_data.torrent_tracking_info | 
+          piece_table: Map.split(new_table, valid_indexes)}}
 
       _ ->
         peer_data
@@ -304,19 +321,18 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         %PeerData{
           peer_data
-          | piece_buffer: new_buffer,
+          | torrent_tracking_info: %TorrentTrackingInfo{ peer_data.torrent_tracking_info | piece_buffer: new_buffer,
             bits_recieved: new_recieved,
-            piece_table: new_piece_table
+            piece_table: new_piece_table}
         }
       else
         new_piece_table = %{peer_data.piece_data | piece_index: piece_status}
 
         %PeerData{
           peer_data
-          | piece_buffer: new_buffer,
+          | torrent_tracking_info: %TorrentTrackingInfo{ peer_data.torrent_tracking_info | piece_buffer: new_buffer,
             bits_recieved: new_recieved,
-            piece_table: new_piece_table,
-            need_piece: true
+            piece_table: new_piece_table}, need_piece: true
         }
       end
     else

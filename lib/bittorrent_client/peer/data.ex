@@ -21,7 +21,8 @@ defmodule BittorrentClient.Peer.Data do
   * `tracker_id` - string which will represent the bittorrent clients identification.
   * `name` - name which identifies the peer work process which is formated `{torrent_id}_{ip}_{port}`.
   """
-  alias BittorrentClient.TCPConn, as: TCPConn
+  alias BittorrentClient.Peer.TorrentTrackingInfo
+  alias BittorrentClient.Peer.ConnInfo, as: ConnInfo
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
 
   @type state ::
@@ -33,54 +34,26 @@ defmodule BittorrentClient.Peer.Data do
   @derive {Poison.Encoder,
            except: [:torrent_id, :socket, :metainfo, :timer, :state]}
   defstruct [
-    :torrent_id,
     :peer_id,
-    :filename,
-    :peer_ip,
-    :peer_port,
-    :socket,
-    :interval,
-    :info_hash,
+    :conn_info,
+    :torrent_tracking_info,
     :handshake_check,
-    :metainfo,
-    :timer,
-    :state,
     :need_piece,
-    :piece_index,
-    :sub_piece_index,
-    :piece_buffer,
-    # pieces that you need to serve
-    :request_queue,
-    # track bytes received to compare to piece_length
-    :bits_recieved,
-    :num_pieces,
-    :piece_length,
-    # pieces the peer has that you want
-    :piece_table,
+    :filename,
+    :metainfo,
+    :state,
     :name
   ]
 
   @type t :: %__MODULE__{
-          torrent_id: String.t(),
           peer_id: String.t(),
+          conn_info: ConnInfo.t(),
+          torrent_tracking_info: TorrentTrackingInfo.t(),
           filename: String.t(),
-          peer_ip: String.t(),
-          peer_port: integer,
-          socket: TCPConn.t(),
-          interval: integer,
-          info_hash: String.t(),
           handshake_check: boolean,
           need_piece: boolean,
           metainfo: TorrentMetainfo.t(),
-          # timer
           state: state,
-          piece_index: integer,
-          sub_piece_index: integer,
-          request_queue: Enum.t(),
-          bits_recieved: integer,
-          num_pieces: integer,
-          piece_length: integer,
-          # piece_queue
           name: String.t()
         }
 end
