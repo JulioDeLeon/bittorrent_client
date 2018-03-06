@@ -33,7 +33,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           piece_table: %{piece_index => piece_table_entry}
         }
 
-  @typep tortrackstate :: :ready | :servicing | :err | :completed
+  @typep tortrackstate :: :servicable | :err
 
   @type callback_mode() :: atom()
   def callback_mode() do
@@ -67,6 +67,11 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   end
   
   
+
+  # Ignore all unqualified events
+  def handle_event(_, _, Data) do
+    {:keep_state, Data}
+  end
 
   def code_change(_Vsn, state, data, _extra) do
     {:ok, state, data}
