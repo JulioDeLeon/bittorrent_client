@@ -71,7 +71,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     {:ok,
      {%PeerData{
-        peer_data | socket: sock, timer: timer
+        peer_data
+        | socket: sock,
+          timer: timer
       }}}
   end
 
