@@ -21,14 +21,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
-    conn_info = %ConnInfo{
-      ip: ip,
-      port: port,
-      interval: interval,
-      socket: nil,
-      timer: nil
-    }
-
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
       infohash: info_hash,
@@ -40,13 +32,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     peer_data = %PeerData{
       peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-      conn_info: conn_info,
       handshake_check: false,
       need_piece: true,
       filename: filename,
       state: :we_choke,
       metainfo: metainfo,
       torrent_tracking_info: torrent_track_info,
+      timer: nil,
+      interval: interval,
+      peer_ip: ip,
+      peer_port: port,
       name: name
     }
 
@@ -63,7 +58,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.debug(fn -> "Using tcp_conn_imp: #{@tcp_conn_impl}" end)
     sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
     # sock = connect(peer_data.peer_ip, peer_data.peer_port)
-    conn_info = peer_data.conn_info
 
     msg =
       PeerProtocol.encode(
@@ -77,8 +71,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     {:ok,
      {%PeerData{
-        peer_data
-        | conn_info: %{conn_info | timer: timer, socket: sock}
+        peer_data | socket: sock, timer: timer
       }}}
   end
 
@@ -104,7 +97,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply,
      {%PeerData{
         new_state
-        | conn_info: %ConnInfo{peer_data.conn_info | timer: timer}
+        | timer: timer
       }}}
   end
 

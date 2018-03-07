@@ -35,7 +35,6 @@ defmodule BittorrentClient.Peer.Data do
            except: [:torrent_id, :socket, :metainfo, :timer, :state]}
   defstruct [
     :peer_id,
-    :conn_info,
     :torrent_tracking_info,
     :handshake_check,
     :need_piece,
@@ -43,12 +42,16 @@ defmodule BittorrentClient.Peer.Data do
     :metainfo,
     :state,
     :piece_buffer,
+    :timer,
+    :interval,
+    :socket,
+    :peer_ip,
+    :peer_port,
     :name
   ]
 
   @type t :: %__MODULE__{
           peer_id: String.t(),
-          conn_info: ConnInfo.t(),
           torrent_tracking_info: TorrentTrackingInfo.t(),
           filename: String.t(),
           handshake_check: boolean,
@@ -56,6 +59,11 @@ defmodule BittorrentClient.Peer.Data do
           metainfo: TorrentMetainfo.t(),
           state: state,
           piece_buffer: binary(),
+          timer: :timer.tref(),
+          interval: integer(),
+          socket: TCPConn.t(),
+          peer_ip: :inet.address(),
+          peer_port: :inet.port(),
           name: String.t()
         }
 end
