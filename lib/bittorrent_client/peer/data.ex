@@ -42,6 +42,7 @@ defmodule BittorrentClient.Peer.Data do
     :filename,
     :metainfo,
     :state,
+    :piece_buffer,
     :name
   ]
 
@@ -54,6 +55,7 @@ defmodule BittorrentClient.Peer.Data do
           need_piece: boolean,
           metainfo: TorrentMetainfo.t(),
           state: state,
+          piece_buffer: binary(),
           name: String.t()
         }
 end
