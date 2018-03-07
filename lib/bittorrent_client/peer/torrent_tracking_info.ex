@@ -32,7 +32,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           request_queue: [piece_index_request],
           piece_buffer: binary(),
           bits_recieved: integer(),
-          piece_table: %{piece_index => piece_table_entry},
+          piece_table: %{piece_index => piece_table_entry}
         }
 
   @spec add_found_piece_index(atom(), __MODULE__.t(), piece_index) ::
@@ -119,15 +119,19 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   def mark_piece_done(ttinfo, piece_index) do
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_, buff}} ->
-        {status, ret} = @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff)
+        {status, ret} =
+          @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff)
+
         if status == :ok do
           change_piece_progress(ttinfo, piece_index, :completed)
         else
-          {:error, "#{ttinfo.id} could not mark #{piece_index} as done : #{ret}"}
+          {:error,
+           "#{ttinfo.id} could not mark #{piece_index} as done : #{ret}"}
         end
+
       {:error, msg} ->
         {:error, msg}
-      end
+    end
   end
 
   @spec mark_piece_needed(__MODULE__.t()) :: {:ok, __MODULE__.t()}
