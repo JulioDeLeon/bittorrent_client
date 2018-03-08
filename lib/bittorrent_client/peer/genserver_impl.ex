@@ -35,7 +35,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       need_piece: true,
       filename: filename,
       state: :we_choke,
-      metainfo: metainfo,
       torrent_tracking_info: torrent_track_info,
       timer: nil,
       interval: interval,
