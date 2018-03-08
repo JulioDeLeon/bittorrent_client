@@ -22,7 +22,6 @@ defmodule BittorrentClient.Peer.Data do
   * `name` - name which identifies the peer work process which is formated `{torrent_id}_{ip}_{port}`.
   """
   alias BittorrentClient.Peer.TorrentTrackingInfo
-  alias BittorrentClient.Peer.ConnInfo, as: ConnInfo
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
 
   @type state ::
@@ -34,7 +33,7 @@ defmodule BittorrentClient.Peer.Data do
   @derive {Poison.Encoder,
            except: [:torrent_id, :socket, :metainfo, :timer, :state]}
   defstruct [
-    :peer_id,
+    :id,
     :torrent_tracking_info,
     :handshake_check,
     :need_piece,
@@ -51,7 +50,7 @@ defmodule BittorrentClient.Peer.Data do
   ]
 
   @type t :: %__MODULE__{
-          peer_id: String.t(),
+          id: String.t(),
           torrent_tracking_info: TorrentTrackingInfo.t(),
           filename: String.t(),
           handshake_check: boolean,
