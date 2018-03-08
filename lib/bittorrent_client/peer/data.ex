@@ -1,25 +1,39 @@
 defmodule BittorrentClient.Peer.Data do
   @moduledoc """
   Peer data struct to contain information about peer connection
-  Fields are:
-  * `torrent_id` - 20-byte SHA1 hash indentifing the torrent thread.
-  * `peer_id` - peer id is a integer which identifies the peer from torrent info.
-  * `filename` - filename represents the location of the file releated to the torrent.
-  * `peer_ip` - IPv4 address of the peer.
-  * `peer_port` - Port which the peer is communicating on.
-  * `socket` - ???.
-  * `interval` - the time between requests in milliseconds.
-  * `info_hash` - 20-byte SHA1 hash to be used during handshake and fact checking.
-  * `handshake_check` - boolean to represent if the handshake messages have been exchanged already.
-  * `metainfo` - shared metainfo related to torrent obtained from torrent file.
-  * `timer` - timer object which will send a process a message at the required intervals.
-  * `state` - `:we_choke | :me_choke_it_interests | :me_interest_it_choke | :we_interest`; represent the mode of communication between the process and the peer.
-  * `piece_index` - the current piece index the peer worker process is working on.
-  * `sub_piece_index` - the subindex of the current piece being worked on.
-  * `request_queue` - queue of pieces being requested by peer (MAY NOT BE NEEDED).
-  * `piece_table` - map which keeps tracks of desired pieces from peer and it's status. For example, `%{ 5 => :found | :started | :done }`
-  * `tracker_id` - string which will represent the bittorrent clients identification.
-  * `name` - name which identifies the peer work process which is formated `{torrent_id}_{ip}_{port}`.
+
+  ## Peer Connection state 
+  The state of the connect between the peer and client is represeneted by 4 atoms as defined: 
+
+  ```elixir
+  @type state ::
+    :we_choke                 # There is no data being shared between peer and client.
+    | :me_choke_it_interest   # The client is not recieving data, but the client is sending data to the peer.
+    | :me_interest_it_choke   # The client is recieving data, but the client is not sending data to the peer.
+    | :we_interest            # Both the peer and the client are exchanging data.
+  ```
+
+  ## Model for Peer Data
+  The Peer Data model contains/manages the state of the Peer process.
+
+  ```elixir
+  @type t :: %__MODULE__{
+      id: String.t(),                                 # Represents peer id for torrent process to identify with
+      torrent_tracking_info: TorrentTrackingInfo.t(), # Manages the state of relationship of the peer process with it's torrent process
+      filename: String.t(),                           # File that the torrent is related to
+      handshake_check: boolean,                       # Check for if the checksum handshake has been made with the peer
+      need_piece: boolean,                            # Check to see if a new piece needs to be requested from the peer
+      metainfo: TorrentMetainfo.t(),                  # Metainfo related to the torrent file
+      state: state,                                   # Contains the peer connection state
+      piece_buffer: binary(),                         # Temporary scratch buffer to contain bytes of the current piece downloaded
+      timer: :timer.tref(),                           # Contains reference to a timer which will inform the peer process to send a message
+      interval: integer(),                            # Milliseconds of how often messages should be sent
+      socket: TCPConn.t(),                            # Contains TCP socket information
+      peer_ip: :inet.address(),                       # IP address that peer is listening on
+      peer_port: :inet.port(),                        # inet port the peer is listening on
+      name: String.t()                                # Name of the peer processs (human readable name for logging)
+  }
+  ```
   """
   alias BittorrentClient.Peer.TorrentTrackingInfo
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
