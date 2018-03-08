@@ -8,7 +8,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   require Bitwise
   require Logger
   alias BittorrentClient.Peer.Data, as: PeerData
-  alias BittorrentClient.Peer.ConnInfo, as: ConnInfo
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
@@ -31,7 +30,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     }
 
     peer_data = %PeerData{
-      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+      id: Application.fetch_env!(:bittorrent_client, :peer_id),
       handshake_check: false,
       need_piece: true,
       filename: filename,
@@ -225,62 +224,62 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  # :DONE?
   def handle_message(:have, msg, _socket, peer_data) do
     Logger.debug(fn -> "Have MSG: #{peer_data.name}" end)
+    ttinfo_state = peer_data.torrent_tracking_info
 
-    {status, _} =
-      @torrent_impl.add_new_piece_index(
-        peer_data.torrent_id,
-        peer_data.peer_id,
-        msg.piece_index
-      )
-
-    case status do
-      :ok ->
+    case TorrentTrackingInfo.populate_single_piece(
+           ttinfo_state,
+           peer_data.id,
+           msg.piece_index
+         ) do
+      {:ok, new_ttinfo_state} ->
         Logger.debug(fn ->
           "#{peer_data.name} successfully added #{msg.piece_index} to it's table."
         end)
 
         %PeerData{
           peer_data
-          | torrent_tracking_info: %TorrentTrackingInfo{
-              peer_data.torrent_tracking_info
-              | piece_table:
-                  Map.merge(peer_data.piece_table, %{msg.piece_index => :found})
-            }
+          | torrent_tracking_info: new_ttinfo_state
         }
 
-      _ ->
+      {:error, errmsg} ->
+        Logger.error(
+          "#{peer_data.name} failed to add #{msg.piece_index} to it's table : #{
+            errmsg
+          }"
+        )
+
         peer_data
     end
   end
 
+  # :DONE?
   def handle_message(:bitfield, msg, _socket, peer_data) do
     Logger.debug(fn -> "Bitfield MSG: #{peer_data.name}" end)
-    new_table = parse_bitfield(msg.bitfield, peer_data.piece_table, 0)
+    ttinfo_state = peer_data.torrent_tracking_info
+    new_piece_indexes = parse_bitfield(msg.bitfield, [], 0)
 
-    {status, valid_indexes} =
-      @torrent_impl.add_multi_pieces(
-        peer_data.torrent_id,
-        peer_data.peer_id,
-        Map.keys(new_table)
-      )
-
-    case status do
-      :ok ->
+    case TorrentTrackingInfo.populate_multiple_pieces(
+           ttinfo_state,
+           peer_data.id,
+           new_piece_indexes
+         ) do
+      {:ok, new_ttinfo_state} ->
         Logger.debug(fn ->
-          "#{peer_data.name} successfully added #{inspect(valid_indexes)} to it's table."
+          "#{peer_data.name} successfully added #{new_piece_indexes} to it's table."
         end)
 
-        %PeerData{
-          peer_data
-          | torrent_tracking_info: %TorrentTrackingInfo{
-              peer_data.torrent_tracking_info
-              | piece_table: Map.split(new_table, valid_indexes)
-            }
-        }
+        %PeerData{peer_data | torrent_tracking_info: new_ttinfo_state}
 
-      _ ->
+      {:error, errmsg} ->
+        Logger.error(
+          "#{peer_data.name} failed to add #{new_piece_indexes} to it's table : #{
+            errmsg
+          }"
+        )
+
         peer_data
     end
   end
@@ -409,9 +408,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     @tcp_conn_impl.connect(ip, port, [:binary, active: 1], 2_000)
   end
 
+  @spec parse_bitfield(binary(), [integer()], integer()) :: [integer()]
   def parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
     if bit == 1 do
-      parse_bitfield(rest, Map.merge(queue, %{acc => :found}), acc + 1)
+      parse_bitfield(rest, [acc | queue], acc + 1)
     else
       parse_bitfield(rest, queue, acc + 1)
     end
@@ -421,6 +421,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     queue
   end
 
+  @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()
   def send_message(:me_choke_it_interest, peer_data) do
     msg1 = PeerProtocol.encode(:keep_alive)
 
