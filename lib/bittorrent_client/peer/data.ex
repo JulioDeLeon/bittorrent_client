@@ -23,7 +23,6 @@ defmodule BittorrentClient.Peer.Data do
       filename: String.t(),                           # File that the torrent is related to
       handshake_check: boolean,                       # Check for if the checksum handshake has been made with the peer
       need_piece: boolean,                            # Check to see if a new piece needs to be requested from the peer
-      metainfo: TorrentMetainfo.t(),                  # Metainfo related to the torrent file
       state: state,                                   # Contains the peer connection state
       piece_buffer: binary(),                         # Temporary scratch buffer to contain bytes of the current piece downloaded
       timer: :timer.tref(),                           # Contains reference to a timer which will inform the peer process to send a message
@@ -36,7 +35,6 @@ defmodule BittorrentClient.Peer.Data do
   ```
   """
   alias BittorrentClient.Peer.TorrentTrackingInfo
-  alias Bento.Metainfo.Torrent, as: TorrentMetainfo
 
   @type state ::
           :we_choke
@@ -52,7 +50,6 @@ defmodule BittorrentClient.Peer.Data do
     :handshake_check,
     :need_piece,
     :filename,
-    :metainfo,
     :state,
     :piece_buffer,
     :timer,
@@ -69,7 +66,6 @@ defmodule BittorrentClient.Peer.Data do
           filename: String.t(),
           handshake_check: boolean,
           need_piece: boolean,
-          metainfo: TorrentMetainfo.t(),
           state: state,
           piece_buffer: binary(),
           timer: :timer.tref(),
