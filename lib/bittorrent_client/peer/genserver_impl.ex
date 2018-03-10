@@ -285,20 +285,19 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(:piece, msg, _socket, peer_data) do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
-
+    ttinfo = peer_data.torrent_tracking_info
     if msg.piece_index == peer_data.piece_index do
       Logger.debug(fn ->
         "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}"
       end)
-
       {offset, _} = Integer.parse(msg.block_offsest)
       {length, _} = Integer.parse(msg.block_length)
       <<before::size(offset), aft>> = peer_data.piece_buffer
       new_buffer = <<before, msg.block::size(length), aft>>
-      new_recieved = peer_data.bits_recieved + msg.block_length
+      total_recieved_amount = ttinfo.bits_recieved + msg.block_length
 
       piece_status =
-        if new_recieved == peer_data.piece_length do
+        if total_recieved_amount == peer_data.piece_length do
           :incomplete
         else
           :completed
