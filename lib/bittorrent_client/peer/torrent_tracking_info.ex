@@ -149,8 +149,25 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     end
   end
 
+  @spec add_piece_index_data(__MODULE__.t(), piece_index, integer(), integer(), binary()) :: {:ok, __MODULE__.t()} | {:error, reason}
+  def add_piece_index_data(ttinfo, piece_index, block_offset, block_length, buff) do
+    op = fn ->
+
+    end
+    piece_operation(ttinfo, piece_index, op)
+  end
+
   @spec validate_infohash(__MODULE__.t(), binary()) :: boolean()
   def validate_infohash(ttinfo, pInfohash) do
     pInfohash == ttinfo.infohash
+  end
+
+  @spec piece_operation(__MODULE__.t(), piece_index, any()):: {:ok, __MODULE__.t()} | {:error, reason}
+  defp piece_operation(ttinfo, piece_index, operation) do
+    if Map.has_key?(ttinfo.piece_table, piece_index) do
+      operation.()
+    else
+      {:error, "index does not exist in piece table"}
+    end
   end
 end
