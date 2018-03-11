@@ -59,13 +59,38 @@ defmodule BittorrentClient.Server.GenServerImpl do
       {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
       Logger.debug(fn -> "add_new_torrent Status: #{status}" end)
 
-      add_new_torrent_process(
-        status,
-        id,
-        torrentFile,
-        secondary,
-        {db, server_name, torrents}
-      )
+      case status do
+        :error ->
+          Logger.error(fn ->
+            "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"
+          end)
+
+          {:reply,
+           {:error,
+            {403,
+             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
+           {db, server_name, torrents}}
+
+        _ ->
+          {check, data} = @torrent_impl.get_torrent_data(id)
+
+          case check do
+            :error ->
+              Logger.error("Failed to add new torrent for #{torrentFile}")
+
+              {:reply,
+               {:error,
+                {500,
+                 "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
+               {db, server_name, torrents}}
+
+            _ ->
+              updated_torrents = Map.put(torrents, id, data)
+
+              {:reply, {:ok, %{"torrent id" => id}},
+               {db, server_name, updated_torrents}}
+          end
+      end
     else
       {:reply,
        {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
@@ -74,7 +99,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_call({:delete_by_id, id}, _from, {db, server_name, torrents}) do
-    Logger.debug("Entered delete_by_id")
+    Logger.debug(fn -> "Entered delete_by_id" end)
 
     if Map.has_key?(torrents, id) do
       torrent_data = Map.get(torrents, id)
@@ -98,7 +123,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
            {db, server_name, torrents}}
       end
     else
-      Logger.debug("Bad ID was given to delete")
+      Logger.debug(fn -> "Bad ID was given to delete" end)
 
       {:reply, {:error, {403, "Bad ID was given\n"}},
        {db, server_name, torrents}}
@@ -345,52 +370,5 @@ defmodule BittorrentClient.Server.GenServerImpl do
       :global.whereis_name({:btc_server, server_name}),
       {:delete_all}
     )
-  end
-
-  # -------------------------------------------------------------------------------
-  # Private Functions
-  # ------------------------------------------------------------------------------
-  defp add_new_torrent_procees(
-         :error,
-         id,
-         torrentFile,
-         errorMSG,
-         {db, server_name, torrents}
-       ) do
-    Logger.error(
-      "Failed to add torrent for #{torrentFile}: #{inspect(errorMSG)}\n"
-    )
-
-    {:reply,
-     {:error,
-      {403, "Failed to add torrent for #{torrentFile}: #{inspect(errorMSG)}\n"}},
-     {db, server_name, torrents}}
-  end
-
-  defp add_new_torrent_process(
-         :ok,
-         id,
-         torrentFile,
-         _errorMessage,
-         {db, server_name, torrents}
-       ) do
-    {check, data} = @torrent_impl.get_torrent_data(id)
-
-    case check do
-      :error ->
-        Logger.error("Failed to add new torrent for #{torrentFile}")
-
-        {:reply,
-         {:error,
-          {500,
-           "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
-         {db, server_name, torrents}}
-
-      _ ->
-        updated_torrents = Map.put(torrents, id, data)
-
-        {:reply, {:ok, %{"torrent id" => id}},
-         {db, server_name, updated_torrents}}
-    end
   end
 end
