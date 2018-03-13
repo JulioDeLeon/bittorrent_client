@@ -286,67 +286,37 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_message(:piece, msg, _socket, peer_data) do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
     ttinfo = peer_data.torrent_tracking_info
-    if msg.piece_index == peer_data.piece_index do
+
+    if msg.piece_index == ttinfo.expected_piece_index do
       Logger.debug(fn ->
         "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}"
       end)
+
       {offset, _} = Integer.parse(msg.block_offsest)
       {length, _} = Integer.parse(msg.block_length)
-      <<before::size(offset), aft>> = peer_data.piece_buffer
-      new_buffer = <<before, msg.block::size(length), aft>>
-      total_recieved_amount = ttinfo.bits_recieved + msg.block_length
 
-      piece_status =
-        if total_recieved_amount == peer_data.piece_length do
-          :incomplete
-        else
-          :completed
-        end
+      case TorrentTrackingInfo.add_piece_index_data(
+             ttinfo,
+             msg.piece_index,
+             offset,
+             length,
+             <<msg.block::size(length)>>
+           ) do
+        {:ok, new_ttinfo} ->
+          Logger.debug(fn ->
+            "Piece MSG: #{peer_data.name} successfully added piece data to table"
+          end)
 
-      if piece_status == :completed do
-        {status, _} =
-          @torrent_impl.mark_piece_index_done(
-            peer_data.torrent_id,
-            peer_data.piece_index,
-            new_buffer
+          %PeerData{peer_data | torrent_tracking_info: new_ttinfo}
+
+        {:error, msg} ->
+          Logger.error(
+            "Piece MSG: #{peer_data.name} could not handle piece message correctly: #{
+              msg
+            }"
           )
 
-        case status do
-          :ok ->
-            Logger.debug(fn ->
-              "#{peer_data.name} has completed #{peer_data.piece_index}"
-            end)
-
-          _ ->
-            Logger.error(
-              "#{peer_data.name} could not complete #{peer_data.piece_index}"
-            )
-        end
-
-        new_piece_table = Map.drop(peer_data.piece_table, peer_data.piece_index)
-
-        %PeerData{
           peer_data
-          | torrent_tracking_info: %TorrentTrackingInfo{
-              peer_data.torrent_tracking_info
-              | piece_buffer: new_buffer,
-                bits_recieved: new_recieved,
-                piece_table: new_piece_table
-            }
-        }
-      else
-        new_piece_table = %{peer_data.piece_data | piece_index: piece_status}
-
-        %PeerData{
-          peer_data
-          | torrent_tracking_info: %TorrentTrackingInfo{
-              peer_data.torrent_tracking_info
-              | piece_buffer: new_buffer,
-                bits_recieved: new_recieved,
-                piece_table: new_piece_table
-            },
-            need_piece: true
-        }
       end
     else
       Logger.debug(fn ->
