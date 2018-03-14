@@ -124,7 +124,6 @@ defmodule ServerTest do
 
     {delete_all_status, data} = @server_impl.delete_all_torrents(@server_name)
     assert delete_all_status == :ok
-    IO.puts("Ret from delete all: #{inspect(data)}")
     assert @torrent_impl.whereis(torrent_id) == :undefined
     assert @torrent_impl.whereis(torrent_id_2) == :undefined
 

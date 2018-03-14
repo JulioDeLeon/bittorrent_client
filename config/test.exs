@@ -6,3 +6,6 @@ config :bittorrent_client,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
   tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
   http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl
+
+config :logger,
+  level: :error
