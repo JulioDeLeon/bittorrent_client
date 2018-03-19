@@ -168,46 +168,57 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
         buff
       ) do
     op = fn ->
-      case get_piece_entry(ttinfo, piece_index) do
-        {:ok, {_progress, data}} ->
-          <<before::size(block_offset), aft>> = data
-          new_buffer = <<before, buff::size(block_length), aft>>
-          total_recieved = ttinfo.bits_recieved + block_length
-
-          case check_piece_completed(
-                 ttinfo,
-                 piece_index,
-                 total_recieved,
-                 <<new_buffer::size(total_recieved)>>
-               ) do
-            {:ok, :incomplete} ->
-              {:ok,
-               %__MODULE__{
-                 ttinfo
-                 | piece_buffer: <<new_buffer::size(total_recieved)>>,
-                   bits_recieved: total_recieved,
-                   need_piece: false
-               }}
-
-            {:ok, :complete} ->
-              {:ok,
-               %__MODULE__{
-                 ttinfo
-                 | piece_buffer: <<>>,
-                   bits_recieved: 0,
-                   need_piece: true
-               }}
-
-            {:error, msg} ->
-              {:error, msg}
-          end
-
-        {:error, msg} ->
-          {:error, msg}
-      end
+      handle_addition_to_piece_buff(ttinfo, piece_index, block_offset, block_length, buff)
     end
 
     piece_operation(ttinfo, piece_index, op)
+  end
+
+  @spec handle_addition_to_piece_buff(
+    __MODULE__.t(),
+    piece_index,
+    integer(),
+    integer(),
+    binary()
+  ) :: {:ok, __MODULE__.t()} | {:error, reason}
+  defp handle_addition_to_piece_buff(ttinfo, piece_index, block_offset, block_length, buff) do
+    case get_piece_entry(ttinfo, piece_index) do
+      {:ok, {_progress, data}} ->
+        <<before::size(block_offset), aft>> = data
+        new_buffer = <<before, buff::size(block_length), aft>>
+        total_recieved = ttinfo.bits_recieved + block_length
+
+        case check_piece_completed(
+               ttinfo,
+               piece_index,
+               total_recieved,
+               new_buffer
+             ) do
+          {:ok, :incomplete} ->
+            {:ok,
+             %__MODULE__{
+               ttinfo
+               | piece_buffer: new_buffer,
+                 bits_recieved: total_recieved,
+                 need_piece: false
+             }}
+
+          {:ok, :complete} ->
+            {:ok,
+             %__MODULE__{
+               ttinfo
+               | piece_buffer: <<>>,
+                 bits_recieved: 0,
+                 need_piece: true
+             }}
+
+          {:error, msg} ->
+            {:error, msg}
+        end
+
+      {:error, msg} ->
+        {:error, msg}
+    end
   end
 
   @spec check_piece_completed(__MODULE__.t(), integer(), integer(), binary()) ::
