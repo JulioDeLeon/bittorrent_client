@@ -7,5 +7,4 @@ config :bittorrent_client,
   tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
   http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl
 
-config :logger,
-  level: :error
+config :logger, level: :error
