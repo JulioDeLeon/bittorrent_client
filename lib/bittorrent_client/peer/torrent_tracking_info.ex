@@ -168,20 +168,32 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
         buff
       ) do
     op = fn ->
-      handle_addition_to_piece_buff(ttinfo, piece_index, block_offset, block_length, buff)
+      handle_addition_to_piece_buff(
+        ttinfo,
+        piece_index,
+        block_offset,
+        block_length,
+        buff
+      )
     end
 
     piece_operation(ttinfo, piece_index, op)
   end
 
   @spec handle_addition_to_piece_buff(
-    __MODULE__.t(),
-    piece_index,
-    integer(),
-    integer(),
-    binary()
-  ) :: {:ok, __MODULE__.t()} | {:error, reason}
-  defp handle_addition_to_piece_buff(ttinfo, piece_index, block_offset, block_length, buff) do
+          __MODULE__.t(),
+          piece_index,
+          integer(),
+          integer(),
+          binary()
+        ) :: {:ok, __MODULE__.t()} | {:error, reason}
+  defp handle_addition_to_piece_buff(
+         ttinfo,
+         piece_index,
+         block_offset,
+         block_length,
+         buff
+       ) do
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
         <<before::size(block_offset), aft>> = data

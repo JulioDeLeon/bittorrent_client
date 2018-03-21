@@ -44,10 +44,15 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
     end
   end
 
-  def get(_url, _headers, []) do
+  def get(url, headers, opts) do
     Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
 
     {:error,
-     %HTTPoison.Error{__exception__: nil, id: nil, reason: "Empty opts?"}}
+     %HTTPoison.Error{
+       __exception__: nil,
+       id: nil,
+       reason:
+         "Unreckognized URL #{url} Headers #{inspect(headers)} Opts #{opts} (Using Mock Impl)"
+     }}
   end
 end
