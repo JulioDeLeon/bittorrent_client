@@ -1,4 +1,4 @@
-defmodule PeerTest do
+defmodule BittorrentClient.Peer.Test do
   use ExUnit.Case
   doctest BittorrentClient.Peer.GenServerImpl
   @peer_impl Application.get_env(:bittorrent_client, :peer_impl)

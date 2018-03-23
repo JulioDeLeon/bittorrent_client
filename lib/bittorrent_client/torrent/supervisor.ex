@@ -21,8 +21,7 @@ defmodule BittorrentClient.Torrent.Supervisor do
   def start_child({torrent_id, filename}) do
     Logger.info("Adding torrent id for: #{torrent_id} for #{__MODULE__}")
 
-    ret = Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
-    ret
+    Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
   end
 
   def terminate_child(torrent_id) do

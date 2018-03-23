@@ -166,14 +166,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
-    {_, _, {new_metadata, new_data}} =
-      connect_to_tracker_helper({metadata, data})
-
-    {:noreply, {new_metadata, new_data}}
-  end
-
-  def handle_call({:get_completed_piece_list}, {metadata, data}) do
+  def handle_call({:get_completed_piece_list}, _from, {metadata, data}) do
     completed_indexes =
       Enum.reduce(Map.keys(data.pieces), [], fn elem, acc ->
         {status, _} = Map.fetch!(data.pieces, elem)
@@ -185,6 +178,23 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       end)
 
     {:reply, completed_indexes, {metadata, data}}
+  end
+
+  def handle_call({:set_number_peers, num_wanted}, _from, {metadata, data})
+      when num_wanted < 0 do
+    {:reply, {:error, "invalid number of wanted peers was given"},
+     {metadata, data}}
+  end
+
+  def handle_call({:set_number_peers, num_wanted}, _from, {metadata, data}) do
+    {:reply, :ok, {metadata, %TorrentData{data | numwant: num_wanted}}}
+  end
+
+  def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
+    {_, _, {new_metadata, new_data}} =
+      connect_to_tracker_helper({metadata, data})
+
+    {:noreply, {new_metadata, new_data}}
   end
 
   # -------------------------------------------------------------------------------
@@ -289,6 +299,15 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
       {:get_completed_piece_list}
+    )
+  end
+
+  def set_number_peers(id, num_wanted) do
+    Logger.debug(fn -> "#{id} is setting number of peers" end)
+
+    GenServer.call(
+      :global.whereis_name({:btc_torrentworker, id}),
+      {:set_number_peers, num_wanted}
     )
   end
 
@@ -487,24 +506,33 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    peer_list = data |> TorrentData.get_peers() |> parse_peers_binary()
+    peer_list =
+      data |> TorrentData.get_peers() |> parse_peers_binary()
+      |> Enum.take(data.numwant)
 
     case peer_list do
       [] ->
-        {:reply, {:error, {403, "#{id} has no peers"}}, {metadata, data}}
+        {:reply, {:error, {403, "#{id} has no available peers"}},
+         {metadata, data}}
 
       _ ->
-        returned_pids =
-          Enum.map(peer_list, fn {ip, port} ->
-            PeerSupervisor.start_child(
-              {metadata, Map.get(data, :id), Map.get(data, :info_hash),
-               Map.get(data, :filename),
-               data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
-            )
-          end)
+        returned_pids = connect_to_peers(peer_list, {metadata, data})
 
         {:reply, {:ok, "started torrent #{id}", returned_pids},
          {metadata, %TorrentData{data | status: :started}}}
     end
+  end
+
+  @spec connect_to_peers(
+          [PeerData.peerConnection()],
+          {TorrentMetainfo.t(), TorrentData.t()}
+        ) :: [pid()]
+  defp connect_to_peers(peer_list, {metadata, data}) do
+    Enum.map(peer_list, fn {ip, port} ->
+      PeerSupervisor.start_child(
+        {metadata, data.id, data.info_hash, data.filename,
+         data.tracker_info.interval, ip, port}
+      )
+    end)
   end
 end

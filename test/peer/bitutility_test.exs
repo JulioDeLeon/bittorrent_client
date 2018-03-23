@@ -1,4 +1,4 @@
-defmodule BitUtilityTest do
+defmodule BittorrentClient.Peer.BitUtility.Test do
   use ExUnit.Case
   doctest BittorrentClient.Peer.GenServerImpl
   alias BittorrentClient.Peer.BitUtility, as: BitUtility

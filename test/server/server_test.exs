@@ -1,4 +1,4 @@
-defmodule ServerTest do
+defmodule BittorrentClient.Server.Test do
   use ExUnit.Case
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
