@@ -1,4 +1,4 @@
-defmodule BittorrentClient.Web.RouterTest do
+defmodule BittorrentClient.Web.Router.Test do
   use ExUnit.Case
   use Plug.Test
   alias BittorrentClient.Web.Router, as: WebRouter

@@ -52,7 +52,7 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
        __exception__: nil,
        id: nil,
        reason:
-         "Unreckognized URL #{url} Headers #{inspect(headers)} Opts #{opts} (Using Mock Impl)"
+         "Unreckognized URL #{inspect(url)} Headers #{inspect(headers)} Opts #{inspect(opts)} (Using Mock Impl)"
      }}
   end
 end
