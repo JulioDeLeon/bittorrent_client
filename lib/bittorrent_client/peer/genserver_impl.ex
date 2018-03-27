@@ -14,6 +14,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
+  @peer_id Application.get_env(:bittorrent_client, :peer_id)
 
   def start_link(
         {metainfo, torrent_id, info_hash, filename, interval, ip, port}
@@ -61,8 +62,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       PeerProtocol.encode(
         :handshake,
         <<0::size(64)>>,
-        peer_data.info_hash,
-        peer_data.peer_id
+        peer_data.torrent_tracking_info.infohash,
+        @peer_id
       )
 
     send_handshake(sock, msg)
