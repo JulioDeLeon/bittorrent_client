@@ -53,7 +53,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
-    Logger.debug(fn -> "Using tcp_conn_imp: #{@tcp_conn_impl}" end)
+    Logger.debug(fn -> "Using tcp_conn_imp: #{inspect @tcp_conn_impl}" end)
     sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
     # sock = connect(peer_data.peer_ip, peer_data.peer_port)
 
