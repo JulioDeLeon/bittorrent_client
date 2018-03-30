@@ -530,7 +530,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   defp connect_to_peers(peer_list, {metadata, data}) do
     Enum.map(peer_list, fn {ip, port} ->
       PeerSupervisor.start_child(
-        {metadata, data.id, data.info_hash, data.filename,
+        {metadata, data.id, data.info_hash, data.file,
          data.tracker_info.interval, ip, port}
       )
     end)
