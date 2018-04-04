@@ -211,7 +211,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
       case status do
         :error ->
-          {:reply, {:error, {500, msg}}, {db, server_name, torrents}}
+          {:reply, {:error, msg}, {db, server_name, torrents}}
 
         _ ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
