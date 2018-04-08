@@ -7,6 +7,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   use GenServer
   require Bitwise
   require Logger
+  require IEx
   alias BittorrentClient.Peer.Data, as: PeerData
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
@@ -54,25 +55,33 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def init({peer_data}) do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
-    sock = @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [])
-    # sock = connect(peer_data.peer_ip, peer_data.peer_port)
 
-    msg =
-      PeerProtocol.encode(
-        :handshake,
-        <<0::size(64)>>,
-        peer_data.torrent_tracking_info.infohash,
-        @peer_id
-      )
+    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, []) do
+      {:ok, sock} ->
+        msg =
+          PeerProtocol.encode(
+            :handshake,
+            <<0::size(64)>>,
+            peer_data.torrent_tracking_info.infohash,
+            @peer_id
+          )
 
-    send_handshake(sock, msg)
+        send_handshake(sock, msg)
 
-    {:ok,
-     {%PeerData{
-        peer_data
-        | socket: sock,
-          timer: timer
-      }}}
+        {:ok,
+         {%PeerData{
+            peer_data
+            | socket: sock,
+              timer: timer
+          }}}
+
+      {:error, msg} ->
+        Logger.error(
+          "#{peer_data.name} could send initial handshake to peer: #{msg}"
+        )
+
+        {:error, {peer_data}}
+    end
   end
 
   # these handle_info calls come from the socket for attention
