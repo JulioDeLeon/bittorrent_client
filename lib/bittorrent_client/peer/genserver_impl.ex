@@ -66,18 +66,23 @@ defmodule BittorrentClient.Peer.GenServerImpl do
             @peer_id
           )
 
-        send_handshake(sock, msg)
+        case send_handshake(sock, msg) do
+          :ok ->
+            {:ok,
+              {%PeerData{
+                peer_data
+                | socket: sock,
+                timer: timer
+              }}}
 
-        {:ok,
-         {%PeerData{
-            peer_data
-            | socket: sock,
-              timer: timer
-          }}}
+          {:error, msg} ->
+            Logger.error("#{peer_data.name} could not send handshake to peer: #{msg}")
+            {:error, {peer_data}}
+        end
 
       {:error, msg} ->
         Logger.error(
-          "#{peer_data.name} could send initial handshake to peer: #{msg}"
+          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
         )
 
         {:error, {peer_data}}
@@ -468,7 +473,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def send_message(:we_choke, peer_data) do
     {_status, _lst} =
-      @torrent_impl.get_completed_piece_list(peer_data.torrent_id)
+      @torrent_impl.get_completed_piece_list(peer_data.torrent_tracking_info.id)
 
     #    current_bitfield = BitUtility.create_empty_bitfield()
     #    bitfield_msg = PeerProtocol.encode(:bitfield,)

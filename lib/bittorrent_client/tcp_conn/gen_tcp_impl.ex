@@ -91,7 +91,12 @@ defmodule BittorrentClient.TCPConn.GenTCPImpl do
   end
 
   def send(tcp_conn, packet) do
-    :gen_tcp.send(tcp_conn.socket, packet)
+    case :gen_tcp.send(tcp_conn.socket, packet) do
+      :ok ->
+        :ok
+      {:error, msg} ->
+        {:error, "could not send message to #{inspect tcp_conn} : #{inspect msg}"}
+    end
   end
 
   def close(tcp_conn) do
