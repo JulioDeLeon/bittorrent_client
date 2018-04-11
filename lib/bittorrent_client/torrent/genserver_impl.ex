@@ -512,6 +512,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     case peer_list do
       [] ->
+        Logger.warn("#{id} has no available peers")
         {:reply, {:error, {403, "#{id} has no available peers"}},
          {metadata, data}}
 
