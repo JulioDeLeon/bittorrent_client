@@ -69,14 +69,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         case send_handshake(sock, msg) do
           :ok ->
             {:ok,
-              {%PeerData{
+             {%PeerData{
                 peer_data
                 | socket: sock,
-                timer: timer
+                  timer: timer
               }}}
 
           {:error, msg} ->
-            Logger.error("#{peer_data.name} could not send handshake to peer: #{msg}")
+            Logger.error(
+              "#{peer_data.name} could not send handshake to peer: #{msg}"
+            )
+
             {:error, {peer_data}}
         end
 
