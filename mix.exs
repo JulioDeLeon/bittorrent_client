@@ -71,7 +71,9 @@ defmodule BittorrentClient.Mixfile do
       {:dogma, "~> 0.1", only: :dev},
       {:dialyxir, "~> 0.5", only: [:dev]},
       {:earmark, "~> 1.2.2", only: :dev},
-      {:ex_doc, "~> 0.16", only: :dev}
+      {:ex_doc, "~> 0.16", only: :dev},
+      # deployment tool
+      {:distillery, "~> 1.5", runtime: false}
     ]
   end
 end
