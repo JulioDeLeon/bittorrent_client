@@ -12,6 +12,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Peer.BitUtility, as: BitUtil
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
@@ -22,10 +23,19 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
+    parsed_piece_hashes =
+      metainfo.info.pieces
+      |> String.to_charlist()
+      |> Enum.chunk_every(20)
+      |> Enum.map(fn x -> String.Chars.to_string(x) end)
+
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
       infohash: info_hash,
       piece_length: metainfo.info."piece length",
+      # TODO:  move this data out of  torrent tracking info to check against parent process
+      num_pieces: length(parsed_piece_hashes),
+      piece_hashes: parsed_piece_hashes,
       piece_table: %{},
       bits_recieved: 0,
       piece_buffer: <<>>
@@ -475,26 +485,65 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(:we_choke, peer_data) do
-    {_status, _lst} =
-      @torrent_impl.get_completed_piece_list(peer_data.torrent_tracking_info.id)
+    case @torrent_impl.get_completed_piece_list(
+           peer_data.torrent_tracking_info.id
+         ) do
+      {:ok, lst} ->
+        bitfield =
+          Enum.reduce(
+            lst,
+            BitUtil.create_empty_bitfield(
+              peer_data.torrent_tracking_info.num_pieces,
+              peer_data.torrent_tracking_info.piece_length
+            ),
+            fn index, acc ->
+              case BitUtil.set_bit(acc, 1, index) do
+                {:ok, new_bf} ->
+                  new_bf
 
-    #    current_bitfield = BitUtility.create_empty_bitfield()
-    #    bitfield_msg = PeerProtocol.encode(:bitfield,)
-    bitfield = <<>>
+                {:error, _} ->
+                  Logger.error(
+                    "#{peer_data.name} recieved a bad piece_index from parent proc: #{
+                      index
+                    }"
+                  )
 
-    interest_msg =
-      case peer_data.piece_table do
-        %{} ->
-          Logger.debug(fn -> "#{peer_data.name} has nothing of interest" end)
-          PeerProtocol.encode(:not_interested)
+                  acc
+              end
+            end
+          )
 
-        _ ->
-          Logger.debug(fn -> "#{peer_data.name} has something of interest" end)
-          PeerProtocol.encode(:interested)
-      end
+        Logger.debug(fn ->
+          "#{peer_data.name} will send the bitfield #{inspect(bitfield)}"
+        end)
 
-    @tcp_conn_impl.send(peer_data.socket, bitfield <> interest_msg)
-    peer_data
+        interest_msg =
+          case peer_data.piece_table do
+            %{} ->
+              Logger.debug(fn -> "#{peer_data.name} has nothing of interest" end)
+
+              PeerProtocol.encode(:not_interested)
+
+            _ ->
+              Logger.debug(fn ->
+                "#{peer_data.name} has something of interest"
+              end)
+
+              PeerProtocol.encode(:interested)
+          end
+
+        @tcp_conn_impl.send(peer_data.socket, bitfield <> interest_msg)
+        peer_data
+
+      {:error, msg} ->
+        Logger.error(
+          "#{peer_data.name} could not retrieve completed list from parent proc: #{
+            msg
+          }"
+        )
+
+        peer_data
+    end
   end
 
   def send_message(_, peer_data) do
