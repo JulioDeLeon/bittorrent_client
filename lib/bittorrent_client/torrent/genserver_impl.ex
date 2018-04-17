@@ -177,7 +177,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         end
       end)
 
-    {:reply, completed_indexes, {metadata, data}}
+    {:reply, {:ok, completed_indexes}, {metadata, data}}
   end
 
   def handle_call({:set_number_peers, num_wanted}, _from, {metadata, data})
