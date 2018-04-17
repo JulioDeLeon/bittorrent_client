@@ -422,7 +422,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case @torrent_impl.get_next_piece_index(
            peer_data.torrent_id,
-           Map.keys(peer_data.piece_table)
+           Map.keys(peer_data.torrent_tracking_info.piece_table)
          ) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0
@@ -461,7 +461,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case @torrent_impl.get_next_piece_index(
            peer_data.torrent_id,
-           Map.keys(peer_data.piece_table)
+           Map.keys(peer_data.torrent_tracking_info.piece_table)
          ) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0
@@ -518,7 +518,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         end)
 
         interest_msg =
-          case peer_data.piece_table do
+          case peer_data.torrent_tracking_info.piece_table do
             %{} ->
               Logger.debug(fn -> "#{peer_data.name} has nothing of interest" end)
 
