@@ -25,7 +25,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     parsed_piece_hashes =
       metainfo.info.pieces
-      |> String.to_charlist()
+      |> :binary.bin_to_list()
       |> Enum.chunk_every(20)
       |> Enum.map(fn x -> String.Chars.to_string(x) end)
 
