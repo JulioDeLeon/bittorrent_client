@@ -426,7 +426,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
          ) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0
-
+        Logger.debug(fn -> "attempting to get #{next_piece_index}:#{next_sub_piece_index}" end)
         msg2 =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
 
@@ -517,21 +517,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} will send the bitfield #{inspect(bitfield)}"
         end)
 
-        interest_msg =
-          case peer_data.torrent_tracking_info.piece_table do
-            %{} ->
-              Logger.debug(fn -> "#{peer_data.name} has nothing of interest" end)
-
-              PeerProtocol.encode(:not_interested)
-
-            _ ->
-              Logger.debug(fn ->
-                "#{peer_data.name} has something of interest"
-              end)
-
-              PeerProtocol.encode(:interested)
-          end
-
+        interest_msg = PeerProtocol.encode(:interested)
         @tcp_conn_impl.send(peer_data.socket, bitfield <> interest_msg)
         peer_data
 
