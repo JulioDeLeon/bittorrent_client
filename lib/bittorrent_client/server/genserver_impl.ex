@@ -207,10 +207,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
   def handle_call({:start_torrent, id}, _from, {db, server_name, torrents}) do
     if Map.has_key?(torrents, id) do
-      {status, msg} = @torrent_impl.start_torrent(id)
-
-      case status do
-        :error ->
+      case @torrent_impl.start_torrent(id) do
+        {:error, msg} ->
           {:reply, {:error, msg}, {db, server_name, torrents}}
 
         _ ->
