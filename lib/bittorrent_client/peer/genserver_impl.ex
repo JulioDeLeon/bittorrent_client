@@ -8,6 +8,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   require Bitwise
   require Logger
   require IEx
+  alias BittorrentClient.TCPConn, as: TCPConn
   alias BittorrentClient.Peer.Data, as: PeerData
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
@@ -135,7 +136,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {msgs, _} = PeerProtocol.decode(msg)
     {a_pd} = peer_data
 
-    # Logger.debug( "Messages #{inspect msgs} for #{inspect peer_data}")
+    Logger.debug( "Messages #{inspect msgs} for #{inspect peer_data.peer_id}")
     ret = loop_msgs(msgs, socket, a_pd)
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {ret}}
@@ -382,12 +383,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
+  @spec loop_msgs(list(map()), TCPConn.t, PeerData.t)  :: PeerData.t
   def loop_msgs([msg | msgs], socket, peer_data) do
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(msgs, socket, new_peer_data)
   end
 
-  def loop_msgs(_, _, peer_data) do
+  def loop_msgs([], _, peer_data) do
     peer_data
   end
 
@@ -426,7 +428,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
          ) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0
-        Logger.debug(fn -> "attempting to get #{next_piece_index}:#{next_sub_piece_index}" end)
+
+        Logger.debug(fn ->
+          "attempting to get #{next_piece_index}:#{next_sub_piece_index}"
+        end)
+
         msg2 =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
 
@@ -516,9 +522,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(fn ->
           "#{peer_data.name} will send the bitfield #{inspect(bitfield)}"
         end)
-
+        bf_msg = PeerProtocol.encode(:bitfield, <<>>)
         interest_msg = PeerProtocol.encode(:interested)
-        @tcp_conn_impl.send(peer_data.socket, bitfield <> interest_msg)
+        @tcp_conn_impl.send(peer_data.socket, bf_msg <> interest_msg)
         peer_data
 
       {:error, msg} ->
