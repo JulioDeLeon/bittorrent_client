@@ -14,6 +14,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Peer.BitUtility, as: BitUtil
+  alias String.Chars, as: Chars
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
@@ -28,11 +29,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       metainfo.info.pieces
       |> :binary.bin_to_list()
       |> Enum.chunk_every(20)
-      |> Enum.map(fn x -> String.Chars.to_string(x) end)
+      |> Enum.map(fn x -> Chars.to_string(x) end)
 
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
-      infohash: info_hash,
+      # infohash: info_hash,
       piece_length: metainfo.info."piece length",
       # TODO:  move this data out of  torrent tracking info to check against parent process
       num_pieces: length(parsed_piece_hashes),
@@ -69,34 +70,41 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, []) do
       {:ok, sock} ->
-        msg =
-          PeerProtocol.encode(
-            :handshake,
-            <<0::size(64)>>,
-            peer_data.torrent_tracking_info.infohash,
-            @peer_id
-          )
+        setup_handshake(sock, timer, peer_data)
 
-        case send_handshake(sock, msg) do
-          :ok ->
-            {:ok,
-             {%PeerData{
-                peer_data
-                | socket: sock,
-                  timer: timer
-              }}}
+      {:error, msg} ->
+        err_msg =
+          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
 
-          {:error, msg} ->
-            Logger.error(
-              "#{peer_data.name} could not send handshake to peer: #{msg}"
-            )
+        Logger.error(err_msg)
+        raise err_msg
+        # will never return {:error, {peer_data}}
+    end
+  end
 
-            {:error, {peer_data}}
-        end
+  @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) ::
+          {:ok, PeerData.t()} | {:error, binary()}
+  defp setup_handshake(sock, timer, peer_data) do
+    msg =
+      PeerProtocol.encode(
+        :handshake,
+        <<0::size(64)>>,
+        peer_data.torrent_tracking_info.infohash,
+        @peer_id
+      )
+
+    case send_handshake(sock, msg) do
+      :ok ->
+        {:ok,
+         {%PeerData{
+            peer_data
+            | socket: sock,
+              timer: timer
+          }}}
 
       {:error, msg} ->
         Logger.error(
-          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
+          "#{peer_data.name} could not send handshake to peer: #{msg}"
         )
 
         {:error, {peer_data}}
@@ -136,7 +144,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {msgs, _} = PeerProtocol.decode(msg)
     {a_pd} = peer_data
 
-    Logger.debug( "Messages #{inspect msgs} for #{inspect peer_data.peer_id}")
+    Logger.debug("Messages #{inspect(msgs)} for #{inspect(peer_data.peer_id)}")
     ret = loop_msgs(msgs, socket, a_pd)
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {ret}}
@@ -383,7 +391,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  @spec loop_msgs(list(map()), TCPConn.t, PeerData.t)  :: PeerData.t
+  @spec loop_msgs(list(map()), TCPConn.t(), PeerData.t()) :: PeerData.t()
   def loop_msgs([msg | msgs], socket, peer_data) do
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(msgs, socket, new_peer_data)
@@ -421,6 +429,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()
   def send_message(:me_choke_it_interest, peer_data) do
     msg1 = PeerProtocol.encode(:keep_alive)
+
 
     case @torrent_impl.get_next_piece_index(
            peer_data.torrent_id,
@@ -522,6 +531,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(fn ->
           "#{peer_data.name} will send the bitfield #{inspect(bitfield)}"
         end)
+
         bf_msg = PeerProtocol.encode(:bitfield, <<>>)
         interest_msg = PeerProtocol.encode(:interested)
         @tcp_conn_impl.send(peer_data.socket, bf_msg <> interest_msg)
