@@ -56,3 +56,12 @@ config :bittorrent_client, BittorrentClient.Repo,
   database: "bittorrent_client_dev",
   hostname: "localhost",
   pool_size: 10
+
+config :bittorrent_client,
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
+  upload_check: false
+

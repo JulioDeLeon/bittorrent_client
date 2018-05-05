@@ -17,3 +17,11 @@ config :bittorrent_client, BittorrentClient.Repo,
   database: "bittorrent_client_test",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox
+
+
+config :bittorrent_client,
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl
