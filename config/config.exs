@@ -7,7 +7,22 @@ use Mix.Config
 
 # General application configuration
 config :bittorrent_client,
-  ecto_repos: [BittorrentClient.Repo]
+  ecto_repos: [BittorrentClient.Repo],
+  upload_check: false,
+  server_name: "GenericName",
+  peer_id: "-ET0001-aaaaaaaaaaaa",
+  compact: 1,
+  port: 36_562,
+  no_peer_id: 0,
+  ip: "127.0.0.1",
+  numwant: 80,
+  key: "",
+  trackerid: "",
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl
 
 # Configures the endpoint
 config :bittorrent_client, BittorrentClientWeb.Endpoint,
@@ -19,8 +34,10 @@ config :bittorrent_client, BittorrentClientWeb.Endpoint,
 
 # Configures Elixir's Logger
 config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
-  metadata: [:user_id]
+  format: "$time [$level] [$metadata] $message\n",
+  metadata: [:module, :function, :line, :pid],
+  colors: [warn: :yellow, error: :red],
+  level: :debug
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

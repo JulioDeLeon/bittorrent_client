@@ -18,6 +18,13 @@ config :bittorrent_client, BittorrentClientWeb.Endpoint,
   url: [host: "example.com", port: 80],
   cache_static_manifest: "priv/static/cache_manifest.json"
 
+config :bittorrent_client,
+  server_impl: BittorrentClient.Server.GenServerImpl,
+  torrent_impl: BittorrentClient.Torrent.GenServerImpl,
+  peer_impl: BittorrentClient.Peer.GenServerImpl,
+  tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl
+
 # Do not print debug messages in production
 config :logger, level: :info
 
