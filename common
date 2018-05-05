@@ -2,13 +2,13 @@
 
 PROTO=http
 HOST=localhost
-PORT=8080
+PORT=4000
 API=api/v1
 URL=$PROTO://$HOST:$PORT/$API
 TO=99999
 
 function addFile {
-  curl -vX POST $URL/add/file \
+  curl -vX POST $URL/addFile \
     -H "Content-Type: application/json" \
     -d '{"filename":"priv/'${1}'.torrent"}' \
     --connect-timeout $TO
@@ -25,7 +25,7 @@ function connectToTrackerAsync {
 }
 
 function startTorrent {
-    curl -vX PUT $URL/$1/startTorrent/ \
+    curl -vX PUT $URL/$1/startTorrent \
     --connect-timeout $TO
 }
 
@@ -45,7 +45,7 @@ function removeall {
 }
 
 function removeTorrent {
-  curl -vX DELETE $URL/$1/remove/ \
+  curl -vX DELETE $URL/$1/remove \
 }
 
 function getStatus {

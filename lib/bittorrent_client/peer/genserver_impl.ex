@@ -21,7 +21,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @peer_id Application.get_env(:bittorrent_client, :peer_id)
 
   def start_link(
-        {metainfo, torrent_id, info_hash, filename, interval, ip, port}
+        {metainfo, torrent_id, _info_hash, filename, interval, ip, port}
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
@@ -94,7 +94,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       )
 
     case send_handshake(sock, msg) do
-      :ok ->
+      {:error, msg} ->
+        Logger.error(
+          "#{peer_data.name} could not send handshake to peer: #{msg}"
+        )
+
+        {:error, {peer_data}}
+
+      _ ->
         {:ok,
          {%PeerData{
             peer_data
@@ -102,12 +109,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
               timer: timer
           }}}
 
-      {:error, msg} ->
-        Logger.error(
-          "#{peer_data.name} could not send handshake to peer: #{msg}"
-        )
 
-        {:error, {peer_data}}
     end
   end
 

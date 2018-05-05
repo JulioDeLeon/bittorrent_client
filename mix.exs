@@ -41,7 +41,13 @@ defmodule BittorrentClient.Mixfile do
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
-      {:httpoison, "~> 1.0.0"}
+      {:httpoison, "~> 1.0.0"},
+      {:bento, "~> 0.9"},
+      {:credo, "~> 0.9.0-rc1", only: :dev},
+      {:dogma, "~> 0.1", only: :dev},
+      {:dialyxir, "~> 0.5", only: [:dev]},
+      {:earmark, "~> 1.2.2", only: :dev},
+      {:ex_doc, "~> 0.16", only: :dev}
     ]
   end
 
