@@ -6,16 +6,16 @@ defmodule BittorrentClient.Server.Supervisor do
   require Logger
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
 
-  def start_link(name) do
+  def start_link(destination, name) do
     Logger.info("Starting Server Supervisor")
-    Supervisor.start_link(__MODULE__, [name])
+    Supervisor.start_link(__MODULE__, [destination, name], name: __MODULE__)
   end
 
-  def init([name]) do
+  def init([dest, name]) do
     children = [
-      worker(@server_impl, ["./", name], id: {:server, name})
+      worker(@server_impl, [dest,name], id: {:server, name})
     ]
 
-    supervise(children, strategy: :one_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

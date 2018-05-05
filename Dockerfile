@@ -12,4 +12,8 @@ RUN mix test
 
 EXPOSE 8080/tcp
 EXPOSE 8080/udp
-ENTRYPOINT iex -S mix
+
+EXPOSE 4000/tcp
+EXPOSE 4000/udp
+
+ENTRYPOINT mix phx.server
