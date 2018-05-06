@@ -28,10 +28,10 @@ config :bittorrent_client,
 # Configures the endpoint
 config :bittorrent_client, BittorrentClientWeb.Endpoint,
   url: [host: "localhost"],
-  secret_key_base: "veMzbQLlFgYIJHey3qSX8oNT3gSq5vHTLQ47WBf5tpeMIcW12NN1kD4ETP2OYrqU",
+  secret_key_base:
+    "veMzbQLlFgYIJHey3qSX8oNT3gSq5vHTLQ47WBf5tpeMIcW12NN1kD4ETP2OYrqU",
   render_errors: [view: BittorrentClientWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: BittorrentClient.PubSub,
-           adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: BittorrentClient.PubSub, adapter: Phoenix.PubSub.PG2]
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -42,4 +42,4 @@ config :logger, :console,
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"

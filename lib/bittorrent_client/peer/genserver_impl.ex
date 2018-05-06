@@ -108,8 +108,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
             | socket: sock,
               timer: timer
           }}}
-
-
     end
   end
 
@@ -431,7 +429,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()
   def send_message(:me_choke_it_interest, peer_data) do
     msg1 = PeerProtocol.encode(:keep_alive)
-
 
     case @torrent_impl.get_next_piece_index(
            peer_data.torrent_id,

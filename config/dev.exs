@@ -11,8 +11,14 @@ config :bittorrent_client, BittorrentClientWeb.Endpoint,
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
-  watchers: [node: ["node_modules/brunch/bin/brunch", "watch", "--stdin",
-                    cd: Path.expand("../assets", __DIR__)]]
+  watchers: [
+    node: [
+      "node_modules/brunch/bin/brunch",
+      "watch",
+      "--stdin",
+      cd: Path.expand("../assets", __DIR__)
+    ]
+  ]
 
 # ## SSL Support
 #
@@ -64,4 +70,3 @@ config :bittorrent_client,
   tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
   http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
   upload_check: false
-

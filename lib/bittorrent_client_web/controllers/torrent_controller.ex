@@ -7,46 +7,57 @@ defmodule BittorrentClientWeb.TorrentController do
 
   def ping(conn, _args) do
     send_resp(conn, 200, "pong")
-  end 
+  end
 
   def status(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Getting status for #{id}")
+
     case @server_impl.get_torrent_info_by_id(@server_name, id) do
       {:ok, msg} ->
         put_resp_content_type(conn, "application/json")
         data = Map.get(msg, "data")
-        send_resp(conn, 200,
+
+        send_resp(
+          conn,
+          200,
           %{
             "status" => Map.get(data, :status),
             "downloaded" => Map.get(data, :downloaded),
             "uploaded" => Map.get(data, :uploaded)
           }
-          |> Poison.encode!())
+          |> Poison.encode!()
+        )
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
+
     send_resp(conn, 200, "pong")
   end
 
   def info(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Getting info for #{id}")
+
     case @server_impl.get_torrent_info_by_id(@server_name, id) do
       {:ok, msg} ->
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
   end
-  
+
   def connect(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Connecting #{id} to tracker")
+
     case @server_impl.connect_torrent_to_tracker(@server_name, id) do
       {:ok, _} ->
         send_resp(conn, 204, "")
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
@@ -62,21 +73,25 @@ defmodule BittorrentClientWeb.TorrentController do
   def add_file(conn, args) do
     filename = Map.get(args, "filename")
     Logger.info("Received the following filename: #{filename}")
+
     case @server_impl.add_new_torrent(@server_name, filename) do
       {:ok, data} ->
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, Poison.encode!(data))
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
-    end 
+    end
   end
 
   def start_torrent(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Starting Torrent #{id}")
+
     case @server_impl.start_torrent(@server_name, id) do
       {:ok, _} ->
         send_resp(conn, 204, "")
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
@@ -92,10 +107,12 @@ defmodule BittorrentClientWeb.TorrentController do
   def delete_torrent(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Received the following torrent id: #{id} to delete")
+
     case @server_impl.delete_torrent_by_id(@server_name, id) do
       {:ok, data} ->
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, Poison.encode!(data))
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
@@ -113,6 +130,7 @@ defmodule BittorrentClientWeb.TorrentController do
 
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, ret)
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
@@ -122,6 +140,7 @@ defmodule BittorrentClientWeb.TorrentController do
     case @server_impl.delete_all_torrents(@server_name) do
       {:ok, _} ->
         send_resp(conn, 204, "")
+
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
@@ -132,7 +151,7 @@ defmodule BittorrentClientWeb.TorrentController do
       data_point
       |> Map.get_and_update("metadata", fn metadata ->
         {data_point,
-          (fn ->
+         (fn ->
             {_, new_md} =
               metadata
               |> Map.from_struct()
