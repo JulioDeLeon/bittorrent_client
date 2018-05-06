@@ -1,13 +1,10 @@
-defmodule BittorrentClient.Web.Router.Test do
+defmodule BittorrentClientWeb.TorrentControllerTest do
   use ExUnit.Case
   use Plug.Test
-  alias BittorrentClient.Web.Router, as: WebRouter
-  doctest WebRouter
   @api_root "/api/v1"
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @opts WebRouter.init({})
   @torrent_file "priv/ubuntu.torrent"
   @torrent_file_2 "priv/arch.torrent"
 
