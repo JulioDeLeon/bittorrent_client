@@ -13,7 +13,7 @@ defmodule BittorrentClient.Server.Supervisor do
 
   def init([dest, name]) do
     children = [
-      worker(@server_impl, [dest,name], id: {:server, name})
+      worker(@server_impl, [dest, name], id: {:server, name})
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

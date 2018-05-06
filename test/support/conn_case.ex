@@ -26,13 +26,13 @@ defmodule BittorrentClientWeb.ConnCase do
     end
   end
 
-
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(BittorrentClient.Repo)
+
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(BittorrentClient.Repo, {:shared, self()})
     end
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
-
 end

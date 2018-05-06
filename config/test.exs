@@ -18,7 +18,6 @@ config :bittorrent_client, BittorrentClient.Repo,
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox
 
-
 config :bittorrent_client,
   server_impl: BittorrentClient.Server.GenServerImpl,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,

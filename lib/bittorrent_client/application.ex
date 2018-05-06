@@ -1,8 +1,8 @@
 defmodule BittorrentClient.Application do
-    use Application
+  use Application
 
-    @file_destination Application.get_env(:bittorrent_client, :file_destination)
-    @server_name Application.get_env(:bittorrent_client, :server_name)
+  @file_destination Application.get_env(:bittorrent_client, :file_destination)
+  @server_name Application.get_env(:bittorrent_client, :server_name)
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
@@ -15,7 +15,10 @@ defmodule BittorrentClient.Application do
       supervisor(BittorrentClientWeb.Endpoint, []),
       # Start your own worker by calling: BittorrentClient.Worker.start_link(arg1, arg2, arg3)
       # worker(BittorrentClient.Worker, [arg1, arg2, arg3]),
-      supervisor(BittorrentClient.Server.Supervisor, [@file_destination, @server_name]),
+      supervisor(BittorrentClient.Server.Supervisor, [
+        @file_destination,
+        @server_name
+      ]),
       supervisor(BittorrentClient.Torrent.Supervisor, []),
       supervisor(BittorrentClient.Peer.Supervisor, [])
     ]

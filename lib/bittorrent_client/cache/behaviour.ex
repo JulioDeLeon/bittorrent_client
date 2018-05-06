@@ -1,4 +1,4 @@
 defmodule BittorrentClient.Cache.Behaviour do
-    @moduledoc """
-    """
+  @moduledoc """
+  """
 end

@@ -1,2 +1,2 @@
-defmodule BittorrentClient.Cache.Registry do 
+defmodule BittorrentClient.Cache.Registry do
 end
