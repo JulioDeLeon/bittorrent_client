@@ -5,9 +5,9 @@ defmodule BittorrentClient.Peer.OldImpl do
   """
   use GenServer
   require Logger
-  alias BittorrentClient.Torrent.Peer.Data, as: PeerData
-  alias BittorrentClient.Torrent.Peer.Protocol, as: PeerProtocol
-  alias BittorrentClient.Torrent.Worker, as: TorrentWorker
+  alias BittorrentClient.Peer.Data, as: PeerData
+  alias BittorrentClient.Peer.Protocol, as: PeerProtocol
+  alias BittorrentClient.Torrent.GenServerImpl, as: TorrentWorker
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
