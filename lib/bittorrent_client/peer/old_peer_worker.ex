@@ -7,28 +7,44 @@ defmodule BittorrentClient.Peer.OldImpl do
   require Logger
   alias BittorrentClient.Peer.Data, as: PeerData
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
+  alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Torrent.GenServerImpl, as: TorrentWorker
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
-    peer_data = %PeerData{
-      torrent_id: torrent_id,
-      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-      filename: filename,
-      peer_ip: ip,
-      peer_port: port,
-      interval: interval,
-      info_hash: info_hash,
-      handshake_check: false,
-      state: :we_choke,
-      metainfo: metainfo,
-      timer: nil,
-      tracker_id: tracker_id,
-      piece_index: 0,
-      sub_piece_index: 0,
-      piece_queue: %{},
-      name: name
-    }
+
+    parsed_piece_hashes =
+    metainfo.info.pieces
+    |> :binary.bin_to_list()
+    |> Enum.chunk_every(20)
+    |> Enum.map(fn x -> Chars.to_string(x) end)
+
+  torrent_track_info = %TorrentTrackingInfo{
+    id: torrent_id,
+    # infohash: info_hash,
+    piece_length: metainfo.info."piece length",
+    # TODO:  move this data out of  torrent tracking info to check against parent process
+    num_pieces: length(parsed_piece_hashes),
+    piece_hashes: parsed_piece_hashes,
+    piece_table: %{},
+    bits_recieved: 0,
+    piece_buffer: <<>>
+  }
+
+  peer_data = %PeerData{
+    id: Application.fetch_env!(:bittorrent_client, :peer_id),
+    handshake_check: false,
+    need_piece: true,
+    filename: filename,
+    state: :we_choke,
+    torrent_tracking_info: torrent_track_info,
+    timer: nil,
+    interval: interval,
+    peer_ip: ip,
+    peer_port: port,
+    name: name
+  }
+
     GenServer.start_link(
       __MODULE__,
       {peer_data},
@@ -178,16 +194,49 @@ defmodule BittorrentClient.Peer.OldImpl do
         # Could send message back to parent torrent process to log/add to known pieces
         # TODO make this info useful
         # Send the message payload back to the torrent process to put together to track
-        Logger.debug fn -> "Have MSG: #{peer_data.name}" end
-        %PeerData{peer_data | piece_queue: Map.merge(peer_data.piece_queue, %{msg.piece_index => :intial})}
+        Logger.debug fn -> "Have MSG: #{peer_data.name} has found #{msg.piece_index}" end
+        case TorrentTrackingInfo.populate_single_piece(
+          peer_data.torrent_tracking_info,
+          peer_data.id,
+          msg.piece_index
+          ) do
+            {:ok, new_ttinfo_state} ->
+              Logger.debug("#{peer_data.name} successfully added #{msg.piece_index} to it's table")
+              %PeerData{peer_data | torrent_tracking_info: new_ttinfo_state}
+            {:error, errmsg} ->
+              Logger.error("#{peer_data.name} failed to add #{msg.piece_index} to it's table: #{errmsg}")
+              peer_data
+        end
       :bitfield ->
         # Similar to :have but more compact
         # TODO make this info useful
         # Again, send the payload back to the torrent process to process and track
         Logger.debug fn -> "Bitfield MSG: #{peer_data.name}" end
-        pqueue = parse_bitfield(msg.bitfield, peer_data.piece_queue, 0)
-        # Logger.debug fn -> "BF has: #{inspect pqueue}" end
-        %PeerData{peer_data | piece_queue: pqueue}
+        ttinfo_state = peer_data.torrent_tracking_info
+        new_piece_indexes = parse_bitfield(msg.bitfield, [], 0)
+
+        case TorrentTrackingInfo.populate_multiple_pieces(
+               ttinfo_state,
+               peer_data.id,
+               new_piece_indexes
+             ) do
+          {:ok, new_ttinfo_state} ->
+            Logger.debug(fn ->
+              "#{peer_data.name} successfully added #{new_piece_indexes} to it's table."
+            end)
+
+            %PeerData{peer_data | torrent_tracking_info: new_ttinfo_state}
+
+          {:error, errmsg} ->
+            Logger.error(
+              "#{peer_data.name} failed to add #{new_piece_indexes} to it's table : #{
+                errmsg
+              }"
+            )
+
+            peer_data
+        end
+
       :piece ->
         # TODO piece
         # Send the piece information back to the torrent process to put the file together
