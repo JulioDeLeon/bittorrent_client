@@ -9,6 +9,7 @@ defmodule BittorrentClient.Peer.OldImpl do
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Torrent.GenServerImpl, as: TorrentWorker
+  alias String.Chars, as: Chars
 
   def start_link({metainfo, torrent_id, info_hash, filename, tracker_id, interval, ip, port}) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
@@ -94,7 +95,8 @@ defmodule BittorrentClient.Peer.OldImpl do
         # :gen_tcp.send(socket, msg)
         # Logger.debug fn -> "#{peer_data.name} sent keep-alive msg" end
 
-        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
+        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id,
+        Map.keys(peer_data.torrent_tracking_info.piece_table))
         next_sub_piece_index = 0
         msg2 = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
         :gen_tcp.send(peer_data.socket, msg1 <> msg2)
@@ -105,7 +107,8 @@ defmodule BittorrentClient.Peer.OldImpl do
         ret.()
       :we_interest ->
         # Cant send data yet but switch between request/desired queues
-        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id)
+        next_piece_index = TorrentWorker.get_next_piece_index(peer_data.torrent_id,
+        Map.keys(peer_data.torrent_tracking_info.piece_table))
         next_sub_piece_index = 0
         msg = PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
         :gen_tcp.send(peer_data.socket, msg)
