@@ -7,16 +7,6 @@ defmodule BittorrentClientTest do
     assert 1 + 1 == 2
   end
 
-  @opts BittorrentClient.Web.Router.init({})
-  test "returns Pong" do
-    conn = conn(:get, "/ping")
-    conn = BittorrentClient.Web.Router.call(conn, @opts)
-
-    assert conn.state == :sent
-    assert conn.status == 200
-    assert conn.resp_body == "pong"
-  end
-
   # create test for post and put request
   test "compute info hash" do
     file = "priv/debian2.torrent"
