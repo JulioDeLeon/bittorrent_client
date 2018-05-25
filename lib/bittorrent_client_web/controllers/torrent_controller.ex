@@ -97,7 +97,7 @@ defmodule BittorrentClientWeb.TorrentController do
     end
   end
 
-  def start_torrent_asyn(conn, args) do
+  def start_torrent_async(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Starting Torrent #{id} async")
     @server_impl.start_torrent_async(@server_name, id)

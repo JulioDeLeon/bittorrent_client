@@ -30,7 +30,7 @@ defmodule BittorrentClientWeb.Router do
     put("/:id/connect", TorrentController, :connect)
     put("/:id/connect/async", TorrentController, :connect_async)
     put("/:id/startTorrent", TorrentController, :start_torrent)
-    put("/:id/startTorrent/async", TorrentController, :start_torrent_sync)
+    put("/:id/startTorrent/async", TorrentController, :start_torrent_async)
     post("/addFile", TorrentController, :add_file)
     delete("/:id/remove", TorrentController, :delete_torrent)
     get("/all", TorrentController, :all)

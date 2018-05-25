@@ -554,4 +554,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     peer_data
   end
+
+  def control_initial_handshake({ip, port}) do
+    @tcp_conn_impl.connect(ip, port, [])
+  end
 end
