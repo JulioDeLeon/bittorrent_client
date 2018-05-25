@@ -21,7 +21,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @peer_id Application.get_env(:bittorrent_client, :peer_id)
 
   def start_link(
-        {metainfo, torrent_id, _info_hash, filename, interval, ip, port}
+        {metainfo, torrent_id, info_hash, filename, interval, ip, port}
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
@@ -33,7 +33,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
-      # infohash: info_hash,
+      infohash: info_hash,
       piece_length: metainfo.info."piece length",
       # TODO:  move this data out of  torrent tracking info to check against parent process
       num_pieces: length(parsed_piece_hashes),
@@ -112,12 +112,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   # these handle_info calls come from the socket for attention
-  def handle_info({:error, reason}, peer_data) do
+  def handle_info({:error, reason}, {peer_data}) do
     Logger.error("#{peer_data.name} has come across and error: #{reason}")
 
     # terminate genserver gracefully?
-    PeerSupervisor.terminate_child(peer_data.peer_id)
-    {:noreply, peer_data}
+    PeerSupervisor.terminate_child(peer_data.id)
+    {:noreply, {peer_data}}
   end
 
   # :DONE
@@ -138,23 +138,21 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   # :DONE
-  def handle_info({:tcp, socket, msg}, peer_data) do
+  def handle_info({:tcp, socket, msg}, {peer_data}) do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
     {msgs, _} = PeerProtocol.decode(msg)
-    {a_pd} = peer_data
-
-    Logger.debug("Messages #{inspect(msgs)} for #{inspect(peer_data.peer_id)}")
-    ret = loop_msgs(msgs, socket, a_pd)
+    Logger.debug(fn -> "Messages #{inspect msgs} for #{peer_data.name}" end)
+    new_peer_data = loop_msgs(msgs, socket, peer_data)
     # Logger.debug( "Returning this: #{inspect ret}")
-    {:noreply, {ret}}
+    {:noreply, {new_peer_data}}
   end
 
   # Extra use cases
   # :DONE
-  def handle_info({:tcp_passive, socket}, peer_data) do
+  def handle_info({:tcp_passive, socket}, {peer_data}) do
     :inet.setopts(socket, active: 1)
-    {:noreply, peer_data}
+    {:noreply, {peer_data}}
   end
 
   # :DONE
@@ -162,7 +160,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.info("#{peer_data.name} has closed socket, should terminate")
 
     # Gracefully stop this peer process OR get a new peer
-    PeerSupervisor.terminate_child(peer_data.peer_id)
+    PeerSupervisor.terminate_child(peer_data.id)
     {:noreply, {peer_data}}
   end
 
