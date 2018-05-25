@@ -225,13 +225,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
   def handle_cast({:start_torrent_async, id}, {db, server_name, torrents}) do
     if Map.has_key?(torrents, id) do
-      {status, _} = @torrent_impl.start_torrent(id)
-
-      case status do
-        :error ->
+      case @torrent_impl.start_torrent(id) do
+        {:error, _} ->
           {:noreply, {db, server_name, torrents}}
 
-        _ ->
+        {:ok, _msg, _connected} ->
           {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
           {:noreply, {db, server_name, updated_torrents}}
