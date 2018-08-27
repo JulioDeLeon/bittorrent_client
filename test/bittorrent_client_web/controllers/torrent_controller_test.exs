@@ -1,7 +1,8 @@
 defmodule BittorrentClientWeb.TorrentControllerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   use Plug.Test
-  @api_root "/api/v1"
+  alias BittorrentClientWeb.Router, as: WebRouter
+  @api_root "/api/v1/torrent"
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
@@ -26,38 +27,47 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
     {:ok, [bento_1: file_1_bento_content, bento_2: file_2_bento_content]}
   end
 
-  test "addition of new torrent file on Web Layer" do
-    json_body =
-      %{"filename" => @torrent_file}
-      |> Poison.encode!()
+  describe "torrent/" do
+    test "addition of new torrent file on Web Layer" do
+      json_body = %{"filename" => @torrent_file}
 
-    conn = create_json_request("#{@api_root}/add/file", json_body)
-    conn = WebRouter.call(conn, @opts)
+      conn = create_json_request("#{@api_root}/addFile", json_body)
+      conn = WebRouter.call(conn, @opts)
 
-    assert conn.state == :sent
-    assert conn.status == 200
-    assert conn.resp_body != nil
+      assert conn.state == :sent
+      assert conn.status == 200
+      assert conn.resp_body != nil
 
-    returned_data =
-      conn.resp_body
-      |> Poison.decode!()
+      returned_data =
+        conn.resp_body
+        |> Poison.decode!()
 
-    torrent_id = Map.get(returned_data, "torrent id")
-    torrent_pid = @torrent_impl.whereis(torrent_id)
-    assert torrent_pid != :undefined
+      torrent_id = Map.get(returned_data, "torrent id")
+      torrent_pid = @torrent_impl.whereis(torrent_id)
+      assert torrent_pid != :undefined
 
-    {status, _data} =
-      @server_impl.get_torrent_info_by_id("GenericName", torrent_id)
+      {status, _data} =
+        @server_impl.get_torrent_info_by_id("GenericName", torrent_id)
 
-    assert status = :ok
+      assert status = :ok
+    end
+
+    @opts WebRouter.init([])
+    test "status of a nonexistent torrent process should return 400 from Web layer",
+         context do
+      fake_id = "superfake"
+      conn = conn(:get, "#{@api_root}/#{fake_id}/status")
+      conn = WebRouter.call(conn, @opts)
+      assert conn.state == :sent
+      assert conn.status == 403
+      assert conn.resp_body != nil
+    end
   end
 
   test "deletion of a torrent from Web Layer", context do
-    json_body =
-      %{"filename" => @torrent_file}
-      |> Poison.encode!()
+    json_body = %{"filename" => @torrent_file}
 
-    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = create_json_request("#{@api_root}/addFile", json_body)
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -71,7 +81,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
     torrent_pid = @torrent_impl.whereis(torrent_id)
     assert torrent_pid != :undefined
 
-    conn = conn(:get, "#{@api_root}/all")
+    conn = conn(:get, "#{@api_root}")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -89,7 +99,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
     assert conn.status == 200
     assert conn.resp_body != nil
 
-    conn = conn(:get, "#{@api_root}/all")
+    conn = conn(:get, "#{@api_root}")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -103,11 +113,9 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   end
 
   test "deletion of all torrents from Web Layer", context do
-    json_body =
-      %{"filename" => @torrent_file}
-      |> Poison.encode!()
+    json_body = %{"filename" => @torrent_file}
 
-    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = create_json_request("#{@api_root}/addFile", json_body)
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -118,7 +126,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     torrent_id = Map.get(returned_data, "torrent id")
 
-    conn = conn(:get, "#{@api_root}/all")
+    conn = conn(:get, "#{@api_root}")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -130,13 +138,13 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     assert Map.has_key?(returned_table, torrent_id) == true
 
-    conn = conn(:delete, "#{@api_root}/remove/all")
+    conn = conn(:delete, "#{@api_root}/removeAll")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 204
     assert conn.resp_body != nil
 
-    conn = conn(:get, "#{@api_root}/all")
+    conn = conn(:get, "#{@api_root}")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -150,11 +158,9 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   end
 
   test "connect existing torrent to tracker, should return 204 from Web Layer." do
-    json_body =
-      %{"filename" => @torrent_file_2}
-      |> Poison.encode!()
+    json_body = %{"filename" => @torrent_file_2}
 
-    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = create_json_request("#{@api_root}/addFile", json_body)
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 200
@@ -175,11 +181,9 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
        context do
     fake_file = "superfakefile"
 
-    json_body =
-      %{"filename" => fake_file}
-      |> Poison.encode!()
+    json_body = %{"filename" => fake_file}
 
-    conn = create_json_request("#{@api_root}/add/file", json_body)
+    conn = create_json_request("#{@api_root}/addFile", json_body)
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 403
@@ -190,16 +194,6 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
        context do
     fake_id = "superfake"
     conn = conn(:delete, "#{@api_root}/#{fake_id}/remove")
-    conn = WebRouter.call(conn, @opts)
-    assert conn.state == :sent
-    assert conn.status == 403
-    assert conn.resp_body != nil
-  end
-
-  test "status of a nonexistent torrent process should return 400 from Web layer",
-       context do
-    fake_id = "superfake"
-    conn = conn(:get, "#{@api_root}/#{fake_id}/status")
     conn = WebRouter.call(conn, @opts)
     assert conn.state == :sent
     assert conn.status == 403

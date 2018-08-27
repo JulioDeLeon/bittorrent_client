@@ -25,15 +25,21 @@ defmodule BittorrentClientWeb.Router do
     pipe_through(:api)
 
     get("/ping", TorrentController, :ping)
-    get("/:id/status", TorrentController, :status)
-    get("/:id/info", TorrentController, :info)
-    put("/:id/connect", TorrentController, :connect)
-    put("/:id/connect/async", TorrentController, :connect_async)
-    put("/:id/startTorrent", TorrentController, :start_torrent)
-    put("/:id/startTorrent/async", TorrentController, :start_torrent_async)
-    post("/addFile", TorrentController, :add_file)
-    delete("/:id/remove", TorrentController, :delete_torrent)
-    get("/all", TorrentController, :all)
-    delete("/removeAll", TorrentController, :remove_all)
+    get("/torrent/:id/status", TorrentController, :status)
+    get("/torrent/:id/info", TorrentController, :info)
+    put("/torrent/:id/connect", TorrentController, :connect)
+    put("/torrent/:id/connect/async", TorrentController, :connect_async)
+    put("/torrent/:id/startTorrent", TorrentController, :start_torrent)
+
+    put(
+      "/torrent/:id/startTorrent/async",
+      TorrentController,
+      :start_torrent_async
+    )
+
+    post("/torrent/addFile", TorrentController, :add_file)
+    delete("/torrent/:id/remove", TorrentController, :delete_torrent)
+    get("/torrent", TorrentController, :all)
+    delete("/torrent/removeAll", TorrentController, :remove_all)
   end
 end
