@@ -142,7 +142,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
     {msgs, _} = PeerProtocol.decode(msg)
-    Logger.debug(fn -> "#{peer_data.name} has recieved the following message buff #{inspect msgs}" end)
+
+    Logger.debug(fn ->
+      "#{peer_data.name} has recieved the following message buff #{
+        inspect(msgs)
+      }"
+    end)
+
     new_peer_data = loop_msgs(msgs, socket, peer_data)
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {new_peer_data}}

@@ -369,7 +369,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         {:recv_timeout, 10_000}
       ])
 
-    Logger.debug(fn -> "Response from tracker: #{inspect(resp)}" end)
+    Logger.warn(fn -> "Response from tracker: #{inspect(resp)}" end)
 
     case status do
       :error ->
@@ -504,13 +504,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    peer_list = if Application.get_env(:bittorrent_client, :use_local_server) do
-      Logger.warn(fn -> "Using local peers" end)
-      populate_local_peers()
-    else
-      data |> TorrentData.get_peers() |> parse_peers_binary()
-      |> Enum.take(data.numwant)
-    end
+    peer_list =
+      if Application.get_env(:bittorrent_client, :use_local_server) do
+        Logger.warn(fn -> "Using local peers" end)
+        populate_local_peers()
+      else
+        data
+        |> TorrentData.get_peers()
+        |> parse_peers_binary()
+        |> Enum.take(data.numwant)
+      end
 
     case peer_list do
       [] ->
@@ -539,7 +542,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       )
     end)
   end
-  
 
   defp populate_local_peers do
     [Application.get_env(:bittorrent_client, :test_server_loc)]

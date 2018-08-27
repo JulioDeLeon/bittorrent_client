@@ -32,8 +32,6 @@ defmodule BittorrentClientWeb.TorrentController do
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
     end
-
-    send_resp(conn, 200, "pong")
   end
 
   def info(conn, args) do

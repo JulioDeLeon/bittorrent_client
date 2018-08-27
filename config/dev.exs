@@ -71,5 +71,4 @@ config :bittorrent_client,
   http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
   upload_check: false,
   use_local_server: true,
-  test_server_loc: {{127,0,0,1}, 51410}
-
+  test_server_loc: {{127, 0, 0, 1}, 51410}
