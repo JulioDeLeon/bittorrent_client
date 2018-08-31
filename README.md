@@ -1,5 +1,8 @@
 # BittorrentClient
 
+[![Travis build](https://secure.travis-ci.org/JulioDeLeon/bittorrent_client.svg?branch=master
+"Build Status")](https://travis-ci.org/JulioDeLeon/bittorrent_client)
+
 To start your Phoenix server:
 
   * Install dependencies with `mix deps.get`
