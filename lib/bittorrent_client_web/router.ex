@@ -20,6 +20,14 @@ defmodule BittorrentClientWeb.Router do
     get("/", PageController, :index)
   end
 
+  scope "/admin", BittorrentClientWeb do
+    pipe_through(:api)
+
+    get("/", AdminController, :status)
+    put("/fileDestination", AdminController, :change_file_dest)
+    get("/fileDestination", AdminController, :get_file_dest)
+  end
+
   # Other scopes may use custom stacks.
   scope "/api/v1", BittorrentClientWeb do
     pipe_through(:api)
