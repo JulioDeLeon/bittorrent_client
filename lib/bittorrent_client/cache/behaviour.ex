@@ -25,7 +25,7 @@ defmodule BittorrentClient.Cache do
   @doc """
   Returns all the contents of the given cache
   """
-  @callback getAll() :: [tuple()]
+  @callback get_all(cache_ref) :: [tuple()]
 
   @doc """
   Deletes given key from cache
