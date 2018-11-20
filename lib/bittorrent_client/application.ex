@@ -20,7 +20,8 @@ defmodule BittorrentClient.Application do
         @server_name
       ]),
       supervisor(BittorrentClient.Torrent.Supervisor, []),
-      supervisor(BittorrentClient.Peer.Supervisor, [])
+      supervisor(BittorrentClient.Peer.Supervisor, []),
+      supervisor(BittorrentClient.Cache.Supervisor, [])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
