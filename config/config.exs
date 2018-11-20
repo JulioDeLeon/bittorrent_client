@@ -23,7 +23,13 @@ config :bittorrent_client,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
   tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
-  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl
+  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
+  config_cache_impl: BittorrentClient.Cache.ETSImpl,
+  config_cache_name: :config_cache,
+  config_cache_opts: [:set, :protected],
+  torrent_cache_impl: BittorrentClient.Cache.ETSImpl,
+  torrent_cache_name: :torrent_cache,
+  torrent_cache_opts: [:ordered_set, :public]
 
 # Configures the endpoint
 config :bittorrent_client, BittorrentClientWeb.Endpoint,

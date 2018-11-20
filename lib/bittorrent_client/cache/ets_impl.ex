@@ -11,7 +11,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(name, opts) do
-    Logger.info("Starting BTC ETS Cache for #{name}")
+    Logger.info("Starting BTC ETS Cache for #{inspect name} with #{inspect opts}")
 
     GenServer.start_link(
       __MODULE__,
@@ -21,8 +21,40 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def init({name, opts}) do
-    tab = :ets.new(name, opts)
-    {:ok, {name, tab}}
+    table_ref = :ets.new(name, opts)
+    {:ok, {name, table_ref}}
+  end
+
+  def handle_call({:get_all}, _from, {name, table_ref}) do
+    {:reply, {:ok, :ets.tab2list(table_ref)}, {name, table_ref}}
+  end
+
+  def handle_call({:set, key, val}, _from, {name, table_ref}) do
+    case :ets.lookup(table_ref, key) do
+      [] ->
+        Logger.debug("#{inspect name} does not have #{inspect key}, creating a new key")
+        check = :ets.insert_new(table_ref, {key, val})
+        {:reply, {:ok, check}, {name, table_ref}}
+      _ ->
+        Logger.debug("#{inspect name} will override #{inspect key}")
+        check = :ets.insert(table_ref, {key, val})
+        {:reply, {:ok, check}, {name, table_ref}}
+    end
+  end
+
+  def handle_call({:get, key}, _from, {name, table_ref}) do
+    case :ets.lookup(table_ref, key) do
+      [] ->
+        msg = "#{inspect name} does not contain #{inspect key}"
+        Logger.error(msg)
+        {:reply, {:error, msg}, {name, table_ref}}
+      ret ->
+        {:reply, {:ok, ret}, {name, table_ref}}
+    end
+  end
+
+  def handle_call({:delete, key}, _from, {name, table_ref}) do
+    {:reply, {:ok, :ets.delete(table_ref, key)}, {name, table_ref}}
   end
 
   # -------------------------------------------------------------------------------
