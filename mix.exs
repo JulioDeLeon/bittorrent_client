@@ -35,8 +35,8 @@ defmodule BittorrentClient.Mixfile do
     [
       {:phoenix, "~> 1.3.2"},
       {:phoenix_pubsub, "~> 1.0"},
-      {:phoenix_ecto, "~> 3.2"},
-      {:postgrex, ">= 0.0.0"},
+#      {:phoenix_ecto, "~> 3.2"},
+#      {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 2.10"},
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
