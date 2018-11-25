@@ -31,4 +31,9 @@ defmodule BittorrentClient.Cache do
   Deletes given key from cache
   """
   @callback delete(cache_ref, key) :: :ok
+
+  @doc """
+  Returns configuration of cache
+  """
+  @callback get_configuration(cache_ref) :: {:ok, any()} | {:error, reason}
 end
