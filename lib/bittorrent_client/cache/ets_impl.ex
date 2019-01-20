@@ -33,12 +33,12 @@ defmodule BittorrentClient.Cache.ETSImpl do
     case :ets.lookup(table_ref, key) do
       [] ->
         Logger.debug("#{inspect name} does not have #{inspect key}, creating a new key")
-        check = :ets.insert_new(table_ref, {key, val})
-        {:reply, {:ok, check}, {name, table_ref, opts}}
+        true = :ets.insert_new(table_ref, {key, val})
+        {:reply, :ok, {name, table_ref, opts}}
       _ ->
         Logger.debug("#{inspect name} will override #{inspect key}")
-        check = :ets.insert(table_ref, {key, val})
-        {:reply, {:ok, check}, {name, table_ref, opts}}
+        true = :ets.insert(table_ref, {key, val})
+        {:reply, :ok, {name, table_ref, opts}}
     end
   end
 
