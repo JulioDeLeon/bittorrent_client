@@ -54,6 +54,6 @@ function getStatus {
 }
 
 function getInfo {
-  curl -vX GET $URL/$1/info \
+  curl -vX GET $URL/torrent/$1/info \
   --connect-timeout $TO
 }

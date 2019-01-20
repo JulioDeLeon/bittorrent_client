@@ -42,15 +42,15 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
             {:aborted, reason} ->
               Logger.error("#{inspect name} Failed to retrieve #{inspect elem}")
               {:aborted, reason}
-            data ->
-              {check, [ret | {elem, data}]}
+            [{_serv, key, val} | _rst] ->
+              {check, ret ++ [{key, val}]}
           end
         end
       end)
     end
 
     case :mnesia.transaction(trans) do
-      {:ok, result} ->
+      {:atomic, {:ok, result}} ->
         {:reply, {:ok, result}, {name, opts}}
       {:aborted, reason} ->
         Logger.error("Cache for #{inspect name} failed to get all elements : #{inspect reason}")
@@ -64,8 +64,12 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     end
 
     case :mnesia.transaction(trans) do
-      {:ok, result} ->
-        {:reply, {:ok, result}, {name, opts}}
+      {:atomic, []} ->
+        reason = "Does not exist"
+        Logger.error("Cache for #{inspect name} failed to get #{key} : #{reason}")
+        {:reply, {:error, reason}, {name, opts}}
+      {:atomic, [{_serv, key, val} | _rst]} ->
+        {:reply, {:ok, [{key, val}]}, {name, opts}}
       {:aborted, reason} ->
         Logger.error("Cache for #{inspect name} failed to get #{key} : #{inspect reason}")
         {:reply, {:error, reason}, {name, opts}}
@@ -78,8 +82,8 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     end
 
     case :mnesia.transaction(trans) do
-      {:ok, result} ->
-        {:reply, {:ok, result}, {name, opts}}
+      {:atomic, :ok} ->
+        {:reply, :ok, {name, opts}}
       {:aborted, reason} ->
         Logger.error("Cache for #{inspect name} failed to set #{key} : #{inspect reason}")
         {:reply, {:error, reason}, {name, opts}}
@@ -88,12 +92,12 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
   def handle_call({:delete, key}, _from, {name, opts}) do
     trans = fn ->
-      :mnesia.delete_object({name, key})
+      :mnesia.delete({name, key})
     end
 
     case :mnesia.transaction(trans) do
-      {:ok, result} ->
-        {:reply, {:ok, result}, {name, opts}}
+      {:atomic, :ok} ->
+        {:reply, :ok, {name, opts}}
       {:aborted, reason} ->
         Logger.error("Cache for #{inspect name} failed to delete #{key} : #{inspect reason}")
         {:reply, {:error, reason}, {name, opts}}

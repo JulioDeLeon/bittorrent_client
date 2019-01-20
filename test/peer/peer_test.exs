@@ -2,7 +2,7 @@ defmodule BittorrentClient.Peer.Test do
   use ExUnit.Case
   doctest BittorrentClient.Peer.GenServerImpl
   @peer_impl Application.get_env(:bittorrent_client, :peer_impl)
-  @file_name_1 "priv/ubuntu.torrent"
+  @file_name_1 "priv/debian.torrent"
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
 
   setup_all do
