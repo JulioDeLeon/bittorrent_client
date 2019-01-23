@@ -60,7 +60,22 @@ defmodule BittorrentClient.CacheTest do
       end
 
       test "get all items in cache",  %{cache_impl: cache_impl, cache_ref: cache_ref, cache_opts: cache_opts} do
-        assert true
+        lst = [
+          {"key1", "val1"},
+          {"key2", "val2"}
+        ]
+
+        Enum.map(lst, fn {key, val} ->
+          cache_impl.set(cache_ref, key, val)
+        end)
+
+        {:ok, ret} = cache_impl.get_all(cache_ref)
+
+        assert length(ret) == length(lst)
+
+        Enum.map(lst, fn elem ->
+          assert Enum.member?(ret, elem) == true
+        end)
       end
     end
   end
