@@ -505,15 +505,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp start_torrent_helper(id, {metadata, data}) do
     peer_list =
-      if Application.get_env(:bittorrent_client, :use_local_server) do
-        Logger.warn(fn -> "Using local peers" end)
-        populate_local_peers()
-      else
         data
         |> TorrentData.get_peers()
         |> parse_peers_binary()
         |> Enum.take(data.numwant)
-      end
 
     case peer_list do
       [] ->

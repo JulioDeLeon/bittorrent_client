@@ -43,32 +43,32 @@ defmodule BittorrentClient.Server.GenServerImpl do
   end
 
   def handle_call(
-        {:add_new_torrent, torrentFile},
+        {:add_new_torrent, torrent_file},
         _from,
         {db, server_name, torrents}
       ) do
     # TODO: add some salt
     id =
-      torrentFile
+      torrent_file
       |> (fn x -> :crypto.hash(:md5, x) end).()
       |> Base.encode32()
 
     Logger.debug(fn -> "add_new_torrent Generated #{id}" end)
 
     if not Map.has_key?(torrents, id) do
-      {status, secondary} = TorrentSupervisor.start_child({id, torrentFile})
+      {status, secondary} = TorrentSupervisor.start_child({id, torrent_file})
       Logger.debug(fn -> "add_new_torrent Status: #{status}" end)
 
       case status do
         :error ->
           Logger.error(fn ->
-            "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"
+            "Failed to add torrent for #{torrent_file}: #{inspect(secondary)}\n"
           end)
 
           {:reply,
            {:error,
             {403,
-             "Failed to add torrent for #{torrentFile}: #{inspect(secondary)}\n"}},
+             "Failed to add torrent for #{torrent_file}: #{inspect(secondary)}\n"}},
            {db, server_name, torrents}}
 
         _ ->
@@ -76,12 +76,12 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
           case check do
             :error ->
-              Logger.error("Failed to add new torrent for #{torrentFile}")
+              Logger.error("Failed to add new torrent for #{torrent_file}")
 
               {:reply,
                {:error,
                 {500,
-                 "Failed to add torrent for #{torrentFile}: could not retrive info from torrent layer\n"}},
+                 "Failed to add torrent for #{torrent_file}: could not retrieve info from torrent layer\n"}},
                {db, server_name, torrents}}
 
             _ ->

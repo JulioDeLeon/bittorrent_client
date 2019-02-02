@@ -8,52 +8,52 @@ URL=$PROTO://$HOST:$PORT/$API
 TO=99999
 
 function addFile {
-  curl -vX POST $URL/torrent/addFile \
+  curl -X POST $URL/torrent/addFile \
     -H "Content-Type: application/json" \
     -d '{"filename":"priv/'${1}'.torrent"}' \
     --connect-timeout $TO
 }
 
 function connectToTracker {
-  curl -vX PUT $URL/torrent/$1/connect/ \
+  curl -X PUT $URL/torrent/$1/connect/ \
   --connect-timeout $TO
 }
 
 function connectToTrackerAsync {
-  curl -vX PUT $URL/torrent/$1/connect/async \
+  curl -X PUT $URL/torrent/$1/connect/async \
   --connect-timeout $TO
 }
 
 function startTorrent {
-    curl -vX PUT $URL/torrent/$1/startTorrent \
+    curl -X PUT $URL/torrent/$1/startTorrent \
     --connect-timeout $TO
 }
 
 function startTorrentAsync {
-    curl -vX PUT $URL/torrent/$1/startTorrent/async \
+    curl -X PUT $URL/torrent/$1/startTorrent/async \
     --connect-timeout $TO
 }
 
 function listAll {
-  curl -vX GET $URL/torrent \
+  curl -X GET $URL/torrent \
   --connect-timeout $TO
 }
 
 function removeall {
-  curl -vX DELETE $URL/torrent/removeAll \
+  curl -X DELETE $URL/torrent/removeAll \
   --connect-timeout $TO
 }
 
 function removeTorrent {
-  curl -vX DELETE $URL/torrent/$1/remove \
+  curl -X DELETE $URL/torrent/$1/remove \
 }
 
 function getStatus {
-  curl -vX GET $URL/torrent/$1/status \
+  curl -X GET $URL/torrent/$1/status \
   --connect-timeout $TO
 }
 
 function getInfo {
-  curl -vX GET $URL/torrent/$1/info \
+  curl -X GET $URL/torrent/$1/info \
   --connect-timeout $TO
 }

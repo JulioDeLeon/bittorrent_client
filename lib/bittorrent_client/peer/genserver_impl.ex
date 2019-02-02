@@ -82,6 +82,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  def terminate(_reason, {peer_data}) do
+    _ = cleanup(peer_data)
+    Logger.info("Terminating peer worker for #{peer_data.name}")
+    :normal
+  end
+
   @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) ::
           {:ok, PeerData.t()} | {:error, binary()}
   defp setup_handshake(sock, timer, peer_data) do
@@ -109,6 +115,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
               timer: timer
           }}}
     end
+  end
+
+  defp cleanup(peer_data) do
+    :ok = :tcp_conn_impl.close(peer_data.socket)
   end
 
   # these handle_info calls come from the socket for attention
@@ -163,7 +173,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   # :DONE
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
-    Logger.info("#{peer_data.name} has closed socket, should terminate")
+    Logger.error("#{peer_data.name} has closed socket, should terminate")
 
     # Gracefully stop this peer process OR get a new peer
     PeerSupervisor.terminate_child(peer_data.id)
