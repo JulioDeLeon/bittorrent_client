@@ -91,6 +91,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) ::
           {:ok, PeerData.t()} | {:error, binary()}
   defp setup_handshake(sock, timer, peer_data) do
+    # send bitfield msg after handshake. get completed list and create bitfield
+    # for now sending empty bitfiled
+    bf_msg = PeerProtocol.encode(:bitfield, <<>>)
+    Logger.debug("#{peer_data.name} is sending bitfield : #{bf_msg}}")
+
     msg =
       PeerProtocol.encode(
         :handshake,
@@ -157,6 +162,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "#{peer_data.name} has recieved the following message buff #{
         inspect(msgs)
       }"
+      
     end)
 
     new_peer_data = loop_msgs(msgs, socket, peer_data)
@@ -517,37 +523,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
            peer_data.torrent_tracking_info.id
          ) do
       {:ok, lst} ->
-        bitfield =
-          Enum.reduce(
-            lst,
-            BitUtil.create_empty_bitfield(
-              peer_data.torrent_tracking_info.num_pieces,
-              peer_data.torrent_tracking_info.piece_length
-            ),
-            fn index, acc ->
-              case BitUtil.set_bit(acc, 1, index) do
-                {:ok, new_bf} ->
-                  new_bf
-
-                {:error, _} ->
-                  Logger.error(
-                    "#{peer_data.name} recieved a bad piece_index from parent proc: #{
-                      index
-                    }"
-                  )
-
-                  acc
-              end
-            end
-          )
-
-        Logger.debug(fn ->
-          "#{peer_data.name} will send the bitfield #{inspect(bitfield)}"
-        end)
-
-        bf_msg = PeerProtocol.encode(:bitfield, <<>>)
         interest_msg = PeerProtocol.encode(:interested)
-        @tcp_conn_impl.send(peer_data.socket, bf_msg <> interest_msg)
+        @tcp_conn_impl.send(peer_data.socket, interest_msg)
         peer_data
 
       {:error, msg} ->

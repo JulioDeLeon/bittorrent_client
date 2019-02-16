@@ -220,6 +220,11 @@ defmodule BittorrentClient.Peer.Protocol do
     <<byte_size(msg)::size(32)>> <> msg
   end
 
+  def encode(:bitfield, <<>>) do
+    msg = <<@bitfield_id>> <> <<>>
+    <<@no_payload_len::size(32)>> <> msg
+  end
+
   def encode(type, piece_index, block_offset, block_len \\ @block_len)
 
   def encode(:handshake, reserved, info_hash, peer_id) do
