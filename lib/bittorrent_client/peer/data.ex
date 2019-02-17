@@ -20,6 +20,7 @@ defmodule BittorrentClient.Peer.Data do
   @type t :: %__MODULE__{
       id: String.t(),                                 # Represents peer id for torrent process to identify with
       torrent_tracking_info: TorrentTrackingInfo.t(), # Manages the state of relationship of the peer process with it's torrent process
+      known_bitfield: binary()                        # tracks the known pieces from the peer connection
       filename: String.t(),                           # File that the torrent is related to
       handshake_check: boolean,                       # Check for if the checksum handshake has been made with the peer
       need_piece: boolean,                            # Check to see if a new piece needs to be requested from the peer
@@ -43,10 +44,18 @@ defmodule BittorrentClient.Peer.Data do
           | :we_interest
 
   @derive {Poison.Encoder,
-           except: [:torrent_id, :socket, :metainfo, :timer, :state]}
+           except: [
+             :torrent_id,
+             :socket,
+             :metainfo,
+             :timer,
+             :state,
+             :known_bitfield
+           ]}
   defstruct [
     :id,
     :torrent_tracking_info,
+    :known_bitfield,
     :handshake_check,
     :need_piece,
     :filename,
@@ -63,6 +72,7 @@ defmodule BittorrentClient.Peer.Data do
   @type t :: %__MODULE__{
           id: String.t(),
           torrent_tracking_info: TorrentTrackingInfo.t(),
+          known_bitfield: binary(),
           filename: String.t(),
           handshake_check: boolean,
           need_piece: boolean,

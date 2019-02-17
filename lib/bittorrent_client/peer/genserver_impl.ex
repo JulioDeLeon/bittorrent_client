@@ -50,6 +50,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       filename: filename,
       state: :we_choke,
       torrent_tracking_info: torrent_track_info,
+      known_bitfield:
+        BitUtil.create_empty_bitfield(
+          torrent_track_info.num_pieces,
+          torrent_track_info.piece_length
+        ),
       timer: nil,
       interval: interval,
       peer_ip: ip,
@@ -337,7 +342,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_message(:bitfield, msg, _socket, peer_data) do
     Logger.debug(fn -> "Bitfield MSG: #{peer_data.name}" end)
     ttinfo_state = peer_data.torrent_tracking_info
-    new_piece_indexes = parse_bitfield(msg.bitfield, [], 0)
+    new_piece_indexes = BitUtil.parse_bitfield(msg.bitfield)
 
     case TorrentTrackingInfo.populate_multiple_pieces(
            ttinfo_state,
@@ -349,7 +354,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} successfully added #{new_piece_indexes} to it's table."
         end)
 
-        %PeerData{peer_data | torrent_tracking_info: new_ttinfo_state}
+        peer_data
+        |> Map.put(:torrent_tracking_info, new_ttinfo_state)
+        |> Map.put(:known_bitfield, msg.bitfield)
 
       {:error, errmsg} ->
         Logger.error(
@@ -454,19 +461,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def connect(ip, port) do
     @tcp_conn_impl.connect(ip, port, [:binary, active: 1], 2_000)
-  end
-
-  @spec parse_bitfield(binary(), [integer()], integer()) :: [integer()]
-  def parse_bitfield(<<bit::size(1), rest::bytes>>, queue, acc) do
-    if bit == 1 do
-      parse_bitfield(rest, [acc | queue], acc + 1)
-    else
-      parse_bitfield(rest, queue, acc + 1)
-    end
-  end
-
-  def parse_bitfield(_, queue, _acc) do
-    queue
   end
 
   @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()

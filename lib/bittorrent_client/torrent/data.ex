@@ -37,7 +37,6 @@ defmodule BittorrentClient.Torrent.Data do
 
   @type t :: %__MODULE__{
           id: integer,
-          # pid
           file: String.t(),
           status: String.t(),
           info_hash: String.t(),
@@ -53,8 +52,8 @@ defmodule BittorrentClient.Torrent.Data do
           key: String.t(),
           trackerid: String.t(),
           # tracker_info:
-          next_piece_index: integer
-          # pieces:
+          next_piece_index: integer,
+          pieces: map()
           # connected_peers:
         }
 

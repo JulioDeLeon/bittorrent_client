@@ -5,7 +5,10 @@ defmodule BittorrentClient.Peer.BitUtility do
   require Bitwise
   require Logger
   @byte_size 8
+  # 0b10000000 since in bitfield, starting position is leftmost bit
+  @byte_starting_pos 128
 
+  @spec set_bit(binary(), integer(), integer()) :: binary()
   def set_bit(bitstr, 1, pos) do
     size = byte_size(bitstr)
 
@@ -49,6 +52,27 @@ defmodule BittorrentClient.Peer.BitUtility do
     {:error, "invalid value: #{val}"}
   end
 
+  @spec is_set(binary(), integer()) :: {:error, binary()} | {:ok, boolean()}
+  def is_set(empty_buff, _pos) when byte_size(empty_buff) == 0 do
+    {:error, "empty buffer was given"}
+  end
+
+  def is_set(bitstr, pos) do
+    if pos > bit_size(bitstr) || pos < 0 do
+      {:error, "invalid position was given"}
+    else
+      byte_pos = div(pos, 8)
+      bit_pos = Bitwise.>>>(@byte_starting_pos, rem(pos, 8))
+      case String.at(bitstr, byte_pos) do
+        <<actual_byte>> ->
+          {:ok, 0 < Bitwise.&&&(bit_pos, actual_byte)}
+        <<>> ->
+          {:error, "Incorrect byte calculated: byte_pos: #{byte_pos} bit_pos: #{bit_pos} buffer byte size #{byte_size(bitstr)}"}
+      end
+    end
+  end
+
+  @spec create_full_bitfield(integer(), integer()) :: binary()
   def create_full_bitfield(num_pieces, piece_length) do
     max_bits = num_pieces * piece_length
     bytes_needed = div(max_bits, @byte_size)
@@ -76,6 +100,7 @@ defmodule BittorrentClient.Peer.BitUtility do
     initial_buffer <> extra_byte
   end
 
+  @spec create_empty_bitfield(integer(), integer()) :: binary()
   def create_empty_bitfield(num_pieces, piece_length) do
     max_bits = num_pieces * piece_length
 
@@ -89,5 +114,24 @@ defmodule BittorrentClient.Peer.BitUtility do
     bytes_needed = div(max_bits, @byte_size) + extra_byte
     bits_needed = bytes_needed * @byte_size
     <<0::size(bits_needed)>>
+  end
+
+  @spec parse_bitfield(binary()) :: [integer()]
+  def parse_bitfield(empty_bitfield) when byte_size(empty_bitfield) == 0 do
+    {:ok, []}
+  end
+
+  def parse_bitfield(bitstr) do
+    Enum.filter(0..bit_size(bitstr), fn i ->
+      case is_set(bitstr, i) do
+        {:ok, true} ->
+          true
+        {:error, reason}->
+          Logger.error(reason)
+          false
+        _ ->
+          false
+      end
+    end)
   end
 end

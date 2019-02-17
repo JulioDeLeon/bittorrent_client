@@ -128,30 +128,28 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:add_piece_index, peer_id, index}, _from, {metadata, data}) do
-    {status, new_table, reason} = add_single_piece(peer_id, index, data.pieces)
+    case add_single_piece(peer_id, index, data.pieces) do
+      {:error, reason} ->
+        {:reply, {:error, reason}, {metadata, data}}
 
-    case status do
-      :error ->
-        {:reply, {:error, "Could not add #{index} to piece table: #{reason}"},
-         {metadata, data}}
-
-      :ok ->
-        {:reply,
-         {:ok, "Successfully added #{index} => #{peer_id} to piece table"},
-         {metadata, %TorrentData{data | pieces: new_table}}}
+      {:ok, new_piece_table} ->
+        {:reply, {:ok, "Successfully updated #{index} to piece table : added #{peer_id} to table"},
+          {metadata, %TorrentData{data | pieces: new_piece_table}}}
     end
   end
 
   def handle_call({:add_multi_pieces, peer_id, lst}, _from, {metadata, data}) do
-    {new_table, valid_indexes} =
-      Enum.reduce(lst, {data.pieces, []}, fn elem, {acc, valid} ->
-        {status, temp_table, _reason} = add_single_piece(peer_id, elem, acc)
+    handle_single_piece = fn elem, {piece_table, valid_indexes} ->
+      case add_single_piece(peer_id, elem, piece_table) do
+        {:ok, n_table} ->
+          {n_table, [elem | valid_indexes]}
+        {:error, _reason} ->
+          {piece_table, valid_indexes}
+      end
+    end
 
-        case status do
-          :ok -> {temp_table, [elem | valid]}
-          :error -> {temp_table, valid}
-        end
-      end)
+    {new_table, valid_indexes} =
+      Enum.reduce(lst, {data.pieces, []}, handle_single_piece)
 
     {:reply, {:ok, valid_indexes},
      {metadata, %TorrentData{data | pieces: new_table}}}
@@ -285,7 +283,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def add_multi_pieces(id, peer_id, lst) do
-    Logger.debug(fn -> "#{id} is attempting to add multliple pieces" end)
+    Logger.debug(fn -> "#{id} is attempting to add multiple pieces" end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -470,36 +468,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:error, "no possible pieces available"}
   end
 
+  @spec add_single_piece(peer_id :: binary(), index :: integer(), piece_table :: map()) :: {:ok, map()} | {:error, binary()}
+  defp add_single_piece(_peer_id, index , _piece_table) when index < 0 do
+    {:error, "Invalid index #{index}"}
+  end
+
   defp add_single_piece(peer_id, index, piece_table) do
-    cond do
-      index < 0 ->
-        {:error, piece_table, "Invalid index #{index}"}
-
-      !Map.has_key?(piece_table, index) ->
-        {:ok,
-         %TorrentData{
-           piece_table
-           | pieces: Map.put(piece_table, index, {:found, [peer_id]})
-         }, ""}
-
-      true ->
-        (fn ->
-           {progress, lst} = Map.fetch!(piece_table, index)
-
-           case progress do
-             :found ->
-               {:ok,
-                %TorrentData{
-                  piece_table
-                  | pieces:
-                      Map.put(piece_table, index, {:found, [peer_id | lst]})
-                }, ""}
-
-             _ ->
-               {:error, piece_table,
-                "#{index} is not available: #{inspect(progress)}"}
-           end
-         end).()
+    if !Map.has_key?(piece_table, index) do
+      {:ok, Map.put(piece_table, index, {:found, [peer_id]})}
+    else
+      {status, known_peer_lst} = Map.get(piece_table, index)
+      {:ok, Map.put(piece_table, index, {status, [peer_id | known_peer_lst]})}
     end
   end
 
