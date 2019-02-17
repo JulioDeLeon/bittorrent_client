@@ -36,4 +36,4 @@ defmodule BittorrentClient.Cache do
   Returns configuration of cache
   """
   @callback get_configuration(cache_ref) :: {:ok, any()} | {:error, reason}
- end
+end

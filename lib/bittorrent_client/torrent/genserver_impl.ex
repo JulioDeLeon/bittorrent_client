@@ -505,10 +505,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp start_torrent_helper(id, {metadata, data}) do
     peer_list =
-        data
-        |> TorrentData.get_peers()
-        |> parse_peers_binary()
-        |> Enum.take(data.numwant)
+      data
+      |> TorrentData.get_peers()
+      |> parse_peers_binary()
+      |> Enum.take(data.numwant)
 
     case peer_list do
       [] ->

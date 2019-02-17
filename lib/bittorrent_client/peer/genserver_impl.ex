@@ -142,9 +142,21 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # send over a message.
     # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
-    Logger.debug("#{peer_data.name} : timer ended, current state: #{inspect peer_data.state}")
+
+    Logger.debug(
+      "#{peer_data.name} : timer ended, current state: #{
+        inspect(peer_data.state)
+      }"
+    )
+
     new_peer_data = send_message(peer_data.state, peer_data)
-    Logger.debug("#{peer_data.name} : sent messages, new state: #{inspect new_peer_data.state}")
+
+    Logger.debug(
+      "#{peer_data.name} : sent messages, new state: #{
+        inspect(new_peer_data.state)
+      }"
+    )
+
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
     {:noreply, {%PeerData{new_peer_data | timer: timer}}}
@@ -158,12 +170,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.debug(fn ->
       "#{peer_data.name} has recieved the following message raw #{inspect(buff)}"
     end)
-    {msgs, _} = buff
-    |> PeerProtocol.tcp_buff_to_encoded_msg()
-    |> PeerProtocol.decode()
+
+    {msgs, _} =
+      buff
+      |> PeerProtocol.tcp_buff_to_encoded_msg()
+      |> PeerProtocol.decode()
 
     Logger.debug(fn ->
-      "#{peer_data.name} has recieved the following message buff #{inspect(msgs)}"
+      "#{peer_data.name} has recieved the following message buff #{
+        inspect(msgs)
+      }"
     end)
 
     new_peer_data = loop_msgs(msgs, socket, peer_data)
@@ -199,10 +215,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_message(:handshake, msg, _socket, peer_data) do
-    expected = Map.get(peer_data, "info_hash")
+    expected = peer_data.torrent_tracking_info.infohash
+    actual = msg.info_hash
 
-    if msg != expected do
-      Logger.error("INFO HASH did not match #{inspect msg} != #{inspect expected}")
+    if actual != expected do
+      Logger.error(
+        "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
+          inspect(expected)
+        }"
+      )
+
       Logger.error("Not acting upon this")
     end
 

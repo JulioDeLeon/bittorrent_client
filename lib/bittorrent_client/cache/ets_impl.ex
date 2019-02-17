@@ -11,7 +11,9 @@ defmodule BittorrentClient.Cache.ETSImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(name, opts) do
-    Logger.info("Starting BTC ETS Cache for #{inspect name} with #{inspect opts}")
+    Logger.info(
+      "Starting BTC ETS Cache for #{inspect(name)} with #{inspect(opts)}"
+    )
 
     GenServer.start_link(
       __MODULE__,
@@ -32,11 +34,15 @@ defmodule BittorrentClient.Cache.ETSImpl do
   def handle_call({:set, key, val}, _from, {name, table_ref, opts}) do
     case :ets.lookup(table_ref, key) do
       [] ->
-        Logger.debug("#{inspect name} does not have #{inspect key}, creating a new key")
+        Logger.debug(
+          "#{inspect(name)} does not have #{inspect(key)}, creating a new key"
+        )
+
         true = :ets.insert_new(table_ref, {key, val})
         {:reply, :ok, {name, table_ref, opts}}
+
       _ ->
-        Logger.debug("#{inspect name} will override #{inspect key}")
+        Logger.debug("#{inspect(name)} will override #{inspect(key)}")
         true = :ets.insert(table_ref, {key, val})
         {:reply, :ok, {name, table_ref, opts}}
     end
@@ -45,9 +51,10 @@ defmodule BittorrentClient.Cache.ETSImpl do
   def handle_call({:get, key}, _from, {name, table_ref, opts}) do
     case :ets.lookup(table_ref, key) do
       [] ->
-        msg = "#{inspect name} does not contain #{inspect key}"
+        msg = "#{inspect(name)} does not contain #{inspect(key)}"
         Logger.error(msg)
         {:reply, {:error, msg}, {name, table_ref, opts}}
+
       ret ->
         {:reply, {:ok, ret}, {name, table_ref, opts}}
     end
@@ -110,8 +117,9 @@ defmodule BittorrentClient.Cache.ETSImpl do
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
       {:get_configuration}
-   )
+    )
   end
+
   # -------------------------------------------------------------------------------
   # Utility functions
   # -------------------------------------------------------------------------------

@@ -49,6 +49,7 @@ defmodule BittorrentClient.Peer.Protocol do
          acc
        ) do
     Logger.debug("DECODE : HANDSHAKE")
+
     decode_type(rest, [
       %{
         type: :handshake,
@@ -134,7 +135,12 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug("DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{block_length}")
+    Logger.debug(
+      "DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{
+        block_length
+      }"
+    )
+
     decode_type(rest, [
       %{
         type: :request,
@@ -157,7 +163,12 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug("DECODE : PIECE index #{piece_index} block offset #{block_offset} block #{block}")
+    Logger.debug(
+      "DECODE : PIECE index #{piece_index} block offset #{block_offset} block #{
+        block
+      }"
+    )
+
     # Subtract the id's length.
     decode_type(rest, [
       %{
@@ -181,7 +192,12 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug("DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{block_length}")
+    Logger.debug(
+      "DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{
+        block_length
+      }"
+    )
+
     decode_type(rest, [
       %{
         type: :cancel,
