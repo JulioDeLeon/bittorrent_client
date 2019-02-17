@@ -48,6 +48,7 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug("DECODE : HANDSHAKE")
     decode_type(rest, [
       %{
         type: :handshake,
@@ -60,6 +61,7 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(<<@keep_alive_len::size(32), rest::bytes>>, acc) do
+    Logger.debug("DECODE : KEEP_ALIVE")
     decode_type(rest, [%{type: :keep_alive} | acc])
   end
 
@@ -67,6 +69,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @choke_id, rest::bytes>>,
          acc
        ) do
+    Logger.debug("DECODE : CHOKE")
     decode_type(rest, [%{type: :choke} | acc])
   end
 
@@ -74,6 +77,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @unchoke_id, rest::bytes>>,
          acc
        ) do
+    Logger.debug("DECODE : UNCHOKE")
     decode_type(rest, [%{type: :unchoke} | acc])
   end
 
@@ -81,6 +85,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @interested_id, rest::bytes>>,
          acc
        ) do
+    Logger.debug("DECODE : INTERESTED")
     decode_type(rest, [%{type: :interested} | acc])
   end
 
@@ -88,6 +93,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @not_interested_id, rest::bytes>>,
          acc
        ) do
+    Logger.debug("DECODE : NOT_INTERESTED")
     decode_type(rest, [%{type: :not_interested} | acc])
   end
 
@@ -95,12 +101,14 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@have_len::size(32), @have_id, piece_index::size(32), rest::bytes>>,
          acc
        ) do
+    Logger.debug("DECODE : HAVE #{piece_index}}")
     decode_type(rest, [%{type: :have, piece_index: piece_index} | acc])
   end
 
   # NOTE: A bitfield of the wrong length is considered an error.
   defp decode_type(<<length::size(32), @bitfield_id, rest::bytes>>, acc)
        when length - 1 == byte_size(rest) do
+    Logger.debug("DECODE : BITFIELD")
     # Subtract the id's length.
     length = length - 1
 
@@ -126,6 +134,7 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug("DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{block_length}")
     decode_type(rest, [
       %{
         type: :request,
@@ -148,6 +157,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug("DECODE : PIECE index #{piece_index} block offset #{block_offset} block #{block}")
+    # Subtract the id's length.
     decode_type(rest, [
       %{
         type: :piece,
@@ -170,6 +181,7 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug("DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{block_length}")
     decode_type(rest, [
       %{
         type: :cancel,
@@ -183,6 +195,7 @@ defmodule BittorrentClient.Peer.Protocol do
 
   # Return the list of messages and any remaining bytes.
   defp decode_type(rest, acc) do
+    Logger.debug("DECODE : END OF DECODE")
     {Enum.reverse(acc), rest}
   end
 
@@ -265,5 +278,13 @@ defmodule BittorrentClient.Peer.Protocol do
       block_offset::size(32),
       block_length::size(32)
     >>
+  end
+
+  def tcp_buff_to_encoded_msg([x | rst]) do
+    <<x>> <> tcp_buff_to_encoded_msg(rst)
+  end
+
+  def tcp_buff_to_encoded_msg([]) do
+    <<>>
   end
 end

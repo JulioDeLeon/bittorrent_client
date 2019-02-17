@@ -123,7 +123,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp cleanup(peer_data) do
-    :ok = :tcp_conn_impl.close(peer_data.socket)
+    :ok = @tcp_conn_impl.close(peer_data.socket)
   end
 
   # these handle_info calls come from the socket for attention
@@ -142,25 +142,28 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # send over a message.
     # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
-    Logger.debug("#{peer_data.name} : timer ended, current state: #{inspect peer_data.state}}")
+    Logger.debug("#{peer_data.name} : timer ended, current state: #{inspect peer_data.state}")
     new_peer_data = send_message(peer_data.state, peer_data)
-    Logger.debug("#{peer_data.name} : sent messages, new state: #{inspect new_peer_data.state}}")
+    Logger.debug("#{peer_data.name} : sent messages, new state: #{inspect new_peer_data.state}")
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
     {:noreply, {%PeerData{new_peer_data | timer: timer}}}
   end
 
   # :DONE
-  def handle_info({:tcp, socket, msg}, {peer_data}) do
+  def handle_info({:tcp, socket, buff}, {peer_data}) do
     # this should handle what ever msgs that received from the peer
     # the tcp socket alerts the peer handler when there are messages to be read
-    {msgs, _} = PeerProtocol.decode(msg)
 
     Logger.debug(fn ->
-      "#{peer_data.name} has recieved the following message buff #{
-        inspect(msgs)
-      }"
-      
+      "#{peer_data.name} has recieved the following message raw #{inspect(buff)}"
+    end)
+    {msgs, _} = buff
+    |> PeerProtocol.tcp_buff_to_encoded_msg()
+    |> PeerProtocol.decode()
+
+    Logger.debug(fn ->
+      "#{peer_data.name} has recieved the following message buff #{inspect(msgs)}"
     end)
 
     new_peer_data = loop_msgs(msgs, socket, peer_data)
@@ -199,7 +202,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     expected = Map.get(peer_data, "info_hash")
 
     if msg != expected do
-      Logger.error("INFO HASH did not match #{msg} != #{expected}")
+      Logger.error("INFO HASH did not match #{inspect msg} != #{inspect expected}")
       Logger.error("Not acting upon this")
     end
 
