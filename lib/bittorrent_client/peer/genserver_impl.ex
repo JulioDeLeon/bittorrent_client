@@ -142,14 +142,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # send over a message.
     # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
-    new_state = send_message(peer_data.state, peer_data)
+    Logger.debug("#{peer_data.name} : timer ended, current state: #{inspect peer_data.state}}")
+    new_peer_data = send_message(peer_data.state, peer_data)
+    Logger.debug("#{peer_data.name} : sent messages, new state: #{inspect new_peer_data.state}}")
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
-    {:noreply,
-     {%PeerData{
-        new_state
-        | timer: timer
-      }}}
+    {:noreply, {%PeerData{new_peer_data | timer: timer}}}
   end
 
   # :DONE
