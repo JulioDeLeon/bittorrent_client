@@ -1,5 +1,4 @@
 defmodule BittorrentClient.Repo do
-
   @doc """
   Dynamically loads the repository url from the
   DATABASE_URL environment variable.

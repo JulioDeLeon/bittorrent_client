@@ -11,7 +11,9 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(name, opts) do
-    Logger.info("Starting BTC Mnesia Cache for #{inspect name} with #{inspect opts}")
+    Logger.info(
+      "Starting BTC Mnesia Cache for #{inspect(name)} with #{inspect(opts)}"
+    )
 
     GenServer.start_link(
       __MODULE__,
@@ -24,8 +26,12 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     case :mnesia.create_table(name, opts) do
       {:atomic, :ok} ->
         {:ok, {name, opts}}
+
       {:aborted, reason} ->
-        Logger.error("Failed to create Cache for #{inspect name} : #{inspect reason}")
+        Logger.error(
+          "Failed to create Cache for #{inspect(name)} : #{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
@@ -33,15 +39,19 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   def handle_call({:get_all}, _from, {name, opts}) do
     trans = fn ->
       name
-      |> :mnesia.all_keys
+      |> :mnesia.all_keys()
       |> Enum.reduce({:ok, []}, fn elem, {check, ret} ->
         if check == :aborted do
           {check, ret}
         else
           case :mnesia.read({name, elem}) do
             {:aborted, reason} ->
-              Logger.error("#{inspect name} Failed to retrieve #{inspect elem}")
+              Logger.error(
+                "#{inspect(name)} Failed to retrieve #{inspect(elem)}"
+              )
+
               {:aborted, reason}
+
             [{_serv, key, val} | _rst] ->
               {check, ret ++ [{key, val}]}
           end
@@ -52,8 +62,14 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     case :mnesia.transaction(trans) do
       {:atomic, {:ok, result}} ->
         {:reply, {:ok, result}, {name, opts}}
+
       {:aborted, reason} ->
-        Logger.error("Cache for #{inspect name} failed to get all elements : #{inspect reason}")
+        Logger.error(
+          "Cache for #{inspect(name)} failed to get all elements : #{
+            inspect(reason)
+          }"
+        )
+
         {:reply, {:error, reason}, {name, opts}}
     end
   end
@@ -66,12 +82,21 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     case :mnesia.transaction(trans) do
       {:atomic, []} ->
         reason = "Does not exist"
-        Logger.error("Cache for #{inspect name} failed to get #{key} : #{reason}")
+
+        Logger.error(
+          "Cache for #{inspect(name)} failed to get #{key} : #{reason}"
+        )
+
         {:reply, {:error, reason}, {name, opts}}
+
       {:atomic, [{_serv, key, val} | _rst]} ->
         {:reply, {:ok, [{key, val}]}, {name, opts}}
+
       {:aborted, reason} ->
-        Logger.error("Cache for #{inspect name} failed to get #{key} : #{inspect reason}")
+        Logger.error(
+          "Cache for #{inspect(name)} failed to get #{key} : #{inspect(reason)}"
+        )
+
         {:reply, {:error, reason}, {name, opts}}
     end
   end
@@ -84,8 +109,12 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     case :mnesia.transaction(trans) do
       {:atomic, :ok} ->
         {:reply, :ok, {name, opts}}
+
       {:aborted, reason} ->
-        Logger.error("Cache for #{inspect name} failed to set #{key} : #{inspect reason}")
+        Logger.error(
+          "Cache for #{inspect(name)} failed to set #{key} : #{inspect(reason)}"
+        )
+
         {:reply, {:error, reason}, {name, opts}}
     end
   end
@@ -98,8 +127,14 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     case :mnesia.transaction(trans) do
       {:atomic, :ok} ->
         {:reply, :ok, {name, opts}}
+
       {:aborted, reason} ->
-        Logger.error("Cache for #{inspect name} failed to delete #{key} : #{inspect reason}")
+        Logger.error(
+          "Cache for #{inspect(name)} failed to delete #{key} : #{
+            inspect(reason)
+          }"
+        )
+
         {:reply, {:error, reason}, {name, opts}}
     end
   end

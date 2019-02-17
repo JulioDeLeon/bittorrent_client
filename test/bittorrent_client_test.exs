@@ -31,9 +31,9 @@ defmodule BittorrentClientTest do
         |> Base.encode16()
 
       expected = "F71E7DEFC014563FC7D8FFE26F759B2518C30F34"
-#        "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
-#        |> URI.decode()
-#        |> Base.encode16()
+      #        "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
+      #        |> URI.decode()
+      #        |> Base.encode16()
 
       assert hash == expected
       assert URI.encode(hash) == URI.encode(expected)

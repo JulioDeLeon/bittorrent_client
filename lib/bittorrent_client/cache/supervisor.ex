@@ -6,9 +6,18 @@ defmodule BittorrentClient.Cache.Supervisor do
   @config_cache_impl Application.get_env(:bittorrent_client, :config_cache_impl)
   @config_cache_name Application.get_env(:bittorrent_client, :config_cache_name)
   @config_cache_opts Application.get_env(:bittorrent_client, :config_cache_opts)
-  @torrent_cache_impl Application.get_env(:bittorrent_client, :torrent_cache_impl)
-  @torrent_cache_name Application.get_env(:bittorrent_client, :torrent_cache_name)
-  @torrent_cache_opts Application.get_env(:bittorrent_client, :torrent_cache_opts)
+  @torrent_cache_impl Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_impl
+                      )
+  @torrent_cache_name Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_name
+                      )
+  @torrent_cache_opts Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_opts
+                      )
 
   def start_link do
     Logger.info("Starting Cache Supervisor")
@@ -19,17 +28,22 @@ defmodule BittorrentClient.Cache.Supervisor do
     children = [
       %{
         id: @config_cache_name,
-        start: {@config_cache_impl, :start_link, [@config_cache_name, @config_cache_opts]},
+        start:
+          {@config_cache_impl, :start_link,
+           [@config_cache_name, @config_cache_opts]},
         restart: :permanent,
         shutdown: :infinity
       },
       %{
         id: @torrent_cache_name,
-        start: {@torrent_cache_impl, :start_link, [@torrent_cache_name, @torrent_cache_opts]},
+        start:
+          {@torrent_cache_impl, :start_link,
+           [@torrent_cache_name, @torrent_cache_opts]},
         restart: :permanent,
         shutdown: :infinity
       }
     ]
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 end

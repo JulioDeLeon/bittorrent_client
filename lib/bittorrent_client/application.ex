@@ -9,6 +9,7 @@ defmodule BittorrentClient.Application do
     case initialize_env() do
       {:error, err} ->
         {:error, err}
+
       :ok ->
         startup()
     end
@@ -24,7 +25,7 @@ defmodule BittorrentClient.Application do
   # Initialize Mnesia on startup
   @spec initialize_env :: :ok | {:error, any()}
   defp initialize_env do
-    :mnesia.start
+    :mnesia.start()
   end
 
   defp startup do
@@ -38,9 +39,9 @@ defmodule BittorrentClient.Application do
       # Start your own worker by calling: BittorrentClient.Worker.start_link(arg1, arg2, arg3)
       # worker(BittorrentClient.Worker, [arg1, arg2, arg3]),
       supervisor(BittorrentClient.Server.Supervisor, [
-            @file_destination,
-            @server_name
-          ]),
+        @file_destination,
+        @server_name
+      ]),
       supervisor(BittorrentClient.Torrent.Supervisor, []),
       supervisor(BittorrentClient.Peer.Supervisor, []),
       supervisor(BittorrentClient.Cache.Supervisor, [])
