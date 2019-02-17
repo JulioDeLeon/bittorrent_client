@@ -12,9 +12,12 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     :num_pieces,
     :piece_hashes,
     :piece_length,
+    # still needed?
     :request_queue,
+    # still needed?
     :bits_recieved,
     :piece_buffer,
+    # still needed? torrent process should only have table
     :piece_table,
     :need_piece
   ]

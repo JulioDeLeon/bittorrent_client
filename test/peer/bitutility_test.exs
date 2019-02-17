@@ -82,4 +82,33 @@ defmodule BittorrentClient.Peer.BitUtility.Test do
     buff = BitUtility.create_full_bitfield(pieces, piece_length)
     assert(buff == expected)
   end
+
+  test "check if bit is set on certain position" do
+    # zero-indexed
+    index = 8
+    buff = <<0, 128, 0>>
+    {:ok, check} = BitUtility.is_set(buff, index)
+    assert(check == true)
+
+    index = 2
+    {:ok, check} = BitUtility.is_set(buff, index)
+    assert(check == false)
+
+    invalid_index = 30
+    {check, _} = BitUtility.is_set(buff, invalid_index)
+    assert(check == :error)
+
+    buff2 = <<128, 0, 0>>
+    index = 0
+    {:ok, check} = BitUtility.is_set(buff2, index)
+    assert(check == true)
+
+    empty_buff = <<>>
+    {check, _} = BitUtility.is_set(empty_buff, index)
+    assert(check == :error)
+
+    invalid_index = -1
+    {check, _} = BitUtility.is_set(buff2, invalid_index)
+    assert(check == :error)
+  end
 end
