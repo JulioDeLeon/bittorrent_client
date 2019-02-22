@@ -55,7 +55,7 @@ defmodule BittorrentClient.Peer.Data do
   defstruct [
     :id,
     :torrent_tracking_info,
-    :known_bitfield,
+    :known_indexes,
     :handshake_check,
     :need_piece,
     :filename,
@@ -72,7 +72,7 @@ defmodule BittorrentClient.Peer.Data do
   @type t :: %__MODULE__{
           id: String.t(),
           torrent_tracking_info: TorrentTrackingInfo.t(),
-          known_bitfield: binary(),
+          known_indexes: list(integer()),
           filename: String.t(),
           handshake_check: boolean,
           need_piece: boolean,

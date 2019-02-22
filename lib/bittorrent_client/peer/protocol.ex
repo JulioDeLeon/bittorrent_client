@@ -211,7 +211,8 @@ defmodule BittorrentClient.Peer.Protocol do
 
   # Return the list of messages and any remaining bytes.
   defp decode_type(rest, acc) do
-    Logger.debug("DECODE : END OF DECODE")
+    Logger.debug("DECODE : END OF DECODE REST SIZE #{byte_size(rest)}}")
+
     {Enum.reverse(acc), rest}
   end
 
@@ -247,11 +248,6 @@ defmodule BittorrentClient.Peer.Protocol do
   def encode(:bitfield, bitfield) do
     msg = <<@bitfield_id>> <> bitfield
     <<byte_size(msg)::size(32)>> <> msg
-  end
-
-  def encode(:bitfield, <<>>) do
-    msg = <<@bitfield_id>> <> <<>>
-    <<@no_payload_len::size(32)>> <> msg
   end
 
   def encode(type, piece_index, block_offset, block_len \\ @block_len)
