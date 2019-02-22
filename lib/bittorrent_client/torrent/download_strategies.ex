@@ -6,7 +6,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
     if !Map.has_key?(piece_table, index) do
       false
     else
-      {status, _} = Map.get(piece_table, index)
+      {status, _, _} = Map.get(piece_table, index)
       status == :found
     end
   end
@@ -23,7 +23,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
 
   def determine_next_piece(:rarest_piece, piece_table, indexes) do
     get_ref_count = fn i ->
-      {_, ref_count} = Map.get(piece_table, i)
+      {_, ref_count, _} = Map.get(piece_table, i)
       ref_count
     end
 

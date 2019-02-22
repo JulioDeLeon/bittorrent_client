@@ -99,7 +99,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:get_next_piece_index, known_list}, _from, {metadata, data}) do
-    case DownloadStrategies.determine_next_piece(:rarest_piece, data.pieces, known_list) do
+    case DownloadStrategies.determine_next_piece(
+           :rarest_piece,
+           data.pieces,
+           known_list
+         ) do
       {:ok, piece_index} ->
         new_piece_table = Map.merge(data.pieces, %{piece_index => :started})
 
@@ -171,7 +175,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def handle_call({:get_completed_piece_list}, _from, {metadata, data}) do
     completed_indexes =
       Enum.reduce(Map.keys(data.pieces), [], fn elem, acc ->
-        {status, _} = Map.fetch!(data.pieces, elem)
+        {status, _, _} = Map.fetch!(data.pieces, elem)
 
         case status do
           :completed -> [elem | acc]
@@ -291,7 +295,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
-      {:add_piece_index, peer_id, lst}
+      {:add_multi_pieces, peer_id, lst}
     )
   end
 
@@ -468,10 +472,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp add_single_piece(peer_id, index, piece_table) do
     if !Map.has_key?(piece_table, index) do
-      {:ok, Map.put(piece_table, index, {:found, 1})}
+      {:ok, Map.put(piece_table, index, {:found, 1, <<>>})}
     else
-      {status, ref_count} = Map.get(piece_table, index)
-      {:ok, Map.put(piece_table, index, {status, ref_count + 1})}
+      {status, ref_count, buff} = Map.get(piece_table, index)
+      {:ok, Map.put(piece_table, index, {status, ref_count + 1, buff})}
     end
   end
 
@@ -481,12 +485,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     if !Map.has_key?(piece_table, index) do
       {:error, "#{index} does not exist in given piece table"}
     else
-      {status, ref_count} = Map.get(piece_table, index)
+      {status, ref_count, buff} = Map.get(piece_table, index)
 
       if status == :found and ref_count == 1 do
         {:ok, Map.delete(piece_table, index)}
       else
-        {:ok, Map.put(piece_table, index, {status, ref_count - 1})}
+        {:ok, Map.put(piece_table, index, {status, ref_count - 1, buff})}
       end
     end
   end

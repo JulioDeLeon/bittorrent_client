@@ -1,0 +1,55 @@
+
+# Handling Known/Completed knowledge among processes #
+
+the torrent process will have 1 piece table
+  - the piece table will track the following
+    - the progress of each piece as an entry
+      -the state of the piece: known, in-progress, completed
+
+the peer process will have 1 bitfield 
+  - one for known pieces
+
+the peer process will track current working piece info, (current index and block)
+
+when the peer proccess recieves a bitfield message, 
+  it will populate its own 'known' bitfield message 
+  then send the buffer to torrent process
+
+when the torrent processs recieves a known bitfield message,
+  it will populate its piece table with pieces known if not already in progress or completed
+
+when the peer process recieves a 'have' message from the peer connection
+  it will update its own known bitfield 
+  it will send a known piece message to torrent process
+
+# Handling the retrieval of a new piece from peer connection #
+when the peer proccess needs to request a new piece from the peer connection
+  it will have a known bitfield
+  the peer process will request a piece from the torrent process by sending its known bitfield
+  the torrent process will return the first piece which is both not in progress and not completed
+  the torrent process will mark that piece in-progress
+  
+  if the torrent proccess has all completed pieces (no leaching needed) 
+    it will alert the peer process that no leaching is needed
+    the peer process will not send a keep alive
+    the peer process will send a 'not_interested' message
+
+# Handling the request of a new piece from peer connections #
+when the peer process is in unchoked states, 
+  it will begin to request a new piece from its connection
+  
+  first it will as for a completed list from parent torrent process
+  next it cross reference its own list of known pieces with completed list for next index to work on
+  once calcuated, the peer process will request the index from torrent process to work on
+  if approved,
+    - the peer process will update current piece progress
+    - send 'piece' request to peer connection
+  if not approved,
+    - request, next possible piece
+    - if out of options, terminate peer process
+
+# Handling the termination of a peer process #
+when the peer process needs to terminated 
+  the peer process should close the port connection
+  the peer process should remove its known pieces from torrent process references
+
