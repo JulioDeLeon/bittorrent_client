@@ -58,17 +58,13 @@ defmodule BittorrentClient.Peer.BitUtility do
   end
 
   def is_set(bitstr, pos) do
-    if pos > bit_size(bitstr) || pos < 0 do
+    if pos >= bit_size(bitstr) || pos < 0 do
       {:error, "invalid position was given"}
     else
       byte_pos = div(pos, 8)
       bit_pos = Bitwise.>>>(@byte_starting_pos, rem(pos, 8))
-      case String.at(bitstr, byte_pos) do
-        <<actual_byte>> ->
-          {:ok, 0 < Bitwise.&&&(bit_pos, actual_byte)}
-        <<>> ->
-          {:error, "Incorrect byte calculated: byte_pos: #{byte_pos} bit_pos: #{bit_pos} buffer byte size #{byte_size(bitstr)}"}
-      end
+      <<actual_byte>> = String.at(bitstr, byte_pos)
+      {:ok, 0 < Bitwise.&&&(bit_pos, actual_byte)}
     end
   end
 
@@ -122,13 +118,15 @@ defmodule BittorrentClient.Peer.BitUtility do
   end
 
   def parse_bitfield(bitstr) do
-    Enum.filter(0..bit_size(bitstr), fn i ->
+    Enum.filter(0..(bit_size(bitstr) - 1), fn i ->
       case is_set(bitstr, i) do
         {:ok, true} ->
           true
-        {:error, reason}->
+
+        {:error, reason} ->
           Logger.error(reason)
           false
+
         _ ->
           false
       end

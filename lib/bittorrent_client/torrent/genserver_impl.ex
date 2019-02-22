@@ -8,6 +8,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
+  alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
 
@@ -98,7 +99,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:get_next_piece_index, known_list}, _from, {metadata, data}) do
-    case determine_next_piece(data.pieces, known_list) do
+    case DownloadStrategies.determine_next_piece(:rarest_piece, data.pieces, known_list) do
       {:ok, piece_index} ->
         new_piece_table = Map.merge(data.pieces, %{piece_index => :started})
 
@@ -133,8 +134,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         {:reply, {:error, reason}, {metadata, data}}
 
       {:ok, new_piece_table} ->
-        {:reply, {:ok, "Successfully updated #{index} to piece table : added #{peer_id} to table"},
-          {metadata, %TorrentData{data | pieces: new_piece_table}}}
+        {:reply,
+         {:ok,
+          "Successfully updated #{index} to piece table : added #{peer_id} to table"},
+         {metadata, %TorrentData{data | pieces: new_piece_table}}}
     end
   end
 
@@ -143,6 +146,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       case add_single_piece(peer_id, elem, piece_table) do
         {:ok, n_table} ->
           {n_table, [elem | valid_indexes]}
+
         {:error, _reason} ->
           {piece_table, valid_indexes}
       end
@@ -453,32 +457,37 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     parse_peers_binary(tab)
   end
 
-  defp determine_next_piece(piece_map, [fst | rst]) do
-    if fst >= 0 and Map.has_key?(piece_map, fst) do
-      case Map.fetch!(piece_map, fst) do
-        :found -> {:ok, fst}
-        _ -> determine_next_piece(piece_map, rst)
-      end
-    else
-      determine_next_piece(piece_map, rst)
-    end
-  end
-
-  defp determine_next_piece(_, []) do
-    {:error, "no possible pieces available"}
-  end
-
-  @spec add_single_piece(peer_id :: binary(), index :: integer(), piece_table :: map()) :: {:ok, map()} | {:error, binary()}
-  defp add_single_piece(_peer_id, index , _piece_table) when index < 0 do
+  @spec add_single_piece(
+          peer_id :: binary(),
+          index :: integer(),
+          piece_table :: map()
+        ) :: {:ok, map()} | {:error, binary()}
+  defp add_single_piece(_peer_id, index, _piece_table) when index < 0 do
     {:error, "Invalid index #{index}"}
   end
 
   defp add_single_piece(peer_id, index, piece_table) do
     if !Map.has_key?(piece_table, index) do
-      {:ok, Map.put(piece_table, index, {:found, [peer_id]})}
+      {:ok, Map.put(piece_table, index, {:found, 1})}
     else
-      {status, known_peer_lst} = Map.get(piece_table, index)
-      {:ok, Map.put(piece_table, index, {status, [peer_id | known_peer_lst]})}
+      {status, ref_count} = Map.get(piece_table, index)
+      {:ok, Map.put(piece_table, index, {status, ref_count + 1})}
+    end
+  end
+
+  @spec remove_ref_from_single_piece(map(), integer()) ::
+          {:ok, map()} | {:error, binary()}
+  defp remove_ref_from_single_piece(piece_table, index) do
+    if !Map.has_key?(piece_table, index) do
+      {:error, "#{index} does not exist in given piece table"}
+    else
+      {status, ref_count} = Map.get(piece_table, index)
+
+      if status == :found and ref_count == 1 do
+        {:ok, Map.delete(piece_table, index)}
+      else
+        {:ok, Map.put(piece_table, index, {status, ref_count - 1})}
+      end
     end
   end
 
