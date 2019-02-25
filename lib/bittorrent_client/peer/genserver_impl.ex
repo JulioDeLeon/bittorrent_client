@@ -461,14 +461,29 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()
   def send_message(:me_choke_it_interest, peer_data) do
-    # if pieces are known, send interested msg
+    if len(peer_data.known_indexes) != 0 do
+      msg = PeerProtocol.encode(:interested)
+      case @tcp_conn_impl.send(peer_data.socket, msg) do
+        :ok ->
+          peer_data
 
-    {:ok, new_peer_data} = handle_serving_behaviour(peer_data)
-    new_peer_data
+        {:error, reason} ->
+          Logger.error("#{peer_data.name} : #{reason}")
+      end
+    else
+      case handle_behaviour(:seed, peer_data) do
+        {:ok, new_peer_data} ->
+          new_peer_data
+
+        {:error, reason} ->
+          Logger.error("#{peer_data.name} : #{reason}")
+          peer_data
+      end
+    end
   end
 
   def send_message(:me_interest_it_choke, peer_data) do
-    case handle_leeching_behaviour(peer_data) do
+    case handle_behaviour(:leech, peer_data) do
       {:ok, new_peer_data} ->
         new_peer_data
 
@@ -521,9 +536,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     @tcp_conn_impl.connect(ip, port, [])
   end
 
-  @spec handle_leeching_behaviour(PeerData.t()) ::
+  @spec handle_behaviour(atom(), PeerData.t()) ::
           {:ok, PeerData.t()} | {:error, binary()}
-  defp handle_leeching_behaviour(peer_data) do
+  defp handle_behaviour(:leech, peer_data) do
     if peer_data.need_piece do
       # if the is not a piece in progress, request a new piece
       Logger.debug(
@@ -543,6 +558,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  def handle_behaviour(:seed, peer_data) do
+    {:error,
+     "#{peer_data.name} : is trying to serve piece but this is not implemented"}
+  end
+
   @spec handle_new_piece_request(PeerData.t()) ::
           {:ok, PeerData.t()} | {:error, binary()}
   defp handle_new_piece_request(peer_data) do
@@ -558,7 +578,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         msg2 =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
 
-        {:ok, _} = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
+        :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
         new_ttinfo =
           peer_data.torrent_tracking_info
@@ -575,7 +595,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       {:error, reason} ->
         # send a not_interested request to peer connection
         msg2 = PeerProtocol.encode(:not_interested)
-        {:ok} = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
+        :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
         {:error, reason}
     end
   end
@@ -592,14 +612,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         peer_data.torrent_tracking_info.expected_sub_piece_index
       )
 
-    {:ok, _} = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
+    :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
     {:ok, peer_data}
-  end
-
-  @spec handle_serving_behaviour(PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, binary()}
-  def handle_serving_behaviour(peer_data) do
-    {:error,
-     "#{peer_data.name} : is trying to serve piece but this is not implemented"}
   end
 end
