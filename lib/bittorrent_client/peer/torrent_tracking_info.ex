@@ -13,12 +13,9 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     :num_pieces,
     :piece_hashes,
     :piece_length,
-    # still needed?
     :request_queue,
-    # still needed?
     :bits_recieved,
     :piece_buffer,
-    # still needed? torrent process should only have table
     :piece_table,
     :need_piece
   ]
@@ -36,14 +33,17 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           expected_piece_index: integer(),
           expected_sub_piece_index: integer(),
           num_pieces: integer(),
-          piece_hashes: [binary()],
+          piece_hashes: list(binary()),
           piece_length: integer(),
           request_queue: [piece_index_request],
           piece_buffer: binary(),
           bits_recieved: integer(),
-          piece_table: %{piece_index => piece_table_entry},
+          piece_table: map(),
           need_piece: boolean()
         }
+
+  @spec get_known_pieces(__MODULE__.t()) :: list(integer())
+  def get_known_pieces(ttinfo), do: Map.keys(ttinfo.piece_table)
 
   @spec add_found_piece_index(atom(), __MODULE__.t(), piece_index) ::
           {:ok, __MODULE__.t()} | {:error, reason}

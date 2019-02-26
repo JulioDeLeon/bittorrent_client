@@ -53,3 +53,27 @@ when the peer process needs to terminated
   the peer process should close the port connection
   the peer process should remove its known pieces from torrent process references
 
+
+# Responsibilties of PeerData and TorrentTrackingInfo #
+the peer data will track 
+  name
+  id
+  tcp connection
+  state of peer connection 
+  timer 
+  handshake_check (related to state of connection)
+  interval
+  peer ip and port
+
+the torrent tracking info will track
+  id of torrent process
+  infohash
+  the expected piece index and sub index
+  piece_length
+  request queue
+  bits recieved
+  piece buffer
+  
+the torrent process will track
+  the piece table
+
