@@ -39,7 +39,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       piece_hashes: parsed_piece_hashes,
       piece_table: %{},
       bits_recieved: 0,
-      piece_buffer: <<>>
+      piece_buffer: <<>>,
+      need_piece: true
     }
 
     peer_data = %PeerData{
@@ -319,9 +320,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         peer_data
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
-        |> Map.get_and_update(:known_indexes, fn lst ->
-          [msg.piece_index | lst]
-        end)
 
       {:error, errmsg} ->
         Logger.error(
@@ -352,7 +350,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         peer_data
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
-        |> Map.put(:known_indexes, new_piece_indexes)
 
       {:error, errmsg} ->
         Logger.error(
@@ -374,8 +371,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}"
       end)
 
-      {offset, _} = Integer.parse(msg.block_offsest)
-      {length, _} = Integer.parse(msg.block_length)
+      offset = msg.block_offset
+      length = 32
 
       case TorrentTrackingInfo.add_piece_index_data(
              ttinfo,
@@ -461,65 +458,76 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   @spec send_message(PeerData.state(), PeerData.t()) :: PeerData.t()
   def send_message(:me_choke_it_interest, peer_data) do
-    if len(peer_data.known_indexes) != 0 do
-      msg = PeerProtocol.encode(:interested)
-      case @tcp_conn_impl.send(peer_data.socket, msg) do
-        :ok ->
-          peer_data
+    init_msg = PeerProtocol.encode(:keep_alive)
 
-        {:error, reason} ->
-          Logger.error("#{peer_data.name} : #{reason}")
-      end
-    else
-      case handle_behaviour(:seed, peer_data) do
-        {:ok, new_peer_data} ->
-          new_peer_data
+    {new_peer_data, msgs} =
+      {peer_data, init_msg}
+      |> create_message(:interested)
+      |> create_message(:seed)
 
-        {:error, reason} ->
-          Logger.error("#{peer_data.name} : #{reason}")
-          peer_data
-      end
+    case @tcp_conn_impl.send(peer_data.socket, msgs) do
+      :ok ->
+        new_peer_data
+
+      {:error, reason} ->
+        Logger.error(reason)
+        peer_data
     end
   end
 
   def send_message(:me_interest_it_choke, peer_data) do
-    case handle_behaviour(:leech, peer_data) do
-      {:ok, new_peer_data} ->
+    init_msg = PeerProtocol.encode(:keep_alive)
+
+    {new_peer_data, msgs} =
+      {peer_data, init_msg}
+      |> create_message(:interested)
+      |> create_message(:leech)
+      |> create_message(:requested)
+
+    case @tcp_conn_impl.send(peer_data.socket, msgs) do
+      :ok ->
         new_peer_data
 
       {:error, reason} ->
-        Logger.error("#{peer_data.name} : #{reason}")
+        Logger.error(reason)
         peer_data
     end
   end
 
   def send_message(:we_interest, peer_data) do
-    Logger.debug("#{peer_data.name} : in we_interest state, doing nothing")
-    msg1 = PeerProtocol.encode(:keep_alive)
-    # This function should request a piece and serve a requested piece
-    @tcp_conn_impl.send(peer_data.socket, msg1)
-    peer_data
+    init_msg = PeerProtocol.encode(:keep_alive)
+
+    {new_peer_data, msgs} =
+      {peer_data, init_msg}
+      |> create_message(:interested)
+      |> create_message(:leech)
+      |> create_message(:requested)
+      |> create_message(:seed)
+
+    case @tcp_conn_impl.send(peer_data.socket, msgs) do
+      :ok ->
+        new_peer_data
+
+      {:error, reason} ->
+        Logger.error(reason)
+        peer_data
+    end
   end
 
   def send_message(:we_choke, peer_data) do
-    # if pieces are known, send interested msg
-    # also if pieces are requested from peer connection, send unchoke msg
+    init_msg = PeerProtocol.encode(:keep_alive)
 
-    case @torrent_impl.get_completed_piece_list(
-           peer_data.torrent_tracking_info.id
-         ) do
-      {:ok, lst} ->
-        interest_msg = PeerProtocol.encode(:interested)
-        @tcp_conn_impl.send(peer_data.socket, interest_msg)
-        peer_data
+    {new_peer_data, msgs} =
+      {peer_data, init_msg}
+      |> create_message(:interested)
+      |> create_message(:requested)
 
-      {:error, msg} ->
-        Logger.error(
-          "#{peer_data.name} could not retrieve completed list from parent proc: #{
-            msg
-          }"
-        )
+    case @tcp_conn_impl.send(peer_data.socket, msgs) do
+      :ok ->
+        new_peer_data
 
+      {:error, reason} ->
+        Logger.error(reason)
         peer_data
     end
   end
@@ -536,16 +544,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     @tcp_conn_impl.connect(ip, port, [])
   end
 
-  @spec handle_behaviour(atom(), PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, binary()}
-  defp handle_behaviour(:leech, peer_data) do
-    if peer_data.need_piece do
+  @spec create_message({PeerData.t(), binary()}, atom()) ::
+          {PeerData.t(), binary()}
+  def create_message({peer_data, buff}, :leech) do
+    if peer_data.torrent_tracking_info.need_piece do
       # if the is not a piece in progress, request a new piece
       Logger.debug(
         "#{peer_data.name} : needs a new piece to work on, requesting work from torrent process"
       )
 
-      handle_new_piece_request(peer_data)
+      handle_new_piece_request({peer_data, buff})
     else
       # else continue with current piece
       Logger.debug(
@@ -554,31 +562,48 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         }"
       )
 
-      handle_current_piece_request(peer_data)
+      handle_current_piece_request({peer_data, buff})
     end
   end
 
-  def handle_behaviour(:seed, peer_data) do
-    {:error,
-     "#{peer_data.name} : is trying to serve piece but this is not implemented"}
+  def create_message({peer_data, buff}, :interested) do
+    known_indexes =
+      TorrentTrackingInfo.get_known_pieces(peer_data.torrent_tracking_info)
+
+    need_piece = peer_data.torrent_tracking_info.need_piece
+
+    msg =
+      if length(known_indexes) > 0 and need_piece do
+        Logger.debug("#{peer_data.name} : is interested in peer connection")
+        PeerProtocol.encode(:interested)
+      else
+        Logger.debug("#{peer_data.name} : is not interested in peer connection")
+        PeerProtocol.encode(:not_interested)
+      end
+
+    {peer_data, buff <> msg}
   end
 
-  @spec handle_new_piece_request(PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, binary()}
-  defp handle_new_piece_request(peer_data) do
-    msg1 = PeerProtocol.encode(:keep_alive)
+  def create_message({peer_data, buff}, anything) do
+    Logger.error(
+      "#{peer_data.name} : is trying to #{anything}"
+    )
 
+    {peer_data, buff}
+  end
+
+  @spec handle_new_piece_request({PeerData.t(), binary()}) ::
+          {PeerData.t(), binary()}
+  defp handle_new_piece_request({peer_data, buff}) do
     case @torrent_impl.get_next_piece_index(
-           peer_data.torrent_id,
+           peer_data.torrent_tracking_info.id,
            Map.keys(peer_data.torrent_tracking_info.piece_table)
          ) do
       {:ok, next_piece_index} ->
         next_sub_piece_index = 0
 
-        msg2 =
+        msg =
           PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index)
-
-        :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
 
         new_ttinfo =
           peer_data.torrent_tracking_info
@@ -590,29 +615,24 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           |> Map.put(:torrent_tracking_info, new_ttinfo)
           |> Map.put(:need_piece, false)
 
-        {:ok, new_peer_data}
+        {new_peer_data, buff <> msg}
 
       {:error, reason} ->
-        # send a not_interested request to peer connection
-        msg2 = PeerProtocol.encode(:not_interested)
-        :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
-        {:error, reason}
+        Logger.error("#{peer_data.name} : #{reason}")
+        msg = PeerProtocol.encode(:not_interested)
+        {peer_data, buff <> msg}
     end
   end
 
-  @spec handle_current_piece_request(PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, binary()}
-  defp handle_current_piece_request(peer_data) do
-    msg1 = PeerProtocol.encode(:keep_alive)
-
-    msg2 =
+  @spec handle_current_piece_request({PeerData.t(), binary()}) ::
+          {PeerData.t(), binary()}
+  defp handle_current_piece_request({peer_data, buff}) do
+    msg =
       PeerProtocol.encode(
         :request,
         peer_data.torrent_tracking_info.expected_piece_index,
         peer_data.torrent_tracking_info.expected_sub_piece_index
       )
-
-    :ok = @tcp_conn_impl.send(peer_data.socket, msg1 <> msg2)
-    {:ok, peer_data}
+    {peer_data, buff <> msg}
   end
 end
