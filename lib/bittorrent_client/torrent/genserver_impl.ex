@@ -105,7 +105,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
            known_list
          ) do
       {:ok, piece_index} ->
-        new_piece_table = Map.merge(data.pieces, %{piece_index => :started})
+        {_, new_piece_table} = Map.get_and_update(data.pieces, piece_index, fn {status, ref_count, buff} ->
+          {{status, ref_count, buff}, {:started, ref_count, buff}}
+        end)
 
         {:reply, {:ok, piece_index},
          {metadata, %TorrentData{data | pieces: new_piece_table}}}

@@ -2,6 +2,8 @@ defmodule BittorrentClient.Peer.Protocol do
   @moduledoc """
   Peer protocol message decoder and encoder.
   Credit is given to https://github.com/unblevable/T.rex/tree/master/lib/trex/protocol.ex
+
+  https://wiki.theory.org/index.php/BitTorrentSpecification
   """
 
   require Logger
@@ -154,7 +156,7 @@ defmodule BittorrentClient.Peer.Protocol do
 
   defp decode_type(
          <<
-           _length::size(32),
+           length::size(32),
            @piece_id,
            piece_index::size(32),
            block_offset::size(32),
@@ -163,17 +165,13 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug(
-      "DECODE : PIECE index #{piece_index} block offset #{block_offset} block #{
-        block
-      }"
-    )
-
-    # Subtract the id's length.
+    block_length = calculate_block_length(length)
+    Logger.debug("DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{block_length} block #{block}")
     decode_type(rest, [
       %{
         type: :piece,
         piece_index: piece_index,
+        block_length: 32,
         block_offset: block_offset,
         block: block
       }
@@ -299,4 +297,7 @@ defmodule BittorrentClient.Peer.Protocol do
   def tcp_buff_to_encoded_msg([]) do
     <<>>
   end
+
+  @piece_length_offset 9
+  defp calculate_block_length(length_field), do: (length_field - @piece_length_offset)
 end
