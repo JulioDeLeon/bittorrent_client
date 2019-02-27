@@ -1,4 +1,5 @@
 defmodule BittorrentClient.Application do
+  @moduletag false
   use Application
 
   @file_destination Application.get_env(:bittorrent_client, :file_destination)

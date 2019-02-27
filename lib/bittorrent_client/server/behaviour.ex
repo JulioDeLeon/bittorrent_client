@@ -2,8 +2,8 @@ defmodule BittorrentClient.Server do
   @moduledoc """
   Behaviour definition for BittorrentClient's server mechanisms
   """
-  alias BittorrentClient.Torrent.Data, as: TorrentData
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
+  alias BittorrentClient.Torrent.Data, as: TorrentData
   @type torrent_entry :: %{bitstring() => TorrentMetainfo.t() | TorrentData.t()}
   @type torrent_table :: %{bitstring() => %{bitstring() => torrent_entry}}
   @type http_status :: integer()

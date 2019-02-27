@@ -2,9 +2,9 @@ defmodule BittorrentClient.Torrent do
   @moduledoc """
   Api definition of BittorrentClient.Torrent
   """
-  alias Bittorrent.Torrent.Data, as: TorrentData
   alias Bento.Metainfo.Torrent, as: TorrentMetainfo
   alias Bittorrent.Peer.Data, as: PeerData
+  alias Bittorrent.Torrent.Data, as: TorrentData
 
   @type torrentID :: String.t()
   @type peerID :: String.t()

@@ -42,7 +42,9 @@ defmodule BittorrentClient.Mixfile do
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
       {:httpoison, "~> 1.0.0"},
-      {:bento, "~> 0.9"}
+      {:bento, "~> 0.9"},
+      {:dialyxir, "~> 0.5.0", only: [:dev], runtime: false},
+      {:credo, "~> 1.0.0", only: [:dev], runtime: false}
     ]
   end
 

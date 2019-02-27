@@ -15,8 +15,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     :piece_hashes,
     :piece_length,
     :request_queue,
-    :bits_recieved,
-    :piece_buffer,
+    :bits_received,
     :piece_table,
     :need_piece
   ]
@@ -38,8 +37,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           piece_hashes: list(binary()),
           piece_length: integer(),
           request_queue: [piece_index_request],
-          piece_buffer: binary(),
-          bits_recieved: integer(),
+          bits_received: integer(),
           piece_table: map(),
           need_piece: boolean()
         }
@@ -92,7 +90,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
              ret
            else
              Logger.error(
-               "#{peer_id} could not add #{index} to piece_table : #{ret}"
+               "#{peer_id} could not add #{index} to piece_tablttinfoe : #{ret}"
              )
 
              acc
@@ -207,33 +205,49 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
        ) do
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
-        <<before::size(block_offset), aft>> = data
-        new_buffer = <<before, buff::size(block_length), aft>>
-        total_recieved = ttinfo.bits_recieved + block_length
+        new_buffer =
+          if data == "" do
+            <<buff::size(block_length)>>
+          else
+            <<before::size(block_offset), aft>> = data
+            <<before, buff::size(block_length), aft>>
+          end
+
+        total_received = ttinfo.bits_received + block_length
 
         case check_piece_completed(
                ttinfo,
                piece_index,
-               total_recieved,
+               total_received,
                new_buffer
              ) do
           {:ok, :incomplete} ->
-            {:ok,
-             %__MODULE__{
-               ttinfo
-               | piece_buffer: new_buffer,
-                 bits_recieved: total_recieved,
-                 need_piece: false
-             }}
+            new_piece_table =
+              ttinfo.piece_table
+              |> Map.put(piece_index, {:in_progress, new_buffer})
+
+            new_ttinfo =
+              ttinfo
+              |> Map.put(:bits_received, total_received)
+              |> Map.put(:need_piece, false)
+              |> Map.put(:piece_table, new_piece_table)
+
+            {:ok, new_ttinfo}
 
           {:ok, :complete} ->
-            {:ok,
-             %__MODULE__{
-               ttinfo
-               | piece_buffer: <<>>,
-                 bits_recieved: 0,
-                 need_piece: true
-             }}
+            new_piece_table =
+              ttinfo.piece_table
+              |> Map.put(piece_index, {:complete, new_buffer})
+
+            # zero out buffer? write to file? tell torrent process?
+
+            new_ttinfo =
+              ttinfo
+              |> Map.put(:piece_table, new_piece_table)
+              |> Map.put(:need_piece, true)
+              |> Map.put(:bits_received, 0)
+
+            {:ok, new_ttinfo}
 
           {:error, msg} ->
             {:error, msg}
@@ -246,8 +260,9 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
   @spec check_piece_completed(__MODULE__.t(), integer(), integer(), binary()) ::
           {:ok, atom()} | {:error, reason}
-  defp check_piece_completed(ttinfo, piece_index, total_recieved, piece_buff) do
-    if total_recieved == ttinfo.piece_length do
+  defp check_piece_completed(ttinfo, piece_index, total_received, piece_buff) do
+    if total_received == ttinfo.piece_length do
+      # this logic may be incorrect
       {:ok, :incomplete}
     else
       case @torrent_impl.mark_piece_index_done(

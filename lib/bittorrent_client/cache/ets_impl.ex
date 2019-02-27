@@ -1,6 +1,5 @@
 defmodule BittorrentClient.Cache.ETSImpl do
-  @moduledoc """
-  """
+  @moduledoc false
   @behaviour BittorrentClient.Cache
   use GenServer
   require Logger
@@ -34,15 +33,15 @@ defmodule BittorrentClient.Cache.ETSImpl do
   def handle_call({:set, key, val}, _from, {name, table_ref, opts}) do
     case :ets.lookup(table_ref, key) do
       [] ->
-        Logger.debug(
+        Logger.debug(fn ->
           "#{inspect(name)} does not have #{inspect(key)}, creating a new key"
-        )
+        end)
 
         true = :ets.insert_new(table_ref, {key, val})
         {:reply, :ok, {name, table_ref, opts}}
 
       _ ->
-        Logger.debug("#{inspect(name)} will override #{inspect(key)}")
+        Logger.debug(fn -> "#{inspect(name)} will override #{inspect(key)}" end)
         true = :ets.insert(table_ref, {key, val})
         {:reply, :ok, {name, table_ref, opts}}
     end
@@ -76,7 +75,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def set(cache_ref, key, val) do
-    Logger.debug("Entered set function for #{cache_ref}")
+    Logger.debug(fn -> "Entered set function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -85,7 +84,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def get(cache_ref, key) do
-    Logger.debug("Entered get function for #{cache_ref}")
+    Logger.debug(fn -> "Entered get function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -94,7 +93,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def delete(cache_ref, key) do
-    Logger.debug("Entered delete funcion for #{cache_ref}")
+    Logger.debug(fn -> "Entered delete funcion for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -103,7 +102,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def get_all(cache_ref) do
-    Logger.debug("Entered get_all function for #{cache_ref}")
+    Logger.debug(fn -> "Entered get_all function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -112,7 +111,7 @@ defmodule BittorrentClient.Cache.ETSImpl do
   end
 
   def get_configuration(cache_ref) do
-    Logger.debug("Entered get_configuration for #{cache_ref}")
+    Logger.debug(fn -> "Entered get_configuration for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),

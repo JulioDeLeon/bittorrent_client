@@ -50,7 +50,7 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug("DECODE : HANDSHAKE")
+    Logger.debug(fn -> "DECODE : HANDSHAKE" end)
 
     decode_type(rest, [
       %{
@@ -64,7 +64,7 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(<<@keep_alive_len::size(32), rest::bytes>>, acc) do
-    Logger.debug("DECODE : KEEP_ALIVE")
+    Logger.debug(fn -> "DECODE : KEEP_ALIVE" end)
     decode_type(rest, [%{type: :keep_alive} | acc])
   end
 
@@ -72,7 +72,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @choke_id, rest::bytes>>,
          acc
        ) do
-    Logger.debug("DECODE : CHOKE")
+    Logger.debug(fn -> "DECODE : CHOKE" end)
     decode_type(rest, [%{type: :choke} | acc])
   end
 
@@ -80,7 +80,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @unchoke_id, rest::bytes>>,
          acc
        ) do
-    Logger.debug("DECODE : UNCHOKE")
+    Logger.debug(fn -> "DECODE : UNCHOKE" end)
     decode_type(rest, [%{type: :unchoke} | acc])
   end
 
@@ -88,7 +88,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @interested_id, rest::bytes>>,
          acc
        ) do
-    Logger.debug("DECODE : INTERESTED")
+    Logger.debug(fn -> "DECODE : INTERESTED" end)
     decode_type(rest, [%{type: :interested} | acc])
   end
 
@@ -96,7 +96,7 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@no_payload_len::size(32), @not_interested_id, rest::bytes>>,
          acc
        ) do
-    Logger.debug("DECODE : NOT_INTERESTED")
+    Logger.debug(fn -> "DECODE : NOT_INTERESTED" end)
     decode_type(rest, [%{type: :not_interested} | acc])
   end
 
@@ -104,14 +104,14 @@ defmodule BittorrentClient.Peer.Protocol do
          <<@have_len::size(32), @have_id, piece_index::size(32), rest::bytes>>,
          acc
        ) do
-    Logger.debug("DECODE : HAVE #{piece_index}}")
+    Logger.debug(fn -> "DECODE : HAVE #{piece_index}}" end)
     decode_type(rest, [%{type: :have, piece_index: piece_index} | acc])
   end
 
   # NOTE: A bitfield of the wrong length is considered an error.
   defp decode_type(<<length::size(32), @bitfield_id, rest::bytes>>, acc)
        when length - 1 == byte_size(rest) do
-    Logger.debug("DECODE : BITFIELD")
+    Logger.debug(fn -> "DECODE : BITFIELD" end)
     # Subtract the id's length.
     length = length - 1
 
@@ -137,11 +137,11 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug(
+    Logger.debug(fn ->
       "DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{
         block_length
       }"
-    )
+    end)
 
     decode_type(rest, [
       %{
@@ -166,7 +166,13 @@ defmodule BittorrentClient.Peer.Protocol do
          acc
        ) do
     block_length = calculate_block_length(length)
-    Logger.debug("DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{block_length} block #{block}")
+
+    Logger.debug(fn ->
+      "DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{
+        block_length
+      } block #{block}"
+    end)
+
     decode_type(rest, [
       %{
         type: :piece,
@@ -190,11 +196,11 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    Logger.debug(
+    Logger.debug(fn ->
       "DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{
         block_length
       }"
-    )
+    end)
 
     decode_type(rest, [
       %{
@@ -209,7 +215,7 @@ defmodule BittorrentClient.Peer.Protocol do
 
   # Return the list of messages and any remaining bytes.
   defp decode_type(rest, acc) do
-    Logger.debug("DECODE : END OF DECODE REST SIZE #{byte_size(rest)}}")
+    Logger.debug(fn -> "DECODE : END OF DECODE REST SIZE #{byte_size(rest)}}" end)
 
     {Enum.reverse(acc), rest}
   end
@@ -299,5 +305,6 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   @piece_length_offset 9
-  defp calculate_block_length(length_field), do: (length_field - @piece_length_offset)
+  defp calculate_block_length(length_field),
+    do: length_field - @piece_length_offset
 end

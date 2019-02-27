@@ -4,10 +4,10 @@ defmodule BittorrentClient.Supervisor do
   """
   use Supervisor
 
-  alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
-  alias BittorrentClient.Web.Supervisor, as: WebSupervisor
-  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
+  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
+  alias BittorrentClient.Web.Supervisor, as: WebSupervisor
   @server_name Application.get_env(:bittorrent_client, :server_name)
 
   def start_link do

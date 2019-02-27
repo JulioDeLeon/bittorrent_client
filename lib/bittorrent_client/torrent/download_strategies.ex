@@ -1,13 +1,16 @@
 defmodule BittorrentClient.Torrent.DownloadStrategies do
+  @moduledoc """
+  This module implements multiple strategies for torrent process to use when determing how to download related pieces.
+  """
   require Logger
 
   @spec needs_work?(map(), integer()) :: boolean()
   defp needs_work?(piece_table, index) do
-    if !Map.has_key?(piece_table, index) do
-      false
-    else
+    if Map.has_key?(piece_table, index) do
       {status, _, _} = Map.get(piece_table, index)
       status == :found
+    else
+      false
     end
   end
 
