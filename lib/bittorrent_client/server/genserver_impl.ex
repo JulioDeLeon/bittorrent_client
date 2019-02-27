@@ -6,8 +6,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
   @behaviour BittorrentClient.Server
   use GenServer
   require Logger
-  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Torrent.Data, as: TorrentData
+  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
 
   # -------------------------------------------------------------------------------
@@ -55,7 +55,11 @@ defmodule BittorrentClient.Server.GenServerImpl do
 
     Logger.debug(fn -> "add_new_torrent Generated #{id}" end)
 
-    if not Map.has_key?(torrents, id) do
+    if Map.has_key?(torrents, id) do
+      {:reply,
+       {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
+       {db, server_name, torrents}}
+    else
       {status, secondary} = TorrentSupervisor.start_child({id, torrent_file})
       Logger.debug(fn -> "add_new_torrent Status: #{status}" end)
 
@@ -91,10 +95,6 @@ defmodule BittorrentClient.Server.GenServerImpl do
                {db, server_name, updated_torrents}}
           end
       end
-    else
-      {:reply,
-       {:error, {403, "That torrent already exist, Here's the ID: #{id}\n"}},
-       {db, server_name, torrents}}
     end
   end
 
@@ -155,7 +155,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   def handle_call({:update_by_id, id, data}, _from, {db, server_name, torrents}) do
     if Map.has_key?(torrents, id) do
       # TODO better way to do this
-      torrents = Map.update!(torrents, id, fn _dataPoint -> data end)
+      torrents = Map.update!(torrents, id, fn _data_point -> data end)
       {:reply, {:ok, torrents}, {db, server_name, torrents}}
     else
       {:reply, {:error, {403, "Bad ID was given"}}, {db, server_name, torrents}}

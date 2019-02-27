@@ -7,12 +7,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   use GenServer
   require Bitwise
   require Logger
-  alias BittorrentClient.TCPConn, as: TCPConn
+  alias BittorrentClient.Peer.BitUtility, as: BitUtil
   alias BittorrentClient.Peer.Data, as: PeerData
-  alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
   alias BittorrentClient.Peer.Protocol, as: PeerProtocol
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
-  alias BittorrentClient.Peer.BitUtility, as: BitUtil
+  alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
+  alias BittorrentClient.TCPConn, as: TCPConn
   alias String.Chars, as: Chars
 
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
@@ -38,8 +38,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       num_pieces: length(parsed_piece_hashes),
       piece_hashes: parsed_piece_hashes,
       piece_table: %{},
-      bits_recieved: 0,
-      piece_buffer: <<>>,
+      bits_received: 0,
       need_piece: true
     }
 
@@ -71,8 +70,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, []) do
       {:ok, sock} ->
-        setup_handshake(sock, timer, peer_data)
-
+        case setup_handshake(sock, timer, peer_data) do
+          {:ok, new_peer_data} ->
+            {:ok, new_peer_data}
+          {:error, _} ->
+            err_msg = "#{peer_data.name} failed initial handshake!"
+            Logger.error(err_msg)
+            raise err_msg
+        end
       {:error, msg} ->
         err_msg =
           "#{peer_data.name} could not send initial handshake to peer: #{msg}"
@@ -90,12 +95,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, binary()}
+          {:ok, PeerData.t()} | {:error, PeerData.t()}
   defp setup_handshake(sock, timer, peer_data) do
     # send bitfield msg after handshake. get completed list and create bitfield
     # for now sending empty bitfiled
     bf_msg = PeerProtocol.encode(:bitfield, <<>>)
-    Logger.debug("#{peer_data.name} is sending bitfield : #{bf_msg}}")
+    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}}" end)
 
     msg =
       PeerProtocol.encode(
@@ -111,7 +116,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} could not send handshake to peer: #{msg}"
         )
 
-        {:error, {peer_data}}
+        {:error, peer_data}
 
       _ ->
         {:ok,
@@ -144,19 +149,19 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
 
-    Logger.debug(
+    Logger.debug(fn ->
       "#{peer_data.name} : timer ended, current state: #{
         inspect(peer_data.state)
       }"
-    )
+    end)
 
     new_peer_data = send_message(peer_data.state, peer_data)
 
-    Logger.debug(
+    Logger.debug(fn ->
       "#{peer_data.name} : sent messages, new state: #{
         inspect(new_peer_data.state)
       }"
-    )
+    end)
 
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
@@ -549,18 +554,18 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def create_message({peer_data, buff}, :leech) do
     if peer_data.torrent_tracking_info.need_piece do
       # if the is not a piece in progress, request a new piece
-      Logger.debug(
+      Logger.debug(fn ->
         "#{peer_data.name} : needs a new piece to work on, requesting work from torrent process"
-      )
+      end)
 
       handle_new_piece_request({peer_data, buff})
     else
       # else continue with current piece
-      Logger.debug(
+      Logger.debug(fn ->
         "#{peer_data.name} : currently working on a piece #{
           peer_data.torrent_tracking_info.expected_piece_index
         }"
-      )
+      end)
 
       handle_current_piece_request({peer_data, buff})
     end
@@ -574,10 +579,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     msg =
       if length(known_indexes) > 0 and need_piece do
-        Logger.debug("#{peer_data.name} : is interested in peer connection")
+        Logger.debug(fn -> "#{peer_data.name} : is interested in peer connection" end)
         PeerProtocol.encode(:interested)
       else
-        Logger.debug("#{peer_data.name} : is not interested in peer connection")
+        Logger.debug(fn -> "#{peer_data.name} : is not interested in peer connection" end)
         PeerProtocol.encode(:not_interested)
       end
 
@@ -585,9 +590,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message({peer_data, buff}, anything) do
-    Logger.error(
-      "#{peer_data.name} : is trying to #{anything}"
-    )
+    Logger.error("#{peer_data.name} : is trying to #{anything}")
 
     {peer_data, buff}
   end
@@ -600,17 +603,24 @@ defmodule BittorrentClient.Peer.GenServerImpl do
            Map.keys(peer_data.torrent_tracking_info.piece_table)
          ) do
       {:ok, next_piece_index} ->
-        Logger.debug("#{peer_data.name} : will work on #{next_piece_index}")
+        Logger.debug(fn -> "#{peer_data.name} : will work on #{next_piece_index}" end)
         next_sub_piece_index = 0
         piece_length = 32
+
         msg =
-          PeerProtocol.encode(:request, next_piece_index, next_sub_piece_index, piece_length)
+          PeerProtocol.encode(
+            :request,
+            next_piece_index,
+            next_sub_piece_index,
+            piece_length
+          )
 
         new_ttinfo =
           peer_data.torrent_tracking_info
           |> Map.put(:expected_piece_index, next_piece_index)
           |> Map.put(:expected_sub_piece_index, next_sub_piece_index)
           |> Map.put(:expected_piece_length, piece_length)
+          |> Map.put(:bits_recieved, 0)
           |> Map.put(:need_piece, false)
 
         new_peer_data =
@@ -629,7 +639,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @spec handle_current_piece_request({PeerData.t(), binary()}) ::
           {PeerData.t(), binary()}
   defp handle_current_piece_request({peer_data, buff}) do
-    Logger.debug("#{peer_data.name} : will continue working on #{peer_data.torrent_tracking_info.expected_piece_index}")
+    Logger.debug(fn ->
+      "#{peer_data.name} : will continue working on #{
+        peer_data.torrent_tracking_info.expected_piece_index
+      }"
+    end)
+
     msg =
       PeerProtocol.encode(
         :request,
@@ -637,6 +652,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         peer_data.torrent_tracking_info.expected_sub_piece_index,
         peer_data.torrent_tracking_info.expected_piece_length
       )
+
     {peer_data, buff <> msg}
   end
 end

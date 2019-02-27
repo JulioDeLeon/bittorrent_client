@@ -6,10 +6,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   use GenServer
   require HTTPoison
   require Logger
-  alias BittorrentClient.Torrent.Data, as: TorrentData
-  alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
-  alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
+  alias BittorrentClient.Torrent.Data, as: TorrentData
+  alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
+  alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
@@ -105,9 +105,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
            known_list
          ) do
       {:ok, piece_index} ->
-        {_, new_piece_table} = Map.get_and_update(data.pieces, piece_index, fn {status, ref_count, buff} ->
-          {{status, ref_count, buff}, {:started, ref_count, buff}}
-        end)
+        {_, new_piece_table} =
+          Map.get_and_update(data.pieces, piece_index, fn {status, ref_count,
+                                                           buff} ->
+            {{status, ref_count, buff}, {:started, ref_count, buff}}
+          end)
 
         {:reply, {:ok, piece_index},
          {metadata, %TorrentData{data | pieces: new_piece_table}}}
@@ -473,20 +475,18 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp add_single_piece(peer_id, index, piece_table) do
-    if !Map.has_key?(piece_table, index) do
-      {:ok, Map.put(piece_table, index, {:found, 1, <<>>})}
-    else
+    if Map.has_key?(piece_table, index) do
       {status, ref_count, buff} = Map.get(piece_table, index)
       {:ok, Map.put(piece_table, index, {status, ref_count + 1, buff})}
+    else
+      {:ok, Map.put(piece_table, index, {:found, 1, <<>>})}
     end
   end
 
   @spec remove_ref_from_single_piece(map(), integer()) ::
           {:ok, map()} | {:error, binary()}
   defp remove_ref_from_single_piece(piece_table, index) do
-    if !Map.has_key?(piece_table, index) do
-      {:error, "#{index} does not exist in given piece table"}
-    else
+    if Map.has_key?(piece_table, index) do
       {status, ref_count, buff} = Map.get(piece_table, index)
 
       if status == :found and ref_count == 1 do
@@ -494,6 +494,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       else
         {:ok, Map.put(piece_table, index, {status, ref_count - 1, buff})}
       end
+    else
+      {:error, "#{index} does not exist in given piece table"}
     end
   end
 

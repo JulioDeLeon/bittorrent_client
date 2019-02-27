@@ -1,6 +1,5 @@
 defmodule BittorrentClient.Cache.MnesiaImpl do
-  @moduledoc """
-  """
+  @moduledoc false
   @behaviour BittorrentClient.Cache
   use GenServer
   require Logger
@@ -151,7 +150,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def set(cache_ref, key, val) do
-    Logger.debug("Entered set function for #{cache_ref}")
+    Logger.debug(fn -> "Entered set function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -160,7 +159,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def get(cache_ref, key) do
-    Logger.debug("Entered get function for #{cache_ref}")
+    Logger.debug(fn -> "Entered get function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -169,7 +168,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def delete(cache_ref, key) do
-    Logger.debug("Entered delete function for #{cache_ref}")
+    Logger.debug(fn -> "Entered delete function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -178,7 +177,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def get_all(cache_ref) do
-    Logger.debug("Enetered get_all function for #{cache_ref}")
+    Logger.debug(fn -> "Entered get_all function for #{cache_ref}"end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
@@ -187,7 +186,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def get_configuration(cache_ref) do
-    Logger.debug("Enetered get_configuration for #{cache_ref}")
+    Logger.debug(fn -> "Enetered get_configuration for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),
