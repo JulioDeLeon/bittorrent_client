@@ -1,4 +1,5 @@
 # App artifacts
+
 /_build
 /db
 /deps
@@ -28,5 +29,5 @@ npm-debug.log
 
 .vscode
 .elixir_ls
-
+.idea
 ./notes
