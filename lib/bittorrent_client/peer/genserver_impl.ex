@@ -94,8 +94,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :normal
   end
 
-  @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) ::
-          {:ok, PeerData.t()} | {:error, PeerData.t()}
+  @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) :: any()
   defp setup_handshake(sock, timer, peer_data) do
     # send bitfield msg after handshake. get completed list and create bitfield
     # for now sending empty bitfiled
@@ -564,7 +563,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       Logger.debug(fn ->
         "#{peer_data.name} : currently working on a piece #{
           peer_data.torrent_tracking_info.expected_piece_index
-        }"
+        } offset #{peer_data.torrent_tracking_info.expected_sub_piece_index}"
       end)
 
       handle_current_piece_request({peer_data, buff})
