@@ -164,8 +164,7 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
-    said_length = calculate_block_length(length)
-    block_length = if  byte_size(n_block) < said_length, do: byte_size(n_block), else: said_length
+    block_length = calculate_block_length(length)
     Logger.debug("DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{block_length}")
     block = :binary.part(n_block, 0, block_length)
     rest = :binary.part(n_block, byte_size(n_block), block_length-byte_size(n_block))
@@ -283,7 +282,8 @@ defmodule BittorrentClient.Peer.Protocol do
 
   def encode(:piece, piece_index, block_offset, piece) do
     msg = <<@piece_id, piece_index::size(32), block_offset::size(32)>> <> piece
-    <<byte_size(msg)::size(32)>> <> msg
+    size = 9 + byte_size(piece)
+    <<size>> <> msg
   end
 
   def encode(
