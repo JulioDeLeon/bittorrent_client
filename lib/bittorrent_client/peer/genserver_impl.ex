@@ -53,7 +53,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       filename: filename,
       state: :we_choke,
       torrent_tracking_info: torrent_track_info,
-      known_indexes: [],
+      running_buffer: <<>>,
       timer: nil,
       interval: interval,
       peer_ip: ip,
@@ -182,20 +182,54 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "#{peer_data.name} has received the following message raw #{inspect(buff)}"
     end)
 
-    {msgs, _leftovers} =
+    new_peer_data = if TorrentTrackingInfo.is_piece_in_progress?(peer_data.torrent_tracking_info) do
+      handle_incoming_piece_buffer(peer_data, socket, buff)
+    else
+      handle_regular_msg_buffer(peer_data, socket, buff)
+    end
+
+    # Logger.debug( "Returning this: #{inspect ret}")
+    {:noreply, {new_peer_data}}
+  end
+
+  defp handle_incoming_piece_buffer(peer_data, socket, buff) do
+    ttinfo = peer_data.torrent_tracking_info
+    expected_index =  ttinfo.expected_piece_index
+    expected_offset = ttinfo.expected_sub_piece_index
+    bin = PeerProtocol.tcp_buff_to_encoded_msg(buff)
+    size = byte_size(bin)
+
+    case TorrentTrackingInfo.add_piece_index_data(ttinfo, expected_index, expected_offset, size, bin) do
+      {:ok, new_ttinfo} ->
+        new_peer_data = peer_data
+        |> Map.put(:torrent_tracking_info, new_ttinfo)
+
+        new_peer_data
+      {:error, msg} ->
+        Logger.error(msg)
+        peer_data
+    end
+  end
+
+  defp handle_regular_msg_buffer(peer_data, socket, buff) do
+    {msgs, leftovers} =
       buff
       |> PeerProtocol.tcp_buff_to_encoded_msg()
+      |> fn bin -> peer_data.running_buffer <> bin end.()
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
-      "#{peer_data.name} has recieved the following message buff #{
+      "#{peer_data.name} has received the following message buff #{
         inspect(msgs)
       }"
     end)
 
-    new_peer_data = loop_msgs(msgs, socket, peer_data)
-    # Logger.debug( "Returning this: #{inspect ret}")
-    {:noreply, {new_peer_data}}
+    new_peer_data =
+      peer_data
+      |> loop_msgs(msgs, socket)
+      |> Map.put(:running_buffer, leftovers)
+
+    new_peer_data
   end
 
   # Extra use cases
@@ -444,13 +478,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
-  @spec loop_msgs(list(map()), TCPConn.t(), PeerData.t()) :: PeerData.t()
-  def loop_msgs([msg | msgs], socket, peer_data) do
+  @spec loop_msgs(PeerData.t(), list(map()), TCPConn.t()) :: PeerData.t()
+  def loop_msgs(peer_data, [msg | msgs], socket) do
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
-    loop_msgs(msgs, socket, new_peer_data)
+    loop_msgs(new_peer_data, msgs, socket)
   end
 
-  def loop_msgs([], _, peer_data) do
+  def loop_msgs(peer_data, [], _) do
     peer_data
   end
 

@@ -260,11 +260,8 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           |> Map.put(:bytes_received, total_received)
           |> Map.put(:need_piece, false)
           |> Map.put(:expected_piece_index, piece_index)
-          |> Map.put(
-            :expected_sub_piece_index,
-            block_offset + block_length
-          )
-          |> Map.put(:expected_piece_length, ttinfo.piece_length)
+          |> Map.put(:expected_sub_piece_index, block_offset + block_length)
+          |> Map.put(:expected_piece_length, block_length)
           |> Map.put(:piece_table, new_piece_table)
 
         {:ok, new_ttinfo}
@@ -338,5 +335,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     else
       {:error, "index does not exist in piece table"}
     end
+  end
+
+  @spec is_piece_in_progress?(__MODULE__.t()) :: boolean()
+  def is_piece_in_progress?(ttinfo) do
+    ttinfo.need_piece == false && ttinfo.bytes_recieved < ttinfo.expected_piece_length
   end
 end
