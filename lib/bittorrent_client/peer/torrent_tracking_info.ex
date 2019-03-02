@@ -4,7 +4,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   """
   require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @preferred_block_size 32
+  @default_block_size Application.get_env(
+                        :bittorrent_client,
+                        :default_block_size
+                      )
   @derive {Poison.Encoder, except: []}
   defstruct [
     :id,
@@ -16,7 +19,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     :piece_hashes,
     :piece_length,
     :request_queue,
-    :bits_received,
+    :bytes_received,
     :piece_table,
     :need_piece
   ]
@@ -38,7 +41,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           piece_hashes: list(binary()),
           piece_length: integer(),
           request_queue: [piece_index_request],
-          bits_received: integer(),
+          bytes_received: integer(),
           piece_table: map(),
           need_piece: boolean()
         }
@@ -202,59 +205,25 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
          piece_index,
          block_offset,
          block_length,
-         buff
+         block
        ) do
-    Logger.debug("ADDITION TO PIECE BUFF : index #{piece_index} block offset #{block_offset} block length #{block_length} buff #{buff}")
+    Logger.debug(
+      "ADDITION TO PIECE BUFF : index #{piece_index} block offset #{
+        block_offset
+      } block length #{block_length} buff #{block}"
+    )
+
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
-        new_buffer =
-          if data == "" do
-            buff
-          else
-            <<before::size(block_offset), aft::bytes>> = data
-            <<new_data::size(block_length)>> = buff
-            <<before, new_data>> <> aft
-          end
-
-        total_received = ttinfo.bits_received + block_length
-
-        case check_piece_completed(
-               ttinfo,
-               piece_index,
-               total_received,
-               new_buffer
-             ) do
-          {:ok, :incomplete} ->
-            new_piece_table =
-              ttinfo.piece_table
-              |> Map.put(piece_index, {:in_progress, new_buffer})
-
-            # TODO: calculate expected length for non byte sizes
-            new_ttinfo =
-              ttinfo
-              |> Map.put(:bits_received, total_received)
-              |> Map.put(:need_piece, false)
-              |> Map.put(:expected_piece_index, piece_index)
-              |> Map.put(:expected_sub_piece_index, block_offset + @preferred_block_size)
-              |> Map.put(:expected_piece_length, @preferred_block_size)
-              |> Map.put(:piece_table, new_piece_table)
-
-            {:ok, new_ttinfo}
-
-          {:ok, :complete} ->
-            new_piece_table =
-              ttinfo.piece_table
-              |> Map.put(piece_index, {:complete, new_buffer})
-
-            # zero out buffer? write to file? tell torrent process?
-
-            new_ttinfo =
-              ttinfo
-              |> Map.put(:piece_table, new_piece_table)
-              |> Map.put(:need_piece, true)
-              |> Map.put(:bits_received, 0)
-
-            {:ok, new_ttinfo}
+        case append_piece_buff(data, block, block_offset) do
+          {:ok, new_buff} ->
+            handle_new_piece_block(
+              ttinfo,
+              piece_index,
+              block_offset,
+              block_length,
+              new_buff
+            )
 
           {:error, msg} ->
             {:error, msg}
@@ -262,6 +231,71 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
       {:error, msg} ->
         {:error, msg}
+    end
+  end
+
+  defp handle_new_piece_block(
+         ttinfo,
+         piece_index,
+         block_offset,
+         block_length,
+         new_buffer
+       ) do
+    total_received = ttinfo.bytes_received + block_length
+
+    case check_piece_completed(
+           ttinfo,
+           piece_index,
+           total_received,
+           new_buffer
+         ) do
+      {:ok, :incomplete} ->
+        new_piece_table =
+          ttinfo.piece_table
+          |> Map.put(piece_index, {:in_progress, new_buffer})
+
+        # TODO: calculate expected length for non byte sizes
+        new_ttinfo =
+          ttinfo
+          |> Map.put(:bytes_received, total_received)
+          |> Map.put(:need_piece, false)
+          |> Map.put(:expected_piece_index, piece_index)
+          |> Map.put(
+            :expected_sub_piece_index,
+            block_offset + block_length
+          )
+          |> Map.put(:expected_piece_length, ttinfo.piece_length)
+          |> Map.put(:piece_table, new_piece_table)
+
+        {:ok, new_ttinfo}
+
+      {:ok, :complete} ->
+        new_piece_table =
+          ttinfo.piece_table
+          |> Map.put(piece_index, {:complete, <<>>})
+
+        new_ttinfo =
+          ttinfo
+          |> Map.put(:piece_table, new_piece_table)
+          |> Map.put(:need_piece, true)
+          |> Map.put(:bytes_received, 0)
+
+        {:ok, new_ttinfo}
+
+      {:error, msg} ->
+        {:error, msg}
+    end
+  end
+
+  defp append_piece_buff(<<>>, block, 0) do
+    {:ok, block}
+  end
+
+  defp append_piece_buff(buff, block, block_offset) do
+    if byte_size(buff) < block_offset do
+      {:error, "incorrect block received"}
+    else
+      {:ok, buff <> block}
     end
   end
 

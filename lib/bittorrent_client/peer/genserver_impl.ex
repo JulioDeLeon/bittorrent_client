@@ -18,6 +18,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
   @peer_id Application.get_env(:bittorrent_client, :peer_id)
+  @default_block_size Application.get_env(
+                        :bittorrent_client,
+                        :default_block_size
+                      )
 
   def start_link(
         {metainfo, torrent_id, info_hash, filename, interval, ip, port}
@@ -38,7 +42,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       num_pieces: length(parsed_piece_hashes),
       piece_hashes: parsed_piece_hashes,
       piece_table: %{},
-      bits_received: 0,
+      bytes_received: 0,
       need_piece: true
     }
 
@@ -68,16 +72,18 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
 
-    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, []) do
+    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [packet: :raw]) do
       {:ok, sock} ->
         case setup_handshake(sock, timer, peer_data) do
           {:ok, new_peer_data} ->
             {:ok, new_peer_data}
+
           {:error, _} ->
             err_msg = "#{peer_data.name} failed initial handshake!"
             Logger.error(err_msg)
             raise err_msg
         end
+
       {:error, msg} ->
         err_msg =
           "#{peer_data.name} could not send initial handshake to peer: #{msg}"
@@ -383,7 +389,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
              msg.piece_index,
              offset,
              length,
-             <<msg.block::size(length)>>
+             msg.block
            ) do
         {:ok, new_ttinfo} ->
           Logger.debug(fn ->
@@ -578,10 +584,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     msg =
       if length(known_indexes) > 0 and need_piece do
-        Logger.debug(fn -> "#{peer_data.name} : is interested in peer connection" end)
+        Logger.debug(fn ->
+          "#{peer_data.name} : is interested in peer connection"
+        end)
+
         PeerProtocol.encode(:interested)
       else
-        Logger.debug(fn -> "#{peer_data.name} : is not interested in peer connection" end)
+        Logger.debug(fn ->
+          "#{peer_data.name} : is not interested in peer connection"
+        end)
+
         PeerProtocol.encode(:not_interested)
       end
 
@@ -602,9 +614,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
            Map.keys(peer_data.torrent_tracking_info.piece_table)
          ) do
       {:ok, next_piece_index} ->
-        Logger.debug(fn -> "#{peer_data.name} : will work on #{next_piece_index}" end)
+        Logger.debug(fn ->
+          "#{peer_data.name} : will work on #{next_piece_index}"
+        end)
+
         next_sub_piece_index = 0
-        piece_length = 32
+        # TODO calculate last block size base on what has been received
+        piece_length = if peer_data.torrent_tracking_info.piece_length < @default_block_size do
+          peer_data.torrent_tracking_info.piece_length
+        else
+          @default_block_size
+        end
 
         msg =
           PeerProtocol.encode(
@@ -619,7 +639,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           |> Map.put(:expected_piece_index, next_piece_index)
           |> Map.put(:expected_sub_piece_index, next_sub_piece_index)
           |> Map.put(:expected_piece_length, piece_length)
-          |> Map.put(:bits_recieved, 0)
+          |> Map.put(:bytes_recieved, 0)
           |> Map.put(:need_piece, false)
 
         new_peer_data =
