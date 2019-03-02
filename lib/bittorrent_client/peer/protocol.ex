@@ -160,12 +160,15 @@ defmodule BittorrentClient.Peer.Protocol do
            @piece_id,
            piece_index::size(32),
            block_offset::size(32),
-           block::size(32),
-           rest::bytes
+           n_block::bytes
          >>,
          acc
        ) do
-    block_length = calculate_block_length(length)
+    said_length = calculate_block_length(length)
+    block_length = if  byte_size(n_block) < said_length, do: byte_size(n_block), else: said_length
+    Logger.debug("DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{block_length}")
+    block = :binary.part(n_block, 0, block_length)
+    rest = :binary.part(n_block, byte_size(n_block), block_length-byte_size(n_block))
 
     Logger.debug(fn ->
       "DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{
@@ -177,7 +180,7 @@ defmodule BittorrentClient.Peer.Protocol do
       %{
         type: :piece,
         piece_index: piece_index,
-        block_length: 32,
+        block_length: block_length,
         block_offset: block_offset,
         block: block
       }
@@ -215,7 +218,9 @@ defmodule BittorrentClient.Peer.Protocol do
 
   # Return the list of messages and any remaining bytes.
   defp decode_type(rest, acc) do
-    Logger.debug(fn -> "DECODE : END OF DECODE REST SIZE #{byte_size(rest)}}" end)
+    Logger.debug(fn ->
+      "DECODE : END OF DECODE REST SIZE #{byte_size(rest)}}"
+    end)
 
     {Enum.reverse(acc), rest}
   end

@@ -177,7 +177,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def get_all(cache_ref) do
-    Logger.debug(fn -> "Entered get_all function for #{cache_ref}"end)
+    Logger.debug(fn -> "Entered get_all function for #{cache_ref}" end)
 
     GenServer.call(
       :global.whereis_name({@cache_prefix, cache_ref}),

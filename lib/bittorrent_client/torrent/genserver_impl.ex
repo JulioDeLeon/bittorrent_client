@@ -27,15 +27,18 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> Bento.torrent!()
 
     Logger.debug(fn -> "Metadata: #{inspect(torrent_metadata)}" end)
+
     case create_initial_data(id, filename, torrent_metadata) do
       {:ok, torrent_data} ->
         Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
+
         GenServer.start_link(
           __MODULE__,
           {torrent_metadata, torrent_data},
           name: {:global, {:btc_torrentworker, id}}
         )
-       {:error, reason} ->
+
+      {:error, reason} ->
         Logger.error(reason)
         {:error, reason}
     end
@@ -128,10 +131,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         _from,
         {metadata, data}
       ) do
-    piece_table = data.piece_table
+    piece_table = data.pieces
 
     if Map.has_key?(piece_table, index) do
-      new_piece_table = %{piece_table | index => {:done, buffer}}
+      new_piece_table = %{piece_table | index => {:complete, buffer}}
+
+      Logger.error(
+        "#{data.id} : has marked index #{index} as complete, not creating file yet!"
+      )
 
       {:reply, {:ok, index},
        {metadata, %TorrentData{data | pieces: new_piece_table}}}
@@ -413,7 +420,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp create_initial_data(id, file, metadata) do
-    {check,  info} =
+    {check, info} =
       metadata.info
       |> Map.from_struct()
       |> Map.delete(:md5sum)
@@ -424,29 +431,30 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       {:error, info}
     else
       hash = :crypto.hash(:sha, info)
+
       {:ok,
-      %TorrentData{
-        id: id,
-        pid: self(),
-        file: file,
-        status: :initial,
-        info_hash: hash,
-        peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-        port: Application.fetch_env!(:bittorrent_client, :port),
-        uploaded: 0,
-        downloaded: 0,
-        left: metadata.info.length,
-        compact: Application.fetch_env!(:bittorrent_client, :compact),
-        no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
-        ip: Application.fetch_env!(:bittorrent_client, :ip),
-        numwant: Application.fetch_env!(:bittorrent_client, :numwant),
-        key: Application.fetch_env!(:bittorrent_client, :key),
-        trackerid: "",
-        tracker_info: %TrackerInfo{},
-        pieces: %{},
-        next_piece_index: 0,
-        connected_peers: []
-      }}
+       %TorrentData{
+         id: id,
+         pid: self(),
+         file: file,
+         status: :initial,
+         info_hash: hash,
+         peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+         port: Application.fetch_env!(:bittorrent_client, :port),
+         uploaded: 0,
+         downloaded: 0,
+         left: metadata.info.length,
+         compact: Application.fetch_env!(:bittorrent_client, :compact),
+         no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
+         ip: Application.fetch_env!(:bittorrent_client, :ip),
+         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+         key: Application.fetch_env!(:bittorrent_client, :key),
+         trackerid: "",
+         tracker_info: %TrackerInfo{},
+         pieces: %{},
+         next_piece_index: 0,
+         connected_peers: []
+       }}
     end
   end
 

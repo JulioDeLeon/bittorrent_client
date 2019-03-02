@@ -8,7 +8,8 @@ defmodule BittorrentClient.Peer.BitUtility do
   # 0b10000000 since in bitfield, starting position is leftmost bit
   @byte_starting_pos 128
 
-  @spec set_bit(binary(), integer(), integer()) :: {:ok, binary()} | {:error, binary()}
+  @spec set_bit(binary(), integer(), integer()) ::
+          {:ok, binary()} | {:error, binary()}
   def set_bit(bitstr, 1, pos) do
     size = byte_size(bitstr)
 
