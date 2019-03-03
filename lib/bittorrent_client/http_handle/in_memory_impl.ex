@@ -4,6 +4,7 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   """
   @behaviour BittorrentClient.HTTPHandle
   require Logger
+  alias Bento.Encoder, as: BenEncoder
   @num_wanted Application.get_env(:bittorrent_client, :numwant)
   @arch_tracker_req_url "http://tracker.archlinux.org:6969/announce?compact=1&connected_peers=&downloaded=0&info_hash=%8B%DE%B5Pcm;R;-+;%D4%9D%7B%0F%C71%17l&left=631242752&next_piece_index=0&numwant=#{
                           @num_wanted
@@ -27,27 +28,20 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
       "peers6" => ""
     }
 
-    {status, bento_body_resp} = Bento.encode(bento_body)
+    bento_body_resp =
+      bento_body
+      |> BenEncoder.encode()
+      |> IO.iodata_to_binary()
 
-    case status do
-      :ok ->
-        {:ok,
-         %HTTPoison.Response{
-           body: bento_body_resp,
-           headers: resp_headers,
-           status_code: 200
-         }}
-
-      _ ->
-        {:error,
-         %HTTPoison.Error{
-           __exception__: nil,
-           id: nil,
-           reason: "could not bento encode #{bento_body}"
-         }}
-    end
+    {:ok,
+      %HTTPoison.Response{
+        body: bento_body_resp,
+        headers: resp_headers,
+        status_code: 200
+      }}
   end
 
+  @impl true
   def get(url, headers, opts) do
     Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
 

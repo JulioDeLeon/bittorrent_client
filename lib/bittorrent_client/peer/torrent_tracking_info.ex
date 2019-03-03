@@ -4,10 +4,6 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   """
   require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @default_block_size Application.get_env(
-                        :bittorrent_client,
-                        :default_block_size
-                      )
   @derive {Poison.Encoder, except: []}
   defstruct [
     :id,

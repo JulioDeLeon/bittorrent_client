@@ -6,6 +6,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   use GenServer
   require HTTPoison
   require Logger
+  alias Bento.Encoder, as: BenEncoder
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
@@ -27,20 +28,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> Bento.torrent!()
 
     Logger.debug(fn -> "Metadata: #{inspect(torrent_metadata)}" end)
+    {:ok, torrent_data} = create_initial_data(id, filename, torrent_metadata)
+    Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
 
-    case create_initial_data(id, filename, torrent_metadata) do
-      {:ok, torrent_data} ->
-        Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
-
-        GenServer.start_link(
-          __MODULE__,
-          {torrent_metadata, torrent_data},
-          name: {:global, {:btc_torrentworker, id}}
-        )
-
-      {:error, reason} ->
-        raise reason
-    end
+    GenServer.start_link(
+      __MODULE__,
+      {torrent_metadata, torrent_data},
+      name: {:global, {:btc_torrentworker, id}}
+    )
   end
 
   def init({torrent_metadata, torrent_data}) do
@@ -334,6 +329,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # -------------------------------------------------------------------------------
   # Utility Functions
   # -------------------------------------------------------------------------------
+  @spec create_tracker_request(binary(), map()) :: binary()
   def create_tracker_request(url, params) do
     url_params =
       for key <- Map.keys(params),
@@ -419,42 +415,39 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp create_initial_data(id, file, metadata) do
-    {check, info} =
+    info =
       metadata.info
       |> Map.from_struct()
       |> Map.delete(:md5sum)
       |> Map.delete(:private)
-      |> Bento.encode()
+      |> BenEncoder.encode()
+      |> IO.iodata_to_binary()
 
-    if check == :error do
-      {:error, info}
-    else
-      hash = :crypto.hash(:sha, info)
+    hash = :crypto.hash(:sha, info)
 
-      {:ok,
-       %TorrentData{
-         id: id,
-         pid: self(),
-         file: file,
-         status: :initial,
-         info_hash: hash,
-         peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-         port: Application.fetch_env!(:bittorrent_client, :port),
-         uploaded: 0,
-         downloaded: 0,
-         left: metadata.info.length,
-         compact: Application.fetch_env!(:bittorrent_client, :compact),
-         no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
-         ip: Application.fetch_env!(:bittorrent_client, :ip),
-         numwant: Application.fetch_env!(:bittorrent_client, :numwant),
-         key: Application.fetch_env!(:bittorrent_client, :key),
-         trackerid: "",
-         tracker_info: %TrackerInfo{},
-         pieces: %{},
-         next_piece_index: 0,
-         connected_peers: []
-       }}
-    end
+    {:ok,
+     %TorrentData{
+       id: id,
+       pid: self(),
+       file: file,
+       status: :initial,
+       info_hash: hash,
+       peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+       port: Application.fetch_env!(:bittorrent_client, :port),
+       uploaded: 0,
+       downloaded: 0,
+       left: metadata.info.length,
+       compact: Application.fetch_env!(:bittorrent_client, :compact),
+       no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
+       ip: Application.fetch_env!(:bittorrent_client, :ip),
+       numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+       key: Application.fetch_env!(:bittorrent_client, :key),
+       trackerid: "",
+       tracker_info: %TrackerInfo{},
+       pieces: %{},
+       next_piece_index: 0,
+       connected_peers: []
+     }}
   end
 
   def parse_peers_binary(binary) do
@@ -544,7 +537,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end)
   end
 
-#  defp populate_local_peers do
-#    [Application.get_env(:bittorrent_client, :test_server_loc)]
-#  end
+  #  defp populate_local_peers do
+  #    [Application.get_env(:bittorrent_client, :test_server_loc)]
+  #  end
 end
