@@ -40,21 +40,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
       name
       |> :mnesia.all_keys()
       |> Enum.reduce({:ok, []}, fn elem, {check, ret} ->
-        if check == :aborted do
-          {check, ret}
-        else
-          case :mnesia.read({name, elem}) do
-            {:aborted, reason} ->
-              Logger.error(
-                "#{inspect(name)} Failed to retrieve #{inspect(elem)}"
-              )
-
-              {:aborted, reason}
-
-            [{_serv, key, val} | _rst] ->
-              {check, ret ++ [{key, val}]}
-          end
-        end
+        retrieve_key_info({name, opts}, elem, check, ret)
       end)
     end
 
@@ -70,6 +56,22 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
         )
 
         {:reply, {:error, reason}, {name, opts}}
+    end
+  end
+
+  defp retrieve_key_info({name, opts}, elem, check, ret) do
+    if check == :aborted do
+      {check, ret}
+    else
+      case :mnesia.read({name, elem}) do
+        {:aborted, reason} ->
+          Logger.error("#{inspect(name)} Failed to retrieve #{inspect(elem)}")
+
+          {:aborted, reason}
+
+        [{_serv, key, val} | _rst] ->
+          {check, ret ++ [{key, val}]}
+      end
     end
   end
 

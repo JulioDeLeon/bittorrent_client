@@ -1,5 +1,6 @@
 defmodule BittorrentClientWeb.ErrorView do
   use BittorrentClientWeb, :view
+  alias Phoenix.Controller, as: PheonixController
 
   # If you want to customize a particular status code
   # for a certain format, you may uncomment below.
@@ -11,6 +12,6 @@ defmodule BittorrentClientWeb.ErrorView do
   # the template name. For example, "404.html" becomes
   # "Not Found".
   def template_not_found(template, _assigns) do
-    Phoenix.Controller.status_message_from_template(template)
+    PhoenixController.status_message_from_template(template)
   end
 end

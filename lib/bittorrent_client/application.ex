@@ -1,6 +1,14 @@
 defmodule BittorrentClient.Application do
-  @moduletag false
+  @moduledoc """
+  Application entry point for Bittorrent Client
+  """
   use Application
+  alias BittorrentClient.Cache.Supervisor, as: BTCCacheSupervisor
+  alias BittorrentClient.Peer.Supervisor, as: BTCPeerSupervisor
+  alias BittorrentClient.Server.Supervisor, as: BTCServerSupervisor
+  alias BittorrentClient.Supervisor, as: BTCSupervisor
+  alias BittorrentClient.Torrent.Supervisor, as: BTCTorrentSupervisor
+  alias BittorrentClientWeb.Endpoint, as: BTCEndpoint
 
   @file_destination Application.get_env(:bittorrent_client, :file_destination)
   @server_name Application.get_env(:bittorrent_client, :server_name)
@@ -19,7 +27,7 @@ defmodule BittorrentClient.Application do
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
   def config_change(changed, _new, removed) do
-    BittorrentClientWeb.Endpoint.config_change(changed, removed)
+    BTCEndpoint.config_change(changed, removed)
     :ok
   end
 
@@ -36,21 +44,21 @@ defmodule BittorrentClient.Application do
       # Start the Ecto repository
       # supervisor(BittorrentClient.Repo, []),
       # Start the endpoint when the application starts
-      supervisor(BittorrentClientWeb.Endpoint, []),
+      supervisor(BTCEndpoint, []),
       # Start your own worker by calling: BittorrentClient.Worker.start_link(arg1, arg2, arg3)
       # worker(BittorrentClient.Worker, [arg1, arg2, arg3]),
-      supervisor(BittorrentClient.Server.Supervisor, [
+      supervisor(BTCServerSupervisor, [
         @file_destination,
         @server_name
       ]),
-      supervisor(BittorrentClient.Torrent.Supervisor, []),
-      supervisor(BittorrentClient.Peer.Supervisor, []),
-      supervisor(BittorrentClient.Cache.Supervisor, [])
+      supervisor(BTCTorrentSupervisor, []),
+      supervisor(BTCPeerSupervisor, []),
+      supervisor(BTCCacheSupervisor, [])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: BittorrentClient.Supervisor]
+    opts = [strategy: :one_for_one, name: BTCSupervisor]
     Supervisor.start_link(children, opts)
   end
 end

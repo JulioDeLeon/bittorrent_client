@@ -72,7 +72,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
 
-    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port, [packet: :raw]) do
+    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
+           packet: :raw
+         ) do
       {:ok, sock} ->
         case setup_handshake(sock, timer, peer_data) do
           {:ok, new_peer_data} ->
@@ -182,11 +184,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "#{peer_data.name} has received the following message raw #{inspect(buff)}"
     end)
 
-    new_peer_data = if TorrentTrackingInfo.is_piece_in_progress?(peer_data.torrent_tracking_info) do
-      handle_incoming_piece_buffer(peer_data, socket, buff)
-    else
-      handle_regular_msg_buffer(peer_data, socket, buff)
-    end
+    new_peer_data =
+      if TorrentTrackingInfo.is_piece_in_progress?(
+           peer_data.torrent_tracking_info
+         ) do
+        handle_incoming_piece_buffer(peer_data, socket, buff)
+      else
+        handle_regular_msg_buffer(peer_data, socket, buff)
+      end
 
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {new_peer_data}}
@@ -194,17 +199,25 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   defp handle_incoming_piece_buffer(peer_data, socket, buff) do
     ttinfo = peer_data.torrent_tracking_info
-    expected_index =  ttinfo.expected_piece_index
+    expected_index = ttinfo.expected_piece_index
     expected_offset = ttinfo.expected_sub_piece_index
     bin = PeerProtocol.tcp_buff_to_encoded_msg(buff)
     size = byte_size(bin)
 
-    case TorrentTrackingInfo.add_piece_index_data(ttinfo, expected_index, expected_offset, size, bin) do
+    case TorrentTrackingInfo.add_piece_index_data(
+           ttinfo,
+           expected_index,
+           expected_offset,
+           size,
+           bin
+         ) do
       {:ok, new_ttinfo} ->
-        new_peer_data = peer_data
-        |> Map.put(:torrent_tracking_info, new_ttinfo)
+        new_peer_data =
+          peer_data
+          |> Map.put(:torrent_tracking_info, new_ttinfo)
 
         new_peer_data
+
       {:error, msg} ->
         Logger.error(msg)
         peer_data
@@ -215,7 +228,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {msgs, leftovers} =
       buff
       |> PeerProtocol.tcp_buff_to_encoded_msg()
-      |> fn bin -> peer_data.running_buffer <> bin end.()
+      |> (fn bin -> peer_data.running_buffer <> bin end).()
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
@@ -654,11 +667,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         next_sub_piece_index = 0
         # TODO calculate last block size base on what has been received
-        piece_length = if peer_data.torrent_tracking_info.piece_length < @default_block_size do
-          peer_data.torrent_tracking_info.piece_length
-        else
-          @default_block_size
-        end
+        piece_length =
+          if peer_data.torrent_tracking_info.piece_length < @default_block_size do
+            peer_data.torrent_tracking_info.piece_length
+          else
+            @default_block_size
+          end
 
         msg =
           PeerProtocol.encode(

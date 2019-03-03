@@ -9,6 +9,7 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
                           @num_wanted
                         }&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
 
+  @impl true
   def get(@arch_tracker_req_url, _headers, _opts) do
     Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
 

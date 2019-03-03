@@ -119,8 +119,11 @@ defmodule BittorrentClientWeb.TorrentController do
   def all(conn, _args) do
     case @server_impl.list_current_torrents(@server_name) do
       {:ok, data} ->
+        keys = Map.keys(data)
+
         ret =
-          Enum.reduce(Map.keys(data), %{}, fn key, acc ->
+          keys
+          |> Enum.reduce(%{}, fn key, acc ->
             val = Map.get(data, key)
             Map.put(acc, key, entry_to_encodable(val))
           end)

@@ -1,5 +1,6 @@
 defmodule BittorrentClient.Cache do
   @moduledoc """
+  Behaviour specification for Bittorrent Client cache implementations
   """
   @type reason :: String.t()
   @type key :: tuple()
