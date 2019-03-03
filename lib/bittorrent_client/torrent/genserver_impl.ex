@@ -39,8 +39,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         )
 
       {:error, reason} ->
-        Logger.error(reason)
-        {:error, reason}
+        raise reason
     end
   end
 
@@ -393,12 +392,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     Logger.warn(fn -> "Response from tracker: #{inspect(resp)}" end)
 
     case status do
-      :error ->
-        Logger.error("Failed to fetch #{url}")
-        Logger.error("Resp: #{inspect(resp)}")
-        {:reply, {:error, "failed to fetch #{url}"}, {metadata, data}}
-
-      _ ->
+      :ok ->
         # response returns a text/plain object
         {status, tracker_info} = parse_tracker_response(resp.body)
 
@@ -416,6 +410,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
             {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
         end
+
+      :error ->
+        Logger.error("Failed to fetch #{url}")
+        Logger.error("Resp: #{inspect(resp)}")
+        {:reply, {:error, "failed to fetch #{url}"}, {metadata, data}}
     end
   end
 
@@ -545,7 +544,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end)
   end
 
-  defp populate_local_peers do
-    [Application.get_env(:bittorrent_client, :test_server_loc)]
-  end
+#  defp populate_local_peers do
+#    [Application.get_env(:bittorrent_client, :test_server_loc)]
+#  end
 end

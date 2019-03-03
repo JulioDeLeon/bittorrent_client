@@ -1,5 +1,6 @@
 defmodule BittorrentClient.Cache.Supervisor do
   @moduledoc """
+  Supervisor implementation for cache process
   """
   use Supervisor
   require Logger

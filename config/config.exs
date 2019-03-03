@@ -30,7 +30,8 @@ config :bittorrent_client,
   torrent_cache_impl: BittorrentClient.Cache.ETSImpl,
   torrent_cache_name: :torrent_cache,
   torrent_cache_opts: [:ordered_set, :public],
-  default_block_size: 16384, # 16KB
+  # 16KB
+  default_block_size: 16384,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
 

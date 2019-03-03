@@ -207,11 +207,11 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
          block_length,
          block
        ) do
-    Logger.debug(
+    Logger.debug(fn ->
       "ADDITION TO PIECE BUFF : index #{piece_index} block offset #{
         block_offset
       } block length #{block_length} buff #{block}"
-    )
+    end)
 
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
@@ -339,6 +339,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
   @spec is_piece_in_progress?(__MODULE__.t()) :: boolean()
   def is_piece_in_progress?(ttinfo) do
-    ttinfo.need_piece == false && ttinfo.bytes_recieved < ttinfo.expected_piece_length
+    ttinfo.need_piece == false &&
+      ttinfo.bytes_recieved < ttinfo.expected_piece_length
   end
 end
