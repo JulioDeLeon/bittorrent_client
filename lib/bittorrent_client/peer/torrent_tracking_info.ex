@@ -338,4 +338,14 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     ttinfo.need_piece == false &&
       ttinfo.bytes_recieved < ttinfo.expected_piece_length
   end
+
+  def notify_torrent_of_connection(ttinfo, peer_id) do
+    @torrent_impl.notify_peer_is_connected(ttinfo.id, peer_id)
+  end
+
+  def notify_torrent_of_disconnection(ttinfo, peer_id) do
+    known_indexes = get_known_pieces(ttinfo)
+
+    @torrent_impl.notify_peer_is_disconnected(ttinfo.id, peer_id, known_indexes)
+  end
 end

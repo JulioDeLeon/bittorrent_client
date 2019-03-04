@@ -60,14 +60,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:start_single_peer, {ip, port}}, _from, {metadata, data}) do
-    {s, peer_data} =
+    {status, peer_data} =
       PeerSupervisor.start_child(
         {metadata, Map.get(data, :id), Map.get(data, :info_hash),
          Map.get(data, :filename),
          data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
       )
 
-    case s do
+    case status do
       :error ->
         Logger.error("Error: #{inspect(peer_data)}")
 
@@ -205,6 +205,46 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:reply, :ok, {metadata, %TorrentData{data | numwant: num_wanted}}}
   end
 
+  def handle_call({:notify_peer_connected, peer_id}, _from, {metadata, data}) do
+    new_connected_peers =
+      data.connected_peers
+      |> Map.put(peer_id, true)
+
+    new_data =
+      data
+      |> Map.put(:connected_peers, new_connected_peers)
+
+    {:reply, {:ok, true}, {metadata, new_data}}
+  end
+
+  def handle_call({:notify_peer_disconnected, peer_id, known_indexes}, _from, {metadata, data}) do
+    if Map.has_key?(data.connected_peers, peer_id) do
+      new_connected =
+        data.connected_peers
+        |> Map.delete(peer_id)
+
+      new_pieces =
+        known_indexes
+        |> Enum.reduce(data.pieces, fn elem, acc ->
+          case remove_ref_from_single_piece(acc, elem) do
+            {:error, _} ->
+              acc
+            {:ok, new_table} ->
+              new_table
+          end
+        end)
+
+      new_data =
+        data
+        |> Map.put(:connected_peers, new_connected)
+        |> Map.put(:pieces, new_pieces)
+
+      {:reply, {:ok, known_indexes}, {metadata, new_data}}
+    else
+      {:reply, {:error, "Given peer id #{peer_id} does not exist"}, {metadata, data}}
+    end
+  end
+
   def handle_cast({:connect_to_tracker_async}, {metadata, data}) do
     {_, _, {new_metadata, new_data}} =
       connect_to_tracker_helper({metadata, data})
@@ -326,6 +366,25 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     )
   end
 
+  def notify_peer_is_connected(id, peerID) do
+    Logger.debug(fn -> "#{id} is being notified that #{peerID} is connected to its peer" end)
+
+    GenServer.call(
+      :global.whereis_name({:btc_torrentworker, id}),
+      {:notify_peer_connected, peerID}
+    )
+  end
+
+  def notify_peer_is_disconnected(id, peerID, known_indexes) do
+    Logger.debug(fn -> "#{id} is being notified that #{peerID} is not connected to its peer" end)
+    Logger.debug(fn -> "#{id} will reduce references for #{known_indexes}" end)
+
+    GenServer.call(
+      :global.whereis_name({:btc_torrentworker, id}),
+      {:notify_peer_disconnected, peerID, known_indexes}
+    )
+  end
+
   # -------------------------------------------------------------------------------
   # Utility Functions
   # -------------------------------------------------------------------------------
@@ -368,6 +427,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :key,
       :ip,
       :pieces,
+      :connected_peers,
       :no_peer_id,
       :__struct__
     ]
@@ -446,7 +506,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        tracker_info: %TrackerInfo{},
        pieces: %{},
        next_piece_index: 0,
-       connected_peers: []
+       connected_peers: %{}
      }}
   end
 
@@ -477,7 +537,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:error, "Invalid index #{index}"}
   end
 
-  defp add_single_piece(peer_id, index, piece_table) do
+  defp add_single_piece(_peer_id, index, piece_table) do
     if Map.has_key?(piece_table, index) do
       {status, ref_count, buff} = Map.get(piece_table, index)
       {:ok, Map.put(piece_table, index, {status, ref_count + 1, buff})}

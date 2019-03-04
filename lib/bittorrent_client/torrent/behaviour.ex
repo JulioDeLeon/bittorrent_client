@@ -32,7 +32,7 @@ defmodule BittorrentClient.Torrent do
   @callback connect_to_tracker(torrentID) ::
               {:ok, {TorrentMetainfo.t(), TorrentData.t()}} | {:error, reason}
   @doc """
-  connect_to_tracker attempts to connect a torrent process to it's relative tracker to retrieve a peer list asynchronously. Return in GenServer cast style. 
+  connect_to_tracker attempts to connect a torrent process to it's relative tracker to retrieve a peer list asynchronously. Return in GenServer cast style.
   """
   @callback connect_to_tracker_async(torrentID) :: any()
 
@@ -94,4 +94,15 @@ defmodule BittorrentClient.Torrent do
   """
   @callback set_number_peers(torrentID, num_wanted :: integer()) ::
               :ok | {:error, reason}
+
+  @doc """
+  Updates the connected peer list with given peer id
+  """
+  @callback notify_peer_is_connected(torrentID, peerID) :: :ok | {:error, reason}
+
+  @doc """
+  Udpates connected peer list to remove the given peer id from list, decrements known indexes
+  """
+  @callback notify_peer_is_disconnected(torrentID, peerID, list(integer())) :: :ok | {:error, reason}
+
 end

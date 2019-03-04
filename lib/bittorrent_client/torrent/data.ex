@@ -53,8 +53,8 @@ defmodule BittorrentClient.Torrent.Data do
           trackerid: String.t(),
           # tracker_info:
           next_piece_index: integer,
-          pieces: map()
-          # connected_peers:
+          pieces: map(),
+          connected_peers: map()
         }
 
   def get_peers(data) do

@@ -59,22 +59,6 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     end
   end
 
-  defp retrieve_key_info({name, opts}, elem, check, ret) do
-    if check == :aborted do
-      {check, ret}
-    else
-      case :mnesia.read({name, elem}) do
-        {:aborted, reason} ->
-          Logger.error("#{inspect(name)} Failed to retrieve #{inspect(elem)}")
-
-          {:aborted, reason}
-
-        [{_serv, key, val} | _rst] ->
-          {check, ret ++ [{key, val}]}
-      end
-    end
-  end
-
   def handle_call({:get, key}, _from, {name, opts}) do
     trans = fn ->
       :mnesia.read({name, key})
@@ -199,4 +183,21 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   # -------------------------------------------------------------------------------
   # Utility functions
   # -------------------------------------------------------------------------------
+  defp retrieve_key_info({name, _opts}, elem, check, ret) do
+    if check == :aborted do
+      {check, ret}
+    else
+      case :mnesia.read({name, elem}) do
+        {:aborted, reason} ->
+          Logger.error("#{inspect(name)} Failed to retrieve #{inspect(elem)}")
+
+          {:aborted, reason}
+
+        [{_serv, key, val} | _rst] ->
+          {check, ret ++ [{key, val}]}
+      end
+    end
+  end
+
+
 end

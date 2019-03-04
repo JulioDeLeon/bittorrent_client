@@ -1,6 +1,6 @@
 defmodule BittorrentClientWeb.ErrorView do
   use BittorrentClientWeb, :view
-  alias Phoenix.Controller, as: PheonixController
+  alias Phoenix.Controller, as: PhoenixController
 
   # If you want to customize a particular status code
   # for a certain format, you may uncomment below.

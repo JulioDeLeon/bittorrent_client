@@ -77,3 +77,13 @@ the torrent tracking info will track
 the torrent process will track
   the piece table
 
+
+
+When a peer process connects to peer process,
+  notify torrent process that it is connected
+  torrent process will update its connected peers
+
+When a peer process terminates
+  notify the torrent process with id and known indexes
+  the torrent process will remove the process name from the connected list
+  the torrent process will also decrement are known indexes in the table 
