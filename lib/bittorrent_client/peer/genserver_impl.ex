@@ -22,7 +22,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
                         :bittorrent_client,
                         :default_block_size
                       )
-
+  # -------------------------------------------------------------------------------
+  # GenServer Callbacks
+  # -------------------------------------------------------------------------------
   def start_link(
         {metainfo, torrent_id, info_hash, filename, interval, ip, port}
       ) do
@@ -69,6 +71,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
+    Process.flag(:trap_exit, true)
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
 
@@ -92,7 +95,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         Logger.error(err_msg)
         raise err_msg
-        # will never return {:error, {peer_data}}
     end
   end
 
@@ -100,43 +102,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     _ = cleanup(peer_data)
     Logger.info("Terminating peer worker for #{peer_data.name}")
     :normal
-  end
-
-  @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) :: any()
-  defp setup_handshake(sock, timer, peer_data) do
-    # send bitfield msg after handshake. get completed list and create bitfield
-    # for now sending empty bitfiled
-    bf_msg = PeerProtocol.encode(:bitfield, <<>>)
-    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}}" end)
-
-    msg =
-      PeerProtocol.encode(
-        :handshake,
-        <<0::size(64)>>,
-        peer_data.torrent_tracking_info.infohash,
-        @peer_id
-      )
-
-    case send_handshake(sock, msg) do
-      {:error, msg} ->
-        Logger.error(
-          "#{peer_data.name} could not send handshake to peer: #{msg}"
-        )
-
-        {:error, peer_data}
-
-      _ ->
-        {:ok,
-         {%PeerData{
-            peer_data
-            | socket: sock,
-              timer: timer
-          }}}
-    end
-  end
-
-  defp cleanup(peer_data) do
-    :ok = @tcp_conn_impl.close(peer_data.socket)
   end
 
   # these handle_info calls come from the socket for attention
@@ -239,6 +204,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
 
     Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
+    TorrentTrackingInfo.notify_torrent_of_connection(peer_data.torrent_tracking_info, peer_data.name)
     %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
@@ -419,7 +385,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(:cancel, _msg, _socket, peer_data) do
     Logger.debug(fn ->
-      "Cancel MSG: #{peer_data.name}, Close port, kill process"
+      "Cancel MSG: #{peer_data.name}, Stop sending the requested piece"
     end)
 
     peer_data
@@ -443,8 +409,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     peer_data
   end
 
+  # -------------------------------------------------------------------------------
+  # Api Calls
+  # -------------------------------------------------------------------------------
+
+  # -------------------------------------------------------------------------------
+  # Utility Functions
+  # ------------------------------------------------------------------------------
   @spec loop_msgs(PeerData.t(), list(map()), TCPConn.t()) :: PeerData.t()
   def loop_msgs(peer_data, [msg | msgs], socket) do
+    Logger.debug(fn -> "----------------> #{inspect(msg)}" end)
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(new_peer_data, msgs, socket)
   end
@@ -524,10 +498,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(:we_choke, peer_data) do
-    init_msg = PeerProtocol.encode(:keep_alive)
+    init_msg = <<>>
 
     {new_peer_data, msgs} =
       {peer_data, init_msg}
+      |> create_message(:terminate)
       |> create_message(:interested)
       |> create_message(:requested)
 
@@ -597,6 +572,25 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       end
 
     {peer_data, buff <> msg}
+  end
+
+  def create_message({peer_data, _buff}, :terminate) do
+    known_indexes =
+      TorrentTrackingInfo.get_known_pieces(peer_data.torrent_tracking_info)
+
+    req_indexes = peer_data.torrent_tracking_info.request_queue
+
+    msg =
+      if length(known_indexes) == 0 && length(req_indexes) == 0 do
+        Logger.info("#{peer_data.name} is not leeching or seeding pieces, terminating connection.")
+        # terminating child here will gracefully close tcp connection with peer, no need to send a message
+        PeerSupervisor.terminate_child(peer_data.id)
+        <<>>
+      else
+        PeerProtocol.encode(:keep_alive)
+      end
+
+    {peer_data, msg}
   end
 
   def create_message({peer_data, buff}, anything) do
@@ -721,5 +715,46 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       |> Map.put(:running_buffer, leftovers)
 
     new_peer_data
+  end
+
+  @spec setup_handshake(TCPConn.t(), reference(), PeerData.t()) :: any()
+  defp setup_handshake(sock, timer, peer_data) do
+    # send bitfield msg after handshake. get completed list and create bitfield
+    # for now sending empty bitfiled
+    bf_msg = PeerProtocol.encode(:bitfield, <<>>)
+    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}}" end)
+
+    msg =
+      PeerProtocol.encode(
+        :handshake,
+        <<0::size(64)>>,
+        peer_data.torrent_tracking_info.infohash,
+        @peer_id
+      )
+
+    case send_handshake(sock, msg) do
+      {:error, msg} ->
+        Logger.error(
+          "#{peer_data.name} could not send handshake to peer: #{msg}"
+        )
+
+        {:error, peer_data}
+
+      _ ->
+        {:ok,
+         {%PeerData{
+            peer_data
+            | socket: sock,
+              timer: timer
+          }}}
+    end
+  end
+
+  defp cleanup(peer_data) do
+    ttinfo = peer_data.torrent_tracking_info
+    peer_id  = peer_data.name
+    {:ok, _} = TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
+    :ok = @tcp_conn_impl.close(peer_data.socket)
+    :ok
   end
 end
