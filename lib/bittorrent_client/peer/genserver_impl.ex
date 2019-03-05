@@ -424,6 +424,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   # ------------------------------------------------------------------------------
   @spec loop_msgs(PeerData.t(), list(map()), TCPConn.t()) :: PeerData.t()
   def loop_msgs(peer_data, [msg | msgs], socket) do
+    Logger.debug(fn -> "----------------> #{inspect(msg)}" end)
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(new_peer_data, msgs, socket)
   end
@@ -591,6 +592,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
         )
 
+        # terminating child here will gracefully close tcp connection with peer, no need to send a message
         PeerSupervisor.terminate_child(peer_data.id)
         <<>>
       else

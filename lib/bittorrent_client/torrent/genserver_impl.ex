@@ -440,6 +440,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :pieces,
       :connected_peers,
       :no_peer_id,
+      :next_piece_index,
       :__struct__
     ]
 
