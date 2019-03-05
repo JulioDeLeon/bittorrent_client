@@ -217,7 +217,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:reply, {:ok, true}, {metadata, new_data}}
   end
 
-  def handle_call({:notify_peer_disconnected, peer_id, known_indexes}, _from, {metadata, data}) do
+  def handle_call(
+        {:notify_peer_disconnected, peer_id, known_indexes},
+        _from,
+        {metadata, data}
+      ) do
     if Map.has_key?(data.connected_peers, peer_id) do
       new_connected =
         data.connected_peers
@@ -229,6 +233,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           case remove_ref_from_single_piece(acc, elem) do
             {:error, _} ->
               acc
+
             {:ok, new_table} ->
               new_table
           end
@@ -241,7 +246,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       {:reply, {:ok, known_indexes}, {metadata, new_data}}
     else
-      {:reply, {:error, "Given peer id #{peer_id} does not exist"}, {metadata, data}}
+      {:reply, {:error, "Given peer id #{peer_id} does not exist"},
+       {metadata, data}}
     end
   end
 
@@ -367,7 +373,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def notify_peer_is_connected(id, peerID) do
-    Logger.debug(fn -> "#{id} is being notified that #{peerID} is connected to its peer" end)
+    Logger.debug(fn ->
+      "#{id} is being notified that #{peerID} is connected to its peer"
+    end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -376,7 +384,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def notify_peer_is_disconnected(id, peerID, known_indexes) do
-    Logger.debug(fn -> "#{id} is being notified that #{peerID} is not connected to its peer" end)
+    Logger.debug(fn ->
+      "#{id} is being notified that #{peerID} is not connected to its peer"
+    end)
+
     Logger.debug(fn -> "#{id} will reduce references for #{known_indexes}" end)
 
     GenServer.call(

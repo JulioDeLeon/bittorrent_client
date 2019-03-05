@@ -198,6 +198,4 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
       end
     end
   end
-
-
 end

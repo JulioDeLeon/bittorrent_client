@@ -40,6 +40,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       id: torrent_id,
       infohash: info_hash,
       piece_length: metainfo.info."piece length",
+      request_queue: [],
       # TODO:  move this data out of  torrent tracking info to check against parent process
       num_pieces: length(parsed_piece_hashes),
       piece_hashes: parsed_piece_hashes,
@@ -204,7 +205,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
 
     Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
-    TorrentTrackingInfo.notify_torrent_of_connection(peer_data.torrent_tracking_info, peer_data.name)
+
+    TorrentTrackingInfo.notify_torrent_of_connection(
+      peer_data.torrent_tracking_info,
+      peer_data.name
+    )
+
     %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
@@ -581,9 +587,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     req_indexes = peer_data.torrent_tracking_info.request_queue
 
     msg =
-      if length(known_indexes) == 0 && length(req_indexes) == 0 do
-        Logger.info("#{peer_data.name} is not leeching or seeding pieces, terminating connection.")
-        # terminating child here will gracefully close tcp connection with peer, no need to send a message
+      if known_indexes == [] && req_indexes == [] do
+        Logger.info(
+          "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
+        )
+
         PeerSupervisor.terminate_child(peer_data.id)
         <<>>
       else
@@ -752,8 +760,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   defp cleanup(peer_data) do
     ttinfo = peer_data.torrent_tracking_info
-    peer_id  = peer_data.name
-    {:ok, _} = TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
+    peer_id = peer_data.name
+
+    {:ok, _} =
+      TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
+
     :ok = @tcp_conn_impl.close(peer_data.socket)
     :ok
   end
