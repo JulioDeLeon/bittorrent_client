@@ -17,7 +17,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
   @spec determine_next_piece(atom(), map(), list(integer())) ::
           {:ok, integer()} | {:error, binary()}
   def determine_next_piece(_, _, []) do
-    {:error, "no index were received"}
+    {:error, "no indexes were received"}
   end
 
   def determine_next_piece(_, piece_table, _) when piece_table == %{} do
@@ -30,24 +30,34 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
       ref_count
     end
 
-    [ret | _rst] =
+    possible_indexes =
       indexes
       |> Enum.filter(fn x -> Map.has_key?(piece_table, x) end)
       |> Enum.filter(fn x -> needs_work?(piece_table, x) end)
       |> Enum.sort_by(get_ref_count)
 
-    {:ok, ret}
+    case possible_indexes do
+      [] ->
+        {:error, "no indexes available"}
+      [ret | _rst] ->
+        {:ok, ret}
+    end
   end
 
   def determine_next_piece(_, piece_table, indexes) do
     Logger.info("Using default strategy : In-Order strategy")
 
-    [ret | _rst] =
+    possible_indexes =
       indexes
       |> Enum.filter(fn x -> Map.has_key?(piece_table, x) end)
       |> Enum.filter(fn x -> needs_work?(piece_table, x) end)
       |> Enum.sort()
 
-    {:ok, ret}
+    case possible_indexes do
+      [] ->
+        {:error, "no indexes available"}
+      [ret | _rst] ->
+        {:ok, ret}
+    end
   end
 end
