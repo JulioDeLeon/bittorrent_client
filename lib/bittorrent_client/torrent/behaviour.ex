@@ -98,11 +98,12 @@ defmodule BittorrentClient.Torrent do
   @doc """
   Updates the connected peer list with given peer id
   """
-  @callback notify_peer_is_connected(torrentID, peerID) :: :ok | {:error, reason}
+  @callback notify_peer_is_connected(torrentID, peerID) ::
+              :ok | {:error, reason}
 
   @doc """
   Udpates connected peer list to remove the given peer id from list, decrements known indexes
   """
-  @callback notify_peer_is_disconnected(torrentID, peerID, list(integer())) :: :ok | {:error, reason}
-
+  @callback notify_peer_is_disconnected(torrentID, peerID, list(integer())) ::
+              :ok | {:error, reason}
 end

@@ -34,11 +34,11 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
       |> IO.iodata_to_binary()
 
     {:ok,
-      %HTTPoison.Response{
-        body: bento_body_resp,
-        headers: resp_headers,
-        status_code: 200
-      }}
+     %HTTPoison.Response{
+       body: bento_body_resp,
+       headers: resp_headers,
+       status_code: 200
+     }}
   end
 
   @impl true
