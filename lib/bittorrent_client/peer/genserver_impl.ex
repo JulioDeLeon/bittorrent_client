@@ -110,7 +110,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.error("#{peer_data.name} has come across and error: #{reason}")
 
     # terminate genserver gracefully?
-    PeerSupervisor.terminate_child(peer_data.id)
+    PeerSupervisor.terminate_child(peer_data.name)
     {:noreply, {peer_data}}
   end
 
@@ -175,7 +175,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.error("#{peer_data.name} has closed socket, should terminate")
 
     # Gracefully stop this peer process OR get a new peer
-    PeerSupervisor.terminate_child(peer_data.id)
+    PeerSupervisor.terminate_child(peer_data.name)
     {:noreply, {peer_data}}
   end
 
@@ -380,7 +380,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       end
     else
       Logger.debug(fn ->
-        "Piece MSG: #{peer_data.name} has recieved the wrong piece: #{
+        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
       end)
@@ -399,7 +399,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(:port, _msg, _socket, peer_data) do
     Logger.debug(fn ->
-      "Port MSG: #{peer_data.name}, restablish new connect for new port"
+      "Port MSG: #{peer_data.name}, reestablish new connect for new port"
     end)
 
     peer_data
@@ -424,7 +424,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   # ------------------------------------------------------------------------------
   @spec loop_msgs(PeerData.t(), list(map()), TCPConn.t()) :: PeerData.t()
   def loop_msgs(peer_data, [msg | msgs], socket) do
-    Logger.debug(fn -> "----------------> #{inspect(msg)}" end)
     new_peer_data = handle_message(msg.type, msg, socket, peer_data)
     loop_msgs(new_peer_data, msgs, socket)
   end
@@ -504,21 +503,35 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def send_message(:we_choke, peer_data) do
-    init_msg = <<>>
+    known_indexes =
+      TorrentTrackingInfo.get_known_pieces(peer_data.torrent_tracking_info)
 
-    {new_peer_data, msgs} =
-      {peer_data, init_msg}
-      |> create_message(:terminate)
-      |> create_message(:interested)
-      |> create_message(:requested)
+    req_indexes = peer_data.torrent_tracking_info.request_queue
 
-    case @tcp_conn_impl.send(peer_data.socket, msgs) do
-      :ok ->
-        new_peer_data
+    if known_indexes == [] && req_indexes == [] do
+      Logger.info(
+        "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
+      )
 
-      {:error, reason} ->
-        Logger.error(reason)
-        peer_data
+      # terminating child here will gracefully close tcp connection with peer, no need to send a message
+      PeerSupervisor.terminate_child(peer_data.name)
+      raise "terminating"
+    else
+      init_msg = PeerProtocol.encode(:keep_alive)
+
+      {new_peer_data, msgs} =
+        {peer_data, init_msg}
+        |> create_message(:interested)
+        |> create_message(:requested)
+
+      case @tcp_conn_impl.send(peer_data.socket, msgs) do
+        :ok ->
+          new_peer_data
+
+        {:error, reason} ->
+          Logger.error(reason)
+          peer_data
+      end
     end
   end
 
@@ -562,8 +575,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     need_piece = peer_data.torrent_tracking_info.need_piece
 
+    piece_inflight =
+      TorrentTrackingInfo.is_piece_in_progress?(peer_data.torrent_tracking_info)
+
     msg =
-      if length(known_indexes) > 0 and need_piece do
+      if (length(known_indexes) > 0 and need_piece) or piece_inflight do
         Logger.debug(fn ->
           "#{peer_data.name} : is interested in peer connection"
         end)
@@ -593,8 +609,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         )
 
         # terminating child here will gracefully close tcp connection with peer, no need to send a message
-        PeerSupervisor.terminate_child(peer_data.id)
-        <<>>
+        PeerSupervisor.terminate_child(peer_data.name)
       else
         PeerProtocol.encode(:keep_alive)
       end
@@ -762,11 +777,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   defp cleanup(peer_data) do
     ttinfo = peer_data.torrent_tracking_info
     peer_id = peer_data.name
-
-    {:ok, _} =
-      TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
-
-    :ok = @tcp_conn_impl.close(peer_data.socket)
+    TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
+    @tcp_conn_impl.close(peer_data.socket)
     :ok
   end
 end

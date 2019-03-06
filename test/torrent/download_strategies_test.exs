@@ -75,8 +75,9 @@ defmodule BittorrentClient.Torrent.DownloadStrategies.Test do
   end
 
   test "handle indexes which do not exist in piece table", context do
-    indexes = [11,12,13,14]
+    indexes = [11, 12, 13, 14]
     strats = [:in_order, :rarest]
+
     t = fn strat ->
       {status, _reason} =
         DownloadStrategies.determine_next_piece(
@@ -84,6 +85,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies.Test do
           context.piece_table,
           indexes
         )
+
       assert status == :error
     end
 

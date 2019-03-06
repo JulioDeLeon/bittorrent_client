@@ -34,7 +34,9 @@ defmodule BittorrentClient.Peer.Supervisor do
 
     case pid do
       :undefined ->
-        {:error, "invalid peer id was given: #{peer_id}"}
+        msg = "invalid peer id was given: #{peer_id}"
+        Logger.error(msg)
+        {:error, msg}
 
       _ ->
         Supervisor.terminate_child(__MODULE__, peer_id)
