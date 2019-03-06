@@ -206,7 +206,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     Logger.debug(fn ->
       "ADDITION TO PIECE BUFF : index #{piece_index} block offset #{
         block_offset
-      } block length #{block_length} buff #{block}"
+      } block length #{block_length}"
     end)
 
     case get_piece_entry(ttinfo, piece_index) do
@@ -246,6 +246,13 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
            new_buffer
          ) do
       {:ok, :incomplete} ->
+        total_length = ttinfo.piece_length
+        actual_length = byte_size(new_buffer)
+        percent =
+          (actual_length / total_length) * 100
+          |> Float.floor(2)
+
+        Logger.debug("PIECE PROGRESS : index #{piece_index} : #{percent}%")
         new_piece_table =
           ttinfo.piece_table
           |> Map.put(piece_index, {:in_progress, new_buffer})

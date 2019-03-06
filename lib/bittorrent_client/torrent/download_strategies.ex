@@ -39,6 +39,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
     case possible_indexes do
       [] ->
         {:error, "no indexes available"}
+
       [ret | _rst] ->
         {:ok, ret}
     end
@@ -56,6 +57,7 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
     case possible_indexes do
       [] ->
         {:error, "no indexes available"}
+
       [ret | _rst] ->
         {:ok, ret}
     end
