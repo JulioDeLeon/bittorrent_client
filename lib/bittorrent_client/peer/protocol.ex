@@ -29,6 +29,13 @@ defmodule BittorrentClient.Peer.Protocol do
   @piece_id 7
   @cancel_id 8
 
+  # extension messages
+  @message_extended 20
+  @upload_only_id 3
+  @holepunch_id 4
+  @dont_have_id 7
+  @share_mode_id 8
+
   @doc """
   Decode a binary of peer protocol messages and return a list of messages and
   any remaining bytes.
@@ -227,6 +234,41 @@ defmodule BittorrentClient.Peer.Protocol do
     ])
   end
 
+  # Decode Extended Messages
+  defp decode_type(
+         <<0, 0, 0, 6, @message_extended, @dont_have_id, piece_index::size(32),
+           rest::bytes>>,
+         acc
+       ) do
+    Logger.debug(fn ->
+      "DECODE : DONT_HAVE MESSAGE piece index #{piece_index}"
+    end)
+
+    decode_type(rest, [
+      %{
+        type: :dont_have,
+        piece_index: piece_index
+      }
+      | acc
+    ])
+  end
+
+  defp decode_type(
+         <<0, 0, 0, 3, @message_extended, @share_mode_id, shared::size(8),
+           rest::bytes>>,
+         acc
+       ) do
+    Logger.debug(fn -> "DECODE : SHARE_MODE MESSAGE : #{shared}" end)
+
+    decode_type(rest, [
+      %{
+        type: :share_mode,
+        share_mode: shared
+      }
+      | acc
+    ])
+  end
+
   # Return the list of messages and any remaining bytes.
   defp decode_type(rest, acc) do
     Logger.debug(fn ->
@@ -270,7 +312,9 @@ defmodule BittorrentClient.Peer.Protocol do
     <<byte_size(msg)::size(32)>> <> msg
   end
 
-  def encode(type, piece_index, block_offset, block_len \\ @block_len)
+  def encode(:dont_have, piece_index) do
+    <<0, 0, 0, 6, @message_extended, @dont_have_id, piece_index::size(32)>>
+  end
 
   def encode(:handshake, reserved, info_hash, peer_id) do
     <<

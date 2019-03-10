@@ -150,14 +150,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "#{peer_data.name} has received the following message raw #{inspect(buff)}"
     end)
 
-    new_peer_data =
-      if TorrentTrackingInfo.is_piece_in_progress?(
-           peer_data.torrent_tracking_info
-         ) do
-        handle_incoming_piece_buffer(peer_data, buff)
-      else
-        handle_regular_msg_buffer(peer_data, socket, buff)
-      end
+    new_peer_data = handle_regular_msg_buffer(peer_data, socket, buff)
 
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {new_peer_data}}
@@ -748,6 +741,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     bf_msg = PeerProtocol.encode(:bitfield, <<>>)
     Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}}" end)
 
+    # When building the reserved field in handshake, set extension supported to 1
+    # reserved bit meanins
     msg =
       PeerProtocol.encode(
         :handshake,
