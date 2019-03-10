@@ -2,8 +2,8 @@ defmodule BittorrentClient.Peer.Data do
   @moduledoc """
   Peer data struct to contain information about peer connection
 
-  ## Peer Connection state 
-  The state of the connect between the peer and client is represeneted by 4 atoms as defined: 
+  ## Peer Connection state
+  The state of the connect between the peer and client is represeneted by 4 atoms as defined:
 
   ```elixir
   @type state ::
@@ -56,6 +56,7 @@ defmodule BittorrentClient.Peer.Data do
     :torrent_tracking_info,
     :running_buffer,
     :handshake_check,
+    :fast_check,
     :need_piece,
     :piece_requested,
     :filename,
@@ -74,6 +75,7 @@ defmodule BittorrentClient.Peer.Data do
           torrent_tracking_info: TorrentTrackingInfo.t(),
           filename: String.t(),
           handshake_check: boolean,
+          fast_check: boolean,
           need_piece: boolean,
           piece_requested: boolean,
           state: state,

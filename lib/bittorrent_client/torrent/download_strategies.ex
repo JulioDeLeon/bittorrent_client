@@ -32,8 +32,9 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
 
     possible_indexes =
       indexes
-      |> Enum.filter(fn x -> Map.has_key?(piece_table, x) end)
-      |> Enum.filter(fn x -> needs_work?(piece_table, x) end)
+      |> Stream.filter(fn x -> Map.has_key?(piece_table, x) end)
+      |> Stream.filter(fn x -> needs_work?(piece_table, x) end)
+      |> Enum.to_list()
       |> Enum.sort_by(get_ref_count)
 
     case possible_indexes do
@@ -50,8 +51,9 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
 
     possible_indexes =
       indexes
-      |> Enum.filter(fn x -> Map.has_key?(piece_table, x) end)
-      |> Enum.filter(fn x -> needs_work?(piece_table, x) end)
+      |> Stream.filter(fn x -> Map.has_key?(piece_table, x) end)
+      |> Stream.filter(fn x -> needs_work?(piece_table, x) end)
+      |> Enum.to_list()
       |> Enum.sort()
 
     case possible_indexes do
