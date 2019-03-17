@@ -319,7 +319,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
          ) do
       {:ok, new_ttinfo_state} ->
         Logger.debug(fn ->
-          "#{peer_data.name} successfully added #{new_piece_indexes} to it's table."
+          "#{peer_data.name} successfully added bitfield to it's table."
         end)
 
         peer_data
@@ -327,7 +327,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       {:error, errmsg} ->
         Logger.error(
-          "#{peer_data.name} failed to add #{new_piece_indexes} to it's table : #{
+          "#{peer_data.name} failed to add bitfield to it's table : #{
             errmsg
           }"
         )
