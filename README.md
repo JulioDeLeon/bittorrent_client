@@ -1,24 +1,38 @@
-# BittorrentClient
+# BittorrentClient [![Travis build](https://secure.travis-ci.org/JulioDeLeon/bittorrent_client.svg?branch=master "Build Status")](https://travis-ci.org/JulioDeLeon/bittorrent_client)
 
-[![Travis build](https://secure.travis-ci.org/JulioDeLeon/bittorrent_client.svg?branch=master
-"Build Status")](https://travis-ci.org/JulioDeLeon/bittorrent_client)
+BittorrentClient is a simple bittorrent client being written for personal use. This project is a very beta phase of 
+development and is missing some key features before it can be used for daily use. 
 
-To start your Phoenix server:
+## Start Server locally
 
   * Install dependencies with `mix deps.get`
-  * Create and migrate your database with `mix ecto.create && mix ecto.migrate`
   * Install Node.js dependencies with `cd assets && npm install`
   * Start Phoenix endpoint with `mix phx.server`
+  ** to start with repl `iex -S phx.server`
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+## Using BittorrentClient
 
-Ready to run in production? Please [check our deployment guides](http://www.phoenixframework.org/docs/deployment).
+BittorrentClient currently is a RESTful service an API to interact with:
 
-## Learn more
+### Admin API (BETA)
+API | Description
+--- | -----------
+`GET /` | server status
+`PUT /fileDestination` | change file destination
+`GET /fileDestination` | get current file destination
 
-  * Official website: http://www.phoenixframework.org/
-  * Guides: http://phoenixframework.org/docs/overview
-  * Docs: https://hexdocs.pm/phoenix
-  * Mailing list: http://groups.google.com/group/phoenix-talk
-  * Source: https://github.com/phoenixframework/phoenix
+### Torrent API (prefixed `/api/v1`)
+API | Description
+----| -----------
+`GET /torrent/<id>/status` | retrieve status of a torrent by ID
+`GET /torrent/<id>/info` | retrieve information about a given torrent by ID
+`PUT /torrent/<id>/connect` | connect a torrent to it's tracker by ID
+`PUT /torrent/<id>/connect/async` | connect a torrent to it's tracker by ID, call being asynchronous 
+`PUT /torrent/<ID>/startTorrent` | begins the download process of torrent process, will fail if not connected to tracker
+`PUT /torrent/<ID>/startTorrent/async` | will attempt to start torrent, does not respond with failure or success
+`POST /torrent/addFile` | given a local file path, will add a torrent to BittorentClient
+`DELETE /torrent/<id>` | removes torrent from BittorrentClient 
+`GET /torrent` | retrieves info on all torrents in BittorrentClient
+`delete /torrent/removeAll` | deletes all torrents in BittorrentClient
 
+*note that this client does not support magnet link yet
