@@ -504,7 +504,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
       )
 
-      # terminating child here will gracefully close tcp connection with peer, no need to send a message
+      # terminating child here will gracefully close tcp connection with peer,
+      # no need to send a message
       PeerSupervisor.terminate_child(peer_data.name)
       raise "terminating"
     else
@@ -599,7 +600,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
         )
 
-        # terminating child here will gracefully close tcp connection with peer, no need to send a message
+        # terminating child here will gracefully close tcp connection with peer,
+        # no need to send a message
         PeerSupervisor.terminate_child(peer_data.name)
       else
         PeerProtocol.encode(:keep_alive)

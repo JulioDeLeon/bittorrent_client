@@ -253,7 +253,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           (actual_length / total_length * 100)
           |> Float.floor(2)
 
-        Logger.debug("PIECE PROGRESS : index #{piece_index} : #{percent}%")
+        Logger.debug(fn -> "PIECE PROGRESS : index #{piece_index} : #{percent}%" end)
 
         new_piece_table =
           ttinfo.piece_table
