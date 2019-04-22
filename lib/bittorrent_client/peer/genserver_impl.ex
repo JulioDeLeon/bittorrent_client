@@ -327,9 +327,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       {:error, errmsg} ->
         Logger.error(
-          "#{peer_data.name} failed to add bitfield to it's table : #{
-            errmsg
-          }"
+          "#{peer_data.name} failed to add bitfield to it's table : #{errmsg}"
         )
 
         peer_data
