@@ -512,6 +512,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        compact: Application.fetch_env!(:bittorrent_client, :compact),
        no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
        ip: Application.fetch_env!(:bittorrent_client, :ip),
+     # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
        numwant: Application.fetch_env!(:bittorrent_client, :numwant),
        key: Application.fetch_env!(:bittorrent_client, :key),
        trackerid: "",
@@ -584,6 +585,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     case peer_list do
       [] ->
         Logger.warn("#{id} has no available peers")
+
+        # TODO: RECONNECT TO TRACKER FOR MORE PEERS
 
         {:reply, {:error, {403, "#{id} has no available peers"}},
          {metadata, data}}
