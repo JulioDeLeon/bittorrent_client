@@ -441,6 +441,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :connected_peers,
       :no_peer_id,
       :next_piece_index,
+      :numallowed,
       :__struct__
     ]
 
@@ -514,6 +515,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        ip: Application.fetch_env!(:bittorrent_client, :ip),
      # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
        numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+       numallowed: Application.fetch_env!(:bittorrent_client, :allowedconnections),
        key: Application.fetch_env!(:bittorrent_client, :key),
        trackerid: "",
        tracker_info: %TrackerInfo{},
@@ -580,7 +582,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       data
       |> TorrentData.get_peers()
       |> parse_peers_binary()
-      |> Enum.take(data.numwant)
+      |> Enum.take(data.numallowed)
 
     case peer_list do
       [] ->

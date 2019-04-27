@@ -27,6 +27,7 @@ defmodule BittorrentClient.Torrent.Data do
     :no_peer_id,
     :ip,
     :numwant,
+    :numallowed,
     :key,
     :trackerid,
     :tracker_info,
@@ -49,6 +50,7 @@ defmodule BittorrentClient.Torrent.Data do
           no_peer_id: boolean,
           ip: String.t(),
           numwant: integer,
+          numallowed: integer,
           key: String.t(),
           trackerid: String.t(),
           # tracker_info:
