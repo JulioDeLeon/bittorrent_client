@@ -9,7 +9,7 @@ defmodule BittorrentClientTest do
 
   # create test for post and put request
   test "compute info hash" do
-    file = "priv/debian2.torrent"
+    file = "priv/debian.torrent"
 
     metadata =
       file
@@ -30,7 +30,7 @@ defmodule BittorrentClientTest do
         :crypto.hash(:sha, info)
         |> Base.encode16()
 
-      expected = "F71E7DEFC014563FC7D8FFE26F759B2518C30F34"
+      expected = "01397EF9739C0FA600EF28B7F4E5564EE7B25388"
       #        "%ea%5d%f1%c9h%ab_%16X%a4%e9%cd.%15%d4%ed%de%ef%ed%1e"
       #        |> URI.decode()
       #        |> Base.encode16()
