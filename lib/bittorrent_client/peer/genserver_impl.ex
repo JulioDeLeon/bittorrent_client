@@ -119,7 +119,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # this should look at the state of the message to determine what to send
     # to peer. the timer sends a signal to the peer handle when it is time to
     # send over a message.
-    # Logger.debug( "What is this: #{inspect peer_data}")
     :erlang.cancel_timer(timer)
 
     Logger.debug(fn ->
@@ -188,23 +187,23 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     actual = msg.info_hash
 
     if actual != expected do
-      Logger.error(
-        "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
+      err =  "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
           inspect(expected)
         }"
+      Logger.error(err)
+
+      PeerSupervisor.terminate_child(peer_data.name)
+      raise err
+    else
+      Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
+
+      TorrentTrackingInfo.notify_torrent_of_connection(
+        peer_data.torrent_tracking_info,
+        peer_data.name
       )
 
-      Logger.error("Not acting upon this")
+      %PeerData{peer_data | state: :we_choke, handshake_check: true}
     end
-
-    Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
-
-    TorrentTrackingInfo.notify_torrent_of_connection(
-      peer_data.torrent_tracking_info,
-      peer_data.name
-    )
-
-    %PeerData{peer_data | state: :we_choke, handshake_check: true}
   end
 
   # :DONE
@@ -338,9 +337,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
     ttinfo = peer_data.torrent_tracking_info
 
+    # TODO check piece hash here or when full piece is downloaded?
+
     if msg.piece_index == ttinfo.expected_piece_index do
       Logger.debug(fn ->
-        "Piece MSG: #{peer_data.name} recieved #{inspect(msg)}"
+        "Piece MSG: #{peer_data.name} received #{inspect(msg)}"
       end)
 
       offset = msg.block_offset
@@ -739,7 +740,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # send bitfield msg after handshake. get completed list and create bitfield
     # for now sending empty bitfiled
     bf_msg = PeerProtocol.encode(:bitfield, <<>>)
-    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}}" end)
+    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}} TODO : NOT REALLY SENDING BF" end)
 
     # When building the reserved field in handshake, set extension supported to 1
     # reserved bit meanins

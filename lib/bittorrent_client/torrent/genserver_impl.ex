@@ -613,8 +613,4 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       )
     end)
   end
-
-  #  defp populate_local_peers do
-  #    [Application.get_env(:bittorrent_client, :test_server_loc)]
-  #  end
 end
