@@ -107,10 +107,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   # these handle_info calls come from the socket for attention
   def handle_info({:error, reason}, {peer_data}) do
-    Logger.error("#{peer_data.name} has come across and error: #{reason}")
+    err_msg = "#{peer_data.name} has come across and error: #{reason}"
+    Logger.error(err_msg)
 
     # terminate genserver gracefully?
     PeerSupervisor.terminate_child(peer_data.name)
+    # TODO: if the process does not terminate, raise error here
     {:noreply, {peer_data}}
   end
 
@@ -149,7 +151,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "#{peer_data.name} has received the following message raw #{inspect(buff)}"
     end)
 
-    new_peer_data = handle_regular_msg_buffer(peer_data, socket, buff)
+    new_peer_data = handle_msg_buffer(peer_data, socket, buff)
 
     # Logger.debug( "Returning this: #{inspect ret}")
     {:noreply, {new_peer_data}}
@@ -297,13 +299,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, errmsg} ->
-        Logger.error(
-          "#{peer_data.name} failed to add #{msg.piece_index} to it's table : #{
-            errmsg
-          }"
-        )
-
-        peer_data
+        Logger.error(errmsg)
+        PeerSupervisor.terminate_child(peer_data.name)
+        raise errmsg
     end
   end
 
@@ -361,14 +359,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
           %PeerData{peer_data | torrent_tracking_info: new_ttinfo}
 
-        {:error, msg} ->
-          Logger.error(
-            "Piece MSG: #{peer_data.name} could not handle piece message correctly: #{
-              msg
-            }"
-          )
-
-          peer_data
+        {:error, errmsg} ->
+          Logger.error(errmsg)
+          PeerSupervisor.terminate_child(peer_data.name)
+          raise errmsg
       end
     else
       errmsg =
@@ -451,9 +445,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       :ok ->
         new_peer_data
 
-      {:error, reason} ->
-        Logger.error(reason)
-        peer_data
+      {:error, errmsg} ->
+        Logger.error(errmsg)
+        PeerSupervisor.terminate_child(peer_data.name)
+        raise errmsg
     end
   end
 
@@ -470,10 +465,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       :ok ->
         new_peer_data
 
-      {:error, reason} ->
-        Logger.error(reason)
-        peer_data
-    end
+      {:error, errmsg} ->
+        Logger.error(errmsg)
+        PeerSupervisor.terminate_child(peer_data.name)
+        raise errmsg
+   end
   end
 
   def send_message(:we_interest, peer_data) do
@@ -490,9 +486,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       :ok ->
         new_peer_data
 
-      {:error, reason} ->
-        Logger.error(reason)
-        peer_data
+      {:error, errmsg} ->
+        Logger.error(errmsg)
+        PeerSupervisor.terminate_child(peer_data.name)
+        raise errmsg
     end
   end
 
@@ -523,9 +520,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         :ok ->
           new_peer_data
 
-        {:error, reason} ->
-          Logger.error(reason)
-          peer_data
+        {:error, errmsg} ->
+          Logger.error(errmsg)
+          PeerSupervisor.terminate_child(peer_data.name)
+          raise errmsg
       end
     end
   end
@@ -689,38 +687,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {peer_data, buff <> msg}
   end
 
-  defp handle_incoming_piece_buffer(peer_data, buff) do
-    ttinfo = peer_data.torrent_tracking_info
-    expected_index = ttinfo.expected_piece_index
-    expected_offset = ttinfo.expected_sub_piece_index
-    bin = PeerProtocol.tcp_buff_to_encoded_msg(buff)
-    size = byte_size(bin)
-
-    case TorrentTrackingInfo.add_piece_index_data(
-           ttinfo,
-           expected_index,
-           expected_offset,
-           size,
-           bin
-         ) do
-      {:ok, new_ttinfo} ->
-        new_peer_data =
-          peer_data
-          |> Map.put(:torrent_tracking_info, new_ttinfo)
-
-        new_peer_data
-
-      {:error, msg} ->
-        Logger.error(msg)
-        peer_data
-    end
-  end
-
-  defp handle_regular_msg_buffer(peer_data, socket, buff) do
+  defp handle_msg_buffer(peer_data, socket, buff) do
     {msgs, leftovers} =
       buff
       |> PeerProtocol.tcp_buff_to_encoded_msg()
-      |> (fn bin -> peer_data.running_buffer <> bin end).()
+      |> fn bin -> peer_data.running_buffer <> bin end.()
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
