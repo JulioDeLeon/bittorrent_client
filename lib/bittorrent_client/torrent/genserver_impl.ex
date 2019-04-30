@@ -12,6 +12,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
+  @piece_hash_length 20
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
@@ -31,11 +32,31 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:ok, torrent_data} = create_initial_data(id, filename, torrent_metadata)
     Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
 
+ #   piece_hashes = pack_piece_list(torrent_metadata.info.pieces)
+    new_info = torrent_metadata.info
+    |> Map.put(:pieces, pack_piece_list(torrent_metadata.info.pieces))
+
+    new_metadata = torrent_metadata
+    |> Map.put(:info, new_info)
+
     GenServer.start_link(
       __MODULE__,
-      {torrent_metadata, torrent_data},
+      {new_metadata, torrent_data},
       name: {:global, {:btc_torrentworker, id}}
     )
+  end
+
+  @spec pack_piece_list(binary()) :: [<<_::20>>]
+  def pack_piece_list(piece_bin) do
+    for << single_hash::size(@piece_hash_length) <- piece_bin>>, do: <<single_hash::size(@piece_hash_length)>>
+  end
+
+  @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
+  def validate_piece(pieces_hashes, piece_index, piece_buff) do
+    expected = Enum.at(pieces_hashes, piece_index)
+    actual = piece_buff
+    |> fn x -> :crypto.hash(:sha, x) end.()
+    expected == actual
   end
 
   def init({torrent_metadata, torrent_data}) do

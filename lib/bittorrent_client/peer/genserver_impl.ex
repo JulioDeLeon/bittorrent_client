@@ -325,11 +325,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, errmsg} ->
-        Logger.error(
-          "#{peer_data.name} failed to add bitfield to it's table : #{errmsg}"
-        )
-
-        peer_data
+        Logger.error(errmsg)
+        PeerSupervisor.terminate_child(peer_data.name)
+        raise errmsg
     end
   end
 
@@ -371,13 +369,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           peer_data
       end
     else
-      Logger.debug(fn ->
-        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
+      errmsg =  "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
-      end)
 
-      peer_data
+      Logger.error(errmsg)
+
+      PeerSupervisor.terminate_child(peer_data.name)
+      raise errmsg
     end
   end
 

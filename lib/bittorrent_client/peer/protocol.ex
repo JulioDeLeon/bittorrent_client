@@ -47,6 +47,9 @@ defmodule BittorrentClient.Peer.Protocol do
   @holepunch_id 4
   @dont_have_id 7
   @share_mode_id 8
+
+
+  @piece_length_offset 9
   @doc """
   Decode a binary of peer protocol messages and return a list of messages and
   any remaining bytes.
@@ -181,7 +184,7 @@ defmodule BittorrentClient.Peer.Protocol do
            n_block::bytes
          >>,
          acc
-       ) do
+       ) when (length - @piece_length_offset) == byte_size(n_block) do
     block_length = calculate_block_length(length)
 
     Logger.debug(fn ->
@@ -205,13 +208,16 @@ defmodule BittorrentClient.Peer.Protocol do
       } block #{block}"
     end)
 
+
+
+
     decode_type(rest, [
       %{
         type: :piece,
         piece_index: piece_index,
         block_length: block_length,
         block_offset: block_offset,
-        block: block
+        block: block,
       }
       | acc
     ])
@@ -515,7 +521,6 @@ defmodule BittorrentClient.Peer.Protocol do
     <<>>
   end
 
-  @piece_length_offset 9
   defp calculate_block_length(length_field),
     do: length_field - @piece_length_offset
 end
