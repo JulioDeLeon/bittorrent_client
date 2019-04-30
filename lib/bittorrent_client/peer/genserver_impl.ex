@@ -187,9 +187,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     actual = msg.info_hash
 
     if actual != expected do
-      err =  "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
+      err =
+        "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
           inspect(expected)
         }"
+
       Logger.error(err)
 
       PeerSupervisor.terminate_child(peer_data.name)
@@ -369,7 +371,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           peer_data
       end
     else
-      errmsg =  "Piece MSG: #{peer_data.name} has received the wrong piece: #{
+      errmsg =
+        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
 
@@ -739,7 +742,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     # send bitfield msg after handshake. get completed list and create bitfield
     # for now sending empty bitfiled
     bf_msg = PeerProtocol.encode(:bitfield, <<>>)
-    Logger.debug(fn -> "#{peer_data.name} is sending bitfield : #{bf_msg}} TODO : NOT REALLY SENDING BF" end)
+
+    Logger.debug(fn ->
+      "#{peer_data.name} is sending bitfield : #{bf_msg}} TODO : NOT REALLY SENDING BF"
+    end)
 
     # When building the reserved field in handshake, set extension supported to 1
     # reserved bit meanins

@@ -28,16 +28,15 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> File.read!()
       |> Bento.torrent!()
 
-    Logger.debug(fn -> "Metadata: #{inspect(torrent_metadata)}" end)
     {:ok, torrent_data} = create_initial_data(id, filename, torrent_metadata)
-    Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
 
- #   piece_hashes = pack_piece_list(torrent_metadata.info.pieces)
-    new_info = torrent_metadata.info
-    |> Map.put(:pieces, pack_piece_list(torrent_metadata.info.pieces))
+    new_info =
+      torrent_metadata.info
+      |> Map.put(:pieces, pack_piece_list(torrent_metadata.info.pieces))
 
-    new_metadata = torrent_metadata
-    |> Map.put(:info, new_info)
+    new_metadata =
+      torrent_metadata
+      |> Map.put(:info, new_info)
 
     GenServer.start_link(
       __MODULE__,
@@ -46,20 +45,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     )
   end
 
-  @spec pack_piece_list(binary()) :: [<<_::20>>]
-  def pack_piece_list(piece_bin) do
-    for << single_hash::size(@piece_hash_length) <- piece_bin>>, do: <<single_hash::size(@piece_hash_length)>>
-  end
-
-  @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
-  def validate_piece(pieces_hashes, piece_index, piece_buff) do
-    expected = Enum.at(pieces_hashes, piece_index)
-    actual = piece_buff
-    |> fn x -> :crypto.hash(:sha, x) end.()
-    expected == actual
-  end
-
   def init({torrent_metadata, torrent_data}) do
+    Logger.debug(fn -> "Metadata: #{inspect(torrent_metadata)}" end)
+    Logger.debug(fn -> "Data: #{inspect(torrent_data)}" end)
     {:ok, {torrent_metadata, torrent_data}}
   end
 
@@ -534,9 +522,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        compact: Application.fetch_env!(:bittorrent_client, :compact),
        no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
        ip: Application.fetch_env!(:bittorrent_client, :ip),
-     # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
+       # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
        numwant: Application.fetch_env!(:bittorrent_client, :numwant),
-       numallowed: Application.fetch_env!(:bittorrent_client, :allowedconnections),
+       numallowed:
+         Application.fetch_env!(:bittorrent_client, :allowedconnections),
        key: Application.fetch_env!(:bittorrent_client, :key),
        trackerid: "",
        tracker_info: %TrackerInfo{},
@@ -633,5 +622,22 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
          data.tracker_info.interval, ip, port}
       )
     end)
+  end
+
+  @spec pack_piece_list(binary()) :: [<<_::20>>]
+  defp pack_piece_list(piece_bin) do
+    for <<single_hash::size(@piece_hash_length) <- piece_bin>>,
+      do: <<single_hash::size(@piece_hash_length)>>
+  end
+
+  @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
+  defp validate_piece(pieces_hashes, piece_index, piece_buff) do
+    expected = Enum.at(pieces_hashes, piece_index)
+
+    actual =
+      piece_buff
+      |> (fn x -> :crypto.hash(:sha, x) end).()
+
+    expected == actual
   end
 end
