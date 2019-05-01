@@ -30,17 +30,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     {:ok, torrent_data} = create_initial_data(id, filename, torrent_metadata)
 
-    new_info =
-      torrent_metadata.info
-      |> Map.put(:pieces, pack_piece_list(torrent_metadata.info.pieces))
-
-    new_metadata =
-      torrent_metadata
-      |> Map.put(:info, new_info)
-
     GenServer.start_link(
       __MODULE__,
-      {new_metadata, torrent_data},
+      {torrent_metadata, torrent_data},
       name: {:global, {:btc_torrentworker, id}}
     )
   end
@@ -605,7 +597,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       _ ->
         returned_pids = connect_to_peers(peer_list, {metadata, data})
-
+        Logger.debug(fn -> "returned pids: #{inspect(returned_pids)}" end)
         {:reply, {:ok, "started torrent #{id}", returned_pids},
          {metadata, %TorrentData{data | status: :started}}}
     end
