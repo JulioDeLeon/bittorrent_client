@@ -128,7 +128,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       ) do
     piece_table = data.pieces
 
-    if Map.has_key?(piece_table, index) do
+    is_valid? = fn ->
+      metadata.info.peers
+      |> pack_piece_list()
+      |> validate_piece(index, buffer)
+    end
+
+    handle_valid_piece = fn ->
+      # TODO: write to file and empty buffer in piece table
       new_piece_table = %{piece_table | index => {:complete, buffer}}
 
       Logger.error(
@@ -137,8 +144,19 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       {:reply, {:ok, index},
        {metadata, %TorrentData{data | pieces: new_piece_table}}}
-    else
-      {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
+    end
+
+    cond do
+      Map.has_key?(piece_table, index) == false ->
+        {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
+
+      is_valid?.() == false ->
+        {:reply,
+         {:error, "hash did not match expected hash for index given: #{index}"},
+         {metadata, data}}
+
+      true ->
+        handle_valid_piece.()
     end
   end
 
@@ -206,10 +224,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:reply, :ok, {metadata, %TorrentData{data | numwant: num_wanted}}}
   end
 
-  def handle_call({:notify_peer_connected, peer_id}, _from, {metadata, data}) do
+  def handle_call({:notify_peer_connected, peer_id, peer_ip, peer_port}, _from, {metadata, data}) do
     new_connected_peers =
       data.connected_peers
-      |> Map.put(peer_id, true)
+      |> Map.put(peer_id, {peer_ip, peer_port})
 
     new_data =
       data
@@ -219,7 +237,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call(
-        {:notify_peer_disconnected, peer_id, known_indexes},
+        {:notify_peer_disconnected, peer_id, peer_ip, peer_port, known_indexes},
         _from,
         {metadata, data}
       ) do
@@ -244,6 +262,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         data
         |> Map.put(:connected_peers, new_connected)
         |> Map.put(:pieces, new_pieces)
+        |> TorrentData.remove_bad_ip_from_peers(peer_ip, peer_port)
 
       {:reply, {:ok, known_indexes}, {metadata, new_data}}
     else
@@ -373,27 +392,27 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     )
   end
 
-  def notify_peer_is_connected(id, peerID) do
+  def notify_peer_is_connected(id, peer_id, peer_ip, peer_port) do
     Logger.debug(fn ->
-      "#{id} is being notified that #{peerID} is connected to its peer"
+      "#{id} is being notified that #{peer_id} is connected to its peer"
     end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
-      {:notify_peer_connected, peerID}
+      {:notify_peer_connected, peer_id, peer_ip, peer_port}
     )
   end
 
-  def notify_peer_is_disconnected(id, peerID, known_indexes) do
+  def notify_peer_is_disconnected(id, peer_id, peer_ip, peer_port, known_indexes) do
     Logger.debug(fn ->
-      "#{id} is being notified that #{peerID} is not connected to its peer"
+      "#{id} is being notified that #{peer_id} is not connected to its peer"
     end)
 
     Logger.debug(fn -> "#{id} will reduce references for [#{known_indexes}]" end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
-      {:notify_peer_disconnected, peerID, known_indexes}
+      {:notify_peer_disconnected, peer_id, peer_ip, peer_port, known_indexes}
     )
   end
 
@@ -473,9 +492,18 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
           _ ->
             # update data
+            parsed_peers =
+              tracker_info
+              |> Map.get(:peers)
+              |> parse_peers_binary()
+
+            new_ttinfo =
+              tracker_info
+              |> Map.put(:peers, parsed_peers)
+
             updated_data =
               data
-              |> Map.put(:tracker_info, tracker_info)
+              |> Map.put(:tracker_info, new_ttinfo)
               |> Map.put(:status, :connected)
 
             {:reply, {:ok, {metadata, updated_data}}, {metadata, updated_data}}
@@ -583,7 +611,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     peer_list =
       data
       |> TorrentData.get_peers()
-      |> parse_peers_binary()
+      |> Enum.shuffle() # TODO remove bad peers from list
       |> Enum.take(data.numallowed)
 
     case peer_list do
@@ -598,6 +626,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       _ ->
         returned_pids = connect_to_peers(peer_list, {metadata, data})
         Logger.debug(fn -> "returned pids: #{inspect(returned_pids)}" end)
+
         {:reply, {:ok, "started torrent #{id}", returned_pids},
          {metadata, %TorrentData{data | status: :started}}}
     end

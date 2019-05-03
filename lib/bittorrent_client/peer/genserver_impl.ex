@@ -203,7 +203,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       TorrentTrackingInfo.notify_torrent_of_connection(
         peer_data.torrent_tracking_info,
-        peer_data.name
+        peer_data.name,
+        peer_data.peer_ip,
+        peer_data.peer_port
       )
 
       %PeerData{peer_data | state: :we_choke, handshake_check: true}
@@ -469,7 +471,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.error(errmsg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise errmsg
-   end
+    end
   end
 
   def send_message(:we_interest, peer_data) do
@@ -691,7 +693,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {msgs, leftovers} =
       buff
       |> PeerProtocol.tcp_buff_to_encoded_msg()
-      |> fn bin -> peer_data.running_buffer <> bin end.()
+      |> (fn bin -> peer_data.running_buffer <> bin end).()
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
@@ -749,7 +751,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   defp cleanup(peer_data) do
     ttinfo = peer_data.torrent_tracking_info
     peer_id = peer_data.name
-    TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id)
+    TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id, peer_data.peer_ip, peer_data.peer_ip)
     @tcp_conn_impl.close(peer_data.socket)
     :ok
   end

@@ -77,25 +77,31 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec populate_multiple_pieces(__MODULE__.t(), peer_id, [piece_index]) ::
           {:ok, __MODULE__.t()} | {:error, reason}
   def populate_multiple_pieces(ttinfo, peer_id, piece_indexes) do
+    update_own_table = fn indexes ->
+      new_ttinfo =
+        Enum.reduce(indexes, ttinfo, fn index, acc ->
+          {check, ret} = add_found_piece_index(:ok, acc, index)
+
+          if check == :ok do
+            ret
+          else
+            Logger.error(
+              "#{peer_id} could not add #{index} to piece_table : #{ret}"
+            )
+
+            acc
+          end
+        end)
+
+      {:ok, new_ttinfo}
+    end
+
     case @torrent_impl.add_multi_pieces(ttinfo.id, peer_id, piece_indexes) do
       {:error, msg} ->
         {:error, msg}
 
       {:ok, indexes} ->
-        {:ok,
-         Enum.reduce(indexes, ttinfo, fn index, acc ->
-           {check, ret} = add_found_piece_index(:ok, acc, index)
-
-           if check == :ok do
-             ret
-           else
-             Logger.error(
-               "#{peer_id} could not add #{index} to piece_tablttinfoe : #{ret}"
-             )
-
-             acc
-           end
-         end)}
+        update_own_table.(indexes)
     end
   end
 
@@ -125,6 +131,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   def change_piece_progress(ttinfo, piece_index, progress) do
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_, buff}} ->
+        # TODO: if piece is complete empty out the buffer
         update_piece_entry(ttinfo, piece_index, {progress, buff})
 
       {:error, msg} ->
@@ -135,17 +142,20 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec mark_piece_done(__MODULE__.t(), piece_index) ::
           {:ok, __MODULE__.t()} | {:error, reason}
   def mark_piece_done(ttinfo, piece_index) do
+    handle_valid_piece_buff = fn buff ->
+      case @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff) do
+        {:ok, _ret} ->
+          change_piece_progress(ttinfo, piece_index, :completed)
+
+        {:error, msg} ->
+          {:error,
+           "#{ttinfo.id} could not mark #{piece_index} as done : #{msg}"}
+      end
+    end
+
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_, buff}} ->
-        {status, ret} =
-          @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff)
-
-        if status == :ok do
-          change_piece_progress(ttinfo, piece_index, :completed)
-        else
-          {:error,
-           "#{ttinfo.id} could not mark #{piece_index} as done : #{ret}"}
-        end
+        handle_valid_piece_buff.(buff)
 
       {:error, msg} ->
         {:error, msg}
@@ -209,21 +219,25 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       } block length #{block_length}"
     end)
 
+    handle_valid_piece_entry = fn data ->
+      case append_piece_buff(data, block, block_offset) do
+        {:ok, new_buff} ->
+          handle_new_piece_block(
+            ttinfo,
+            piece_index,
+            block_offset,
+            block_length,
+            new_buff
+          )
+
+        {:error, msg} ->
+          {:error, msg}
+      end
+    end
+
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
-        case append_piece_buff(data, block, block_offset) do
-          {:ok, new_buff} ->
-            handle_new_piece_block(
-              ttinfo,
-              piece_index,
-              block_offset,
-              block_length,
-              new_buff
-            )
-
-          {:error, msg} ->
-            {:error, msg}
-        end
+        handle_valid_piece_entry.(data)
 
       {:error, msg} ->
         {:error, msg}
@@ -239,6 +253,47 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
        ) do
     total_received = ttinfo.bytes_received + block_length
 
+    handle_incomplete_piece = fn ->
+      total_length = ttinfo.piece_length
+      actual_length = byte_size(new_buffer)
+
+      percent = Float.floor(actual_length / total_length * 100, 2)
+
+      Logger.debug(fn ->
+        "PIECE PROGRESS : index #{piece_index} : #{percent}%"
+      end)
+
+      new_piece_table =
+        ttinfo.piece_table
+        |> Map.put(piece_index, {:in_progress, new_buffer})
+
+      # TODO: calculate expected length for non byte sizes
+      new_ttinfo =
+        ttinfo
+        |> Map.put(:bytes_received, total_received)
+        |> Map.put(:need_piece, false)
+        |> Map.put(:expected_piece_index, piece_index)
+        |> Map.put(:expected_sub_piece_index, block_offset + block_length)
+        |> Map.put(:expected_piece_length, block_length)
+        |> Map.put(:piece_table, new_piece_table)
+
+      {:ok, new_ttinfo}
+    end
+
+    handle_complete_piece = fn ->
+      new_piece_table =
+        ttinfo.piece_table
+        |> Map.put(piece_index, {:complete, <<>>})
+
+      new_ttinfo =
+        ttinfo
+        |> Map.put(:piece_table, new_piece_table)
+        |> Map.put(:need_piece, true)
+        |> Map.put(:bytes_received, 0)
+
+      {:ok, new_ttinfo}
+    end
+
     case check_piece_completed(
            ttinfo,
            piece_index,
@@ -246,43 +301,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
            new_buffer
          ) do
       {:ok, :incomplete} ->
-        total_length = ttinfo.piece_length
-        actual_length = byte_size(new_buffer)
-
-        percent = Float.floor(actual_length / total_length * 100, 2)
-
-        Logger.debug(fn ->
-          "PIECE PROGRESS : index #{piece_index} : #{percent}%"
-        end)
-
-        new_piece_table =
-          ttinfo.piece_table
-          |> Map.put(piece_index, {:in_progress, new_buffer})
-
-        # TODO: calculate expected length for non byte sizes
-        new_ttinfo =
-          ttinfo
-          |> Map.put(:bytes_received, total_received)
-          |> Map.put(:need_piece, false)
-          |> Map.put(:expected_piece_index, piece_index)
-          |> Map.put(:expected_sub_piece_index, block_offset + block_length)
-          |> Map.put(:expected_piece_length, block_length)
-          |> Map.put(:piece_table, new_piece_table)
-
-        {:ok, new_ttinfo}
+        handle_incomplete_piece.()
 
       {:ok, :complete} ->
-        new_piece_table =
-          ttinfo.piece_table
-          |> Map.put(piece_index, {:complete, <<>>})
-
-        new_ttinfo =
-          ttinfo
-          |> Map.put(:piece_table, new_piece_table)
-          |> Map.put(:need_piece, true)
-          |> Map.put(:bytes_received, 0)
-
-        {:ok, new_ttinfo}
+        handle_complete_piece.()
 
       {:error, msg} ->
         {:error, msg}
@@ -304,7 +326,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec check_piece_completed(__MODULE__.t(), integer(), integer(), binary()) ::
           {:ok, atom()} | {:error, reason}
   defp check_piece_completed(ttinfo, piece_index, total_received, piece_buff) do
-    if total_received == ttinfo.piece_length do
+    handle_completed_piece = fn ->
       case @torrent_impl.mark_piece_index_done(
              ttinfo.id,
              piece_index,
@@ -322,6 +344,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
           {:error, msg}
       end
+    end
+
+    if total_received == ttinfo.piece_length do
+      handle_completed_piece.()
     else
       {:ok, :incomplete}
     end
@@ -348,13 +374,13 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       ttinfo.bytes_recieved < ttinfo.expected_piece_length
   end
 
-  def notify_torrent_of_connection(ttinfo, peer_id) do
-    @torrent_impl.notify_peer_is_connected(ttinfo.id, peer_id)
+  def notify_torrent_of_connection(ttinfo, peer_id, peer_ip, peer_port) do
+    @torrent_impl.notify_peer_is_connected(ttinfo.id, peer_id, peer_ip, peer_port)
   end
 
-  def notify_torrent_of_disconnection(ttinfo, peer_id) do
+  def notify_torrent_of_disconnection(ttinfo, peer_id, peer_ip, peer_port) do
     known_indexes = get_known_pieces(ttinfo)
 
-    @torrent_impl.notify_peer_is_disconnected(ttinfo.id, peer_id, known_indexes)
+    @torrent_impl.notify_peer_is_disconnected(ttinfo.id, peer_id, peer_ip, peer_port, known_indexes)
   end
 end

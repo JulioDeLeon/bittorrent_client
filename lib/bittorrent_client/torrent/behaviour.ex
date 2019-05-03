@@ -8,6 +8,8 @@ defmodule BittorrentClient.Torrent do
 
   @type torrentID :: String.t()
   @type peerID :: String.t()
+  @type peerIP :: {integer(), integer(), integer(), integer()}
+  @type peerPort :: integer()
 
   @doc """
   whereis returns PID of a named torrent process.
@@ -98,12 +100,12 @@ defmodule BittorrentClient.Torrent do
   @doc """
   Updates the connected peer list with given peer id
   """
-  @callback notify_peer_is_connected(torrentID, peerID) ::
+  @callback notify_peer_is_connected(torrentID, peerID, peerIP, peerPort) ::
               :ok | {:error, reason}
 
   @doc """
   Udpates connected peer list to remove the given peer id from list, decrements known indexes
   """
-  @callback notify_peer_is_disconnected(torrentID, peerID, list(integer())) ::
+  @callback notify_peer_is_disconnected(torrentID, peerID, peerIP, peerPort, list(integer())) ::
               :ok | {:error, reason}
 end
