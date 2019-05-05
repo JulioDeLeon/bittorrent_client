@@ -76,19 +76,23 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
     Logger.info("Starting peer worker for #{peer_data.name}")
 
+    handle_successful_connection = fn socket ->
+      case setup_handshake(socket, timer, peer_data) do
+        {:ok, new_peer_data} ->
+          {:ok, new_peer_data}
+
+        {:error, _} ->
+          err_msg = "#{peer_data.name} failed initial handshake!"
+          Logger.error(err_msg)
+          raise err_msg
+      end
+    end
+
     case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
            packet: :raw
          ) do
       {:ok, sock} ->
-        case setup_handshake(sock, timer, peer_data) do
-          {:ok, new_peer_data} ->
-            {:ok, new_peer_data}
-
-          {:error, _} ->
-            err_msg = "#{peer_data.name} failed initial handshake!"
-            Logger.error(err_msg)
-            raise err_msg
-        end
+        handle_successful_connection.(sock)
 
       {:error, msg} ->
         err_msg =
@@ -751,7 +755,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   defp cleanup(peer_data) do
     ttinfo = peer_data.torrent_tracking_info
     peer_id = peer_data.name
-    TorrentTrackingInfo.notify_torrent_of_disconnection(ttinfo, peer_id, peer_data.peer_ip, peer_data.peer_ip)
+
+    TorrentTrackingInfo.notify_torrent_of_disconnection(
+      ttinfo,
+      peer_id,
+      peer_data.peer_ip,
+      peer_data.peer_ip
+    )
+
     @tcp_conn_impl.close(peer_data.socket)
     :ok
   end

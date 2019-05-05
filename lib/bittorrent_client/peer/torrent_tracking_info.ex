@@ -375,12 +375,23 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   end
 
   def notify_torrent_of_connection(ttinfo, peer_id, peer_ip, peer_port) do
-    @torrent_impl.notify_peer_is_connected(ttinfo.id, peer_id, peer_ip, peer_port)
+    @torrent_impl.notify_peer_is_connected(
+      ttinfo.id,
+      peer_id,
+      peer_ip,
+      peer_port
+    )
   end
 
   def notify_torrent_of_disconnection(ttinfo, peer_id, peer_ip, peer_port) do
     known_indexes = get_known_pieces(ttinfo)
 
-    @torrent_impl.notify_peer_is_disconnected(ttinfo.id, peer_id, peer_ip, peer_port, known_indexes)
+    @torrent_impl.notify_peer_is_disconnected(
+      ttinfo.id,
+      peer_id,
+      peer_ip,
+      peer_port,
+      known_indexes
+    )
   end
 end

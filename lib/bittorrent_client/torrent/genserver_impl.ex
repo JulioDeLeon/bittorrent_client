@@ -224,7 +224,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:reply, :ok, {metadata, %TorrentData{data | numwant: num_wanted}}}
   end
 
-  def handle_call({:notify_peer_connected, peer_id, peer_ip, peer_port}, _from, {metadata, data}) do
+  def handle_call(
+        {:notify_peer_connected, peer_id, peer_ip, peer_port},
+        _from,
+        {metadata, data}
+      ) do
     new_connected_peers =
       data.connected_peers
       |> Map.put(peer_id, {peer_ip, peer_port})
@@ -403,12 +407,18 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     )
   end
 
-  def notify_peer_is_disconnected(id, peer_id, peer_ip, peer_port, known_indexes) do
+  def notify_peer_is_disconnected(
+        id,
+        peer_id,
+        peer_ip,
+        peer_port,
+        known_indexes
+      ) do
     Logger.debug(fn ->
       "#{id} is being notified that #{peer_id} is not connected to its peer"
     end)
 
-    Logger.debug(fn -> "#{id} will reduce references for [#{known_indexes}]" end)
+    Logger.debug(fn -> "#{id} will reduce references for [#{inspect(known_indexes)}]" end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
@@ -611,7 +621,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     peer_list =
       data
       |> TorrentData.get_peers()
-      |> Enum.shuffle() # TODO remove bad peers from list
+      # TODO remove bad peers from list
+      |> Enum.shuffle()
       |> Enum.take(data.numallowed)
 
     case peer_list do

@@ -148,22 +148,26 @@ defmodule BittorrentClientWeb.TorrentController do
   end
 
   defp entry_to_encodable(data_point) do
-    {_, new_dp} =
-      data_point
-      |> Map.get_and_update("metadata", fn metadata ->
-        {data_point,
-         (fn ->
-            {_, new_md} =
-              metadata
-              |> Map.from_struct()
-              |> Map.get_and_update(:info, fn info ->
-                {metadata, info |> Map.from_struct() |> Map.delete(:pieces)}
-              end)
+    Logger.debug("THIS IS DATA POINT : #{inspect(data_point)}")
 
-            new_md
-          end).()}
+    {_, new_metadata} =
+      data_point
+      |> Map.get("metadata")
+      |> Map.from_struct()
+      |> Map.get_and_update(:info, fn info ->
+        {info, info |> Map.from_struct() |> Map.delete(:pieces)}
       end)
 
-    new_dp
+    new_data =
+      data_point
+      |> Map.get("data")
+      |> Map.from_struct()
+      |> Map.delete(:pieces)
+
+
+
+    data_point
+    |> Map.put("metadata", new_metadata)
+    |> Map.put("data", new_data)
   end
 end

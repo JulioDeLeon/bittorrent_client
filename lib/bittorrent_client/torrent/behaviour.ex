@@ -106,6 +106,12 @@ defmodule BittorrentClient.Torrent do
   @doc """
   Udpates connected peer list to remove the given peer id from list, decrements known indexes
   """
-  @callback notify_peer_is_disconnected(torrentID, peerID, peerIP, peerPort, list(integer())) ::
+  @callback notify_peer_is_disconnected(
+              torrentID,
+              peerID,
+              peerIP,
+              peerPort,
+              list(integer())
+            ) ::
               :ok | {:error, reason}
 end
