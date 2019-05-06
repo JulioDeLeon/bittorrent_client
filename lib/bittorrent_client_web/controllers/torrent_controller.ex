@@ -163,8 +163,13 @@ defmodule BittorrentClientWeb.TorrentController do
       |> Map.get("data")
       |> Map.from_struct()
       |> Map.delete(:pieces)
-
-
+      |> Map.delete(:info_hash)
+      |> Map.delete(:uploaded)
+      |> Map.delete(:trackerid)
+      |> Map.delete(:tracker_info)
+      |> Map.delete(:status)
+      |> Map.delete(:port)
+      |> Map.delete(:pid)
 
     data_point
     |> Map.put("metadata", new_metadata)
