@@ -188,7 +188,6 @@ defmodule BittorrentClient.Peer.Protocol do
        when length - @piece_length_offset >= byte_size(n_block) do
     block_length = calculate_block_length(length)
 
-
     Logger.debug(fn ->
       "DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{
         block_length
