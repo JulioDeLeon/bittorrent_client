@@ -174,6 +174,7 @@ defmodule BittorrentClient.Peer.Protocol do
     ])
   end
 
+  # TODO : Take function gaurd off of this function to test is this i blocking
   defp decode_type(
          <<
            length::size(32),
@@ -184,8 +185,9 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        )
-       when length - @piece_length_offset == byte_size(n_block) do
+       when length - @piece_length_offset >= byte_size(n_block) do
     block_length = calculate_block_length(length)
+
 
     Logger.debug(fn ->
       "DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{
@@ -279,6 +281,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn -> "DECODE : ALLOWED_FAST piece index #{piece_index}" end)
+
     decode_type(rest, [
       %{
         type: :allowed_fast,
@@ -299,6 +303,12 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn ->
+      "DECODE : REJECT_PIECE piece index #{piece_index} sub piece index #{
+        sub_piece_index
+      }"
+    end)
+
     decode_type(rest, [
       %{
         type: :reject_piece,
@@ -318,6 +328,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn -> "DECODE : HAVE_ALL" end)
+
     decode_type(rest, [
       %{
         type: :have_all
@@ -334,6 +346,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn -> "DECODE : HAVE_NONE" end)
+
     decode_type(rest, [
       %{
         type: :have_none
@@ -387,6 +401,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn -> "DECODE : UPLOAD_ONLY MESSAGE" end)
+
     decode_type(rest, [
       %{
         type: :upload_only,

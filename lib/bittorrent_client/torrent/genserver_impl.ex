@@ -418,7 +418,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       "#{id} is being notified that #{peer_id} is not connected to its peer"
     end)
 
-    Logger.debug(fn -> "#{id} will reduce references for [#{inspect(known_indexes)}]" end)
+    Logger.debug(fn ->
+      "#{id} will reduce references for [#{inspect(known_indexes)}]"
+    end)
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
