@@ -174,7 +174,7 @@ defmodule BittorrentClient.Peer.Protocol do
     ])
   end
 
-  # TODO : Take function gaurd off of this function to test is this i blocking
+  # TODO: check if the negative case for this guard clause is needed as well...
   defp decode_type(
          <<
            length::size(32),
