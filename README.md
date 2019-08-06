@@ -8,7 +8,7 @@ development and is missing some key features before it can be used for daily use
   * Install dependencies with `mix deps.get`
   * Install Node.js dependencies with `cd assets && npm install`
   * Start Phoenix endpoint with `mix phx.server`
-  ** to start with repl `iex -S phx.server`
+  ** to start with repl `iex -S mix phx.server`
 
 ## Using BittorrentClient
 
