@@ -47,7 +47,7 @@ defmodule BittorrentClient.Torrent.Test do
     assert @torrent_impl.whereis("fake id") == :undefined
   end
 
-  test "Return expected torrent data on an exisiting torrent process from Torrent Layer",
+  test "Return expected torrent data on an existing torrent process from Torrent Layer",
        context do
     {add_status, data} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)

@@ -6,6 +6,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @derive {Poison.Encoder, except: []}
+  @enforce_keys [:id]
   defstruct [
     :id,
     :infohash,
