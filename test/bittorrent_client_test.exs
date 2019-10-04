@@ -30,7 +30,7 @@ defmodule BittorrentClientTest do
         :crypto.hash(:sha, info)
         |> Base.encode16()
 
-      expected = "7F9161C88883C639BCDE80D7F0A6045AB9CF16BB"
+      expected = "0F2A3ADFE82E1C92B390CDCAAEC3CDC0DD3EBFD7"
 
       assert hash == expected
       assert URI.encode(hash) == URI.encode(expected)

@@ -46,13 +46,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       piece_hashes: parsed_piece_hashes,
       piece_table: %{},
       bytes_received: 0,
-      need_piece: true
+      need_piece: true # TODO is this logic duped?
     }
 
     peer_data = %PeerData{
       id: Application.fetch_env!(:bittorrent_client, :peer_id),
       handshake_check: false,
-      need_piece: true,
       filename: filename,
       state: :we_choke,
       torrent_tracking_info: torrent_track_info,
@@ -618,7 +617,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message({peer_data, buff}, anything) do
-    Logger.error("#{peer_data.name} : is trying to #{anything}")
+    Logger.error("#{peer_data.name} : is trying to create message : #{anything}")
 
     {peer_data, buff}
   end

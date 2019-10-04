@@ -1,6 +1,7 @@
 defmodule BittorrentClient.Peer.Data do
   @moduledoc """
-  Peer data struct to contain information about peer connection
+  Peer data struct to contain information about peer connection. The purpose of this class to coordinate info with peer
+  connection.
 
   ## Peer Connection state
   The state of the connect between the peer and client is represeneted by 4 atoms as defined:
@@ -22,7 +23,6 @@ defmodule BittorrentClient.Peer.Data do
       torrent_tracking_info: TorrentTrackingInfo.t(), # Manages the state of relationship of the peer process with it's torrent process
       filename: String.t(),                           # File that the torrent is related to
       handshake_check: boolean,                       # Check for if the checksum handshake has been made with the peer
-      need_piece: boolean,                            # Check to see if a new piece needs to be requested from the peer
       state: state,                                   # Contains the peer connection state
       piece_buffer: binary(),                         # Temporary scratch buffer to contain bytes of the current piece downloaded
       timer: :timer.tref(),                           # Contains reference to a timer which will inform the peer process to send a message
@@ -57,7 +57,6 @@ defmodule BittorrentClient.Peer.Data do
     :running_buffer,
     :handshake_check,
     :fast_check,
-    :need_piece,
     :piece_requested,
     :filename,
     :state,
@@ -76,7 +75,6 @@ defmodule BittorrentClient.Peer.Data do
           filename: String.t(),
           handshake_check: boolean,
           fast_check: boolean,
-          need_piece: boolean,
           piece_requested: boolean,
           state: state,
           piece_buffer: binary(),

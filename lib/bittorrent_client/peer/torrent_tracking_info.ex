@@ -1,6 +1,7 @@
 defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @moduledoc """
   TorrentTrackingInfo manages the tracking of torrent download progress
+  The purpose of this struct to contain info to coordinate with parent torrent process.
   """
   require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
