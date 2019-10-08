@@ -6,7 +6,6 @@ defmodule BittorrentClient.Torrent.Test do
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @file_name_1 "priv/ubuntu.torrent"
   @file_name_2 "priv/arch.torrent"
-  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
 
   setup_all do
     file_1_bento_contents =

@@ -1,7 +1,6 @@
 defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   use ExUnit.Case
   doctest BittorrentClient.Peer.TorrentTrackingInfo
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @file_name_1 "priv/ubuntu.torrent"

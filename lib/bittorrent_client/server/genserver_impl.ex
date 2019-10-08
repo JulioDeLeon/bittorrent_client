@@ -160,7 +160,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
     if Map.has_key?(torrents, id) do
       # TODO better way to do this
       torrents = Map.update!(torrents, id, fn _data_point -> data end)
-      {:reply, {:ok, torrents}, {db, server_name, torrents}}
+      {:reply, {:ok, Map.get(torrents, id)}, {db, server_name, torrents}}
     else
       {:reply, {:error, {403, "Bad ID was given"}}, {db, server_name, torrents}}
     end
@@ -177,7 +177,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
       new_torrent_data = %TorrentData{torrent_data | status: status}
       new_torrent_info = Map.put(torrent_info, "data", new_torrent_data)
       updated_torrents = Map.put(torrents, id, new_torrent_info)
-      {:reply, {:ok, updated_torrents}, {db, server_name, updated_torrents}}
+      {:reply, {:ok, Map.get(updated_torrents, id)}, {db, server_name, updated_torrents}}
     else
       {:reply, {:error, {403, "Bad ID was given"}}, {db, server_name, torrents}}
     end
