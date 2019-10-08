@@ -32,7 +32,7 @@ defmodule BittorrentClient.Torrent.Test do
     end)
   end
 
-  test "whereis should return a valid pid from Torrent layer", context do
+  test "whereis should return a valid pid from Torrent layer", _context do
     {add_status, data} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
 
@@ -43,7 +43,7 @@ defmodule BittorrentClient.Torrent.Test do
   end
 
   test "whereis should return undefined when given invalid id from Torrent layer",
-       context do
+       _context do
     assert @torrent_impl.whereis("fake id") == :undefined
   end
 

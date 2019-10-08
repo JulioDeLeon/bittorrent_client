@@ -116,7 +116,7 @@ defmodule BittorrentClient.CacheTest.ETSImpl do
     cache_ref: @cache_ref,
     cache_opts: @cache_opts
 
-  setup_all context do
+  setup_all do
     {:ok, _pid} = @cache_impl.start_link(@cache_ref, @cache_opts)
     :ok
   end

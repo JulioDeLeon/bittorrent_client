@@ -23,6 +23,10 @@ defmodule BittorrentClient.Server.GenServerImpl do
     )
   end
 
+  def start_link([db_dir, name]) do
+    start_link(db_dir, name)
+  end
+
   def init({db_dir, name, torrent_map}) do
     # load from database into table
     {:ok, {db_dir, name, torrent_map}}

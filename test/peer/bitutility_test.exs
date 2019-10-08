@@ -42,13 +42,13 @@ defmodule BittorrentClient.Peer.BitUtility.Test do
   test "empty buffer" do
     l = <<>>
     {status, _reason} = BitUtility.set_bit(l, 1, 44)
-    assert(status = :error)
+    assert(status == :error)
   end
 
   test "invalid position" do
     l = <<1, 1, 1, 1, 1>>
     {status, _reason} = BitUtility.set_bit(l, 3, 9)
-    assert(status = :error)
+    assert(status == :error)
   end
 
   test "create empty bitfield based on torrent piece info" do

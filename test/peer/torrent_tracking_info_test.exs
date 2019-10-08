@@ -26,12 +26,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
         }
 
         # create a dir for byte assembly?
-        server_pid = @server_impl.start_link("priv/", @server_name)
 
         {:ok, [
           torrent_id: id,
-          example_ttinfo: example_ttinfo,
-          server_pid: server_pid
+          example_ttinfo: example_ttinfo
         ]}
       _ ->
         {:error, "could not add new torrent"}
@@ -39,6 +37,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   end
 
   setup do
+
     on_exit(fn ->
       _ret = @server_impl.delete_all_torrents(@server_name)
     end)

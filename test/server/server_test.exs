@@ -87,7 +87,7 @@ defmodule BittorrentClient.Server.Test do
              metadata
            )
 
-    {deletion_status, ret_data} =
+    {deletion_status, _ret_data} =
       @server_impl.delete_torrent_by_id(@server_name, torrent_id)
 
     assert deletion_status == :ok
