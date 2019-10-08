@@ -87,10 +87,17 @@ defmodule BittorrentClient.Server.Test do
              metadata
            )
 
-    {deletion_status, _ret_data} =
+    {deletion_status, ret_data} =
       @server_impl.delete_torrent_by_id(@server_name, torrent_id)
 
     assert deletion_status == :ok
+
+    deleted_id =
+      ret_data
+      |> Map.get("data")
+      |> Map.get(:id)
+
+    assert deleted_id == torrent_id
 
     pid = @torrent_impl.whereis(torrent_id)
     assert pid == :undefined
@@ -155,7 +162,13 @@ defmodule BittorrentClient.Server.Test do
       |> Map.get("data")
       |> Map.get(:status)
 
+    curr_id =
+      torrent_info
+      |> Map.get("data")
+      |> Map.get(:id)
+
     assert curr_status == :initial
+    assert curr_id == torrent_id
 
     metadata = Map.get(torrent_info, "metadata")
 
@@ -178,7 +191,13 @@ defmodule BittorrentClient.Server.Test do
       |> Map.get("data")
       |> Map.get(:status)
 
+    curr_id =
+      ret_data
+      |> Map.get("data")
+      |> Map.get(:id)
+
     assert new_status == expected_status
+    assert curr_id == torrent_id
 
     {second_torrent_info_status, new_torrent_info} =
       @server_impl.get_torrent_info_by_id(@server_name, torrent_id)

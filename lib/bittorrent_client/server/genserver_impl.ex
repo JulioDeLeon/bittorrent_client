@@ -123,7 +123,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
         _ ->
           torrents = Map.delete(torrents, id)
 
-          {:reply, {:ok, %{"torrent id" => id, "torrent data" => data}},
+          {:reply, {:ok, %{"id" => id, "data" => data}},
            {db, server_name, torrents}}
       end
     else
