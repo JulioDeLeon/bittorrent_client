@@ -89,5 +89,6 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
     ttinfo = context.example_ttinfo
     {status, new_ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, some_peer_id, some_index)
     assert status == :ok
+    assert new_ttinfo == :ok
   end
 end
