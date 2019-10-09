@@ -1,9 +1,9 @@
 defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   doctest BittorrentClient.Peer.TorrentTrackingInfo
   @server_impl Application.get_env(:bittorrent_client, :server_impl)
   @server_name Application.get_env(:bittorrent_client, :server_name)
-  @file_name_1 "priv/ubuntu.torrent"
+  @file_name_1 "priv/ubuntu_2.torrent"
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
 
   setup_all do
@@ -101,23 +101,28 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   end
 
   test "Populate a single piece reference with torrent process", context do
+    _ret = @server_impl.delete_torrent_by_id(@server_name, context.example_ttinfo.id)
     some_index = 82
     # this is an number from peer data
     some_peer_id = 1000
-    ttinfo = context.example_ttinfo
+    ttinfo = %TorrentTrackingInfo{context.example_ttinfo | id: "fake"}
 
-    {status, new_ttinfo} =
+    {status, _new_ttinfo} =
       TorrentTrackingInfo.populate_single_piece(
         ttinfo,
         some_peer_id,
         some_index
       )
 
+    assert status == :error
+
+    {:ok, resp} = @server_impl.add_new_torrent(@server_name, @file_name_1)
+    ttinfo = %TorrentTrackingInfo{context.example_ttinfo | id: Map.get(resp, "torrent id")}
+
+    {status, new_ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, some_peer_id, some_index)
+
     assert status == :ok
 
-    assert Map.has_key?(new_ttinfo.piece_table, some_index) == true
-
-    piece_tracking_info = Map.get(new_ttinfo.piece_table, some_index)
-    assert piece_tracking_info == {:found, <<>>}
+    _ret = @server_impl.delete_torrent_by_id(@server_name, new_ttinfo.id)
   end
 end

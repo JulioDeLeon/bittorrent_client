@@ -70,10 +70,14 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           piece_index()
         ) :: any()
   def populate_single_piece(ttinfo, peer_id, piece_index) do
-    {status, _} =
-      @torrent_impl.add_new_piece_index(ttinfo.id, peer_id, piece_index)
+    callback = fn ->
+      {status, _} =
+        @torrent_impl.add_new_piece_index(ttinfo.id, peer_id, piece_index)
 
-    add_found_piece_index(status, ttinfo, piece_index)
+      add_found_piece_index(status, ttinfo, piece_index)
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec populate_multiple_pieces(__MODULE__.t(), peer_id, [piece_index]) ::
@@ -98,13 +102,17 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       {:ok, new_ttinfo}
     end
 
-    case @torrent_impl.add_multi_pieces(ttinfo.id, peer_id, piece_indexes) do
-      {:error, msg} ->
-        {:error, msg}
+    callback = fn ->
+      case @torrent_impl.add_multi_pieces(ttinfo.id, peer_id, piece_indexes) do
+        {:error, msg} ->
+          {:error, msg}
 
-      {:ok, indexes} ->
-        update_own_table.(indexes)
+        {:ok, indexes} ->
+          update_own_table.(indexes)
+      end
     end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec get_piece_entry(__MODULE__.t(), piece_index) ::
@@ -155,13 +163,17 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       end
     end
 
-    case get_piece_entry(ttinfo, piece_index) do
-      {:ok, {_, buff}} ->
-        handle_valid_piece_buff.(buff)
+    callback = fn ->
+      case get_piece_entry(ttinfo, piece_index) do
+        {:ok, {_, buff}} ->
+          handle_valid_piece_buff.(buff)
 
-      {:error, msg} ->
-        {:error, msg}
+        {:error, msg} ->
+          {:error, msg}
+      end
     end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec mark_piece_needed(__MODULE__.t()) :: {:ok, __MODULE__.t()}
@@ -348,11 +360,15 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       end
     end
 
-    if total_received == ttinfo.piece_length do
-      handle_completed_piece.()
-    else
-      {:ok, :incomplete}
+    callback = fn ->
+      if total_received == ttinfo.piece_length do
+        handle_completed_piece.()
+      else
+        {:ok, :incomplete}
+      end
     end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec validate_infohash(__MODULE__.t(), binary()) :: boolean()
@@ -377,23 +393,39 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   end
 
   def notify_torrent_of_connection(ttinfo, peer_id, peer_ip, peer_port) do
-    @torrent_impl.notify_peer_is_connected(
-      ttinfo.id,
-      peer_id,
-      peer_ip,
-      peer_port
-    )
+    callback = fn ->
+      @torrent_impl.notify_peer_is_connected(
+        ttinfo.id,
+        peer_id,
+        peer_ip,
+        peer_port
+      )
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   def notify_torrent_of_disconnection(ttinfo, peer_id, peer_ip, peer_port) do
     known_indexes = get_known_pieces(ttinfo)
 
-    @torrent_impl.notify_peer_is_disconnected(
-      ttinfo.id,
-      peer_id,
-      peer_ip,
-      peer_port,
-      known_indexes
-    )
+    callback = fn ->
+      @torrent_impl.notify_peer_is_disconnected(
+        ttinfo.id,
+        peer_id,
+        peer_ip,
+        peer_port,
+        known_indexes
+      )
+    end
+
+    perform_torrent_callback(ttinfo, callback)
+  end
+
+  @spec perform_torrent_callback(__MODULE__.t(), function()) :: {:error, reason} | any()
+  defp perform_torrent_callback(ttinfo, callback) do
+    case @torrent_impl.whereis(ttinfo.id) do
+      :undefined -> {:error, "The given torrent is not running, did it die?: #{ttinfo.id}"}
+      _ -> callback.()
+    end
   end
 end
