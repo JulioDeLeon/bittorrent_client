@@ -89,6 +89,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
     ttinfo = context.example_ttinfo
     {status, new_ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, some_peer_id, some_index)
     assert status == :ok
-    assert new_ttinfo == :ok
+
+    assert Map.has_key?(new_ttinfo.piece_table, some_index) == true
+
+    piece_tracking_info = Map.get(new_ttinfo.piece_table, some_index)
+    assert piece_tracking_info == {:found, <<>>}
   end
 end
