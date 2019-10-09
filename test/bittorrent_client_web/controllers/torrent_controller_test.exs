@@ -10,7 +10,6 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   @torrent_file_2 "priv/arch.torrent"
   @opts []
 
-
   setup do
     file_1_bento_content =
       @torrent_file

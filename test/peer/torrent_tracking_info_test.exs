@@ -10,6 +10,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
     case @server_impl.add_new_torrent(@server_name, @file_name_1) do
       {:ok, resp} ->
         id = Map.get(resp, "torrent id")
+
         example_ttinfo = %TorrentTrackingInfo{
           id: id,
           infohash: <<>>,
@@ -26,17 +27,18 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
         # create a dir for byte assembly?
 
-        {:ok, [
-          torrent_id: id,
-          example_ttinfo: example_ttinfo
-        ]}
+        {:ok,
+         [
+           torrent_id: id,
+           example_ttinfo: example_ttinfo
+         ]}
+
       _ ->
         {:error, "could not add new torrent"}
     end
   end
 
   setup do
-
     on_exit(fn ->
       _ret = @server_impl.delete_all_torrents(@server_name)
     end)
@@ -50,7 +52,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
     assert length(TorrentTrackingInfo.get_known_pieces(ttinfo)) == 0
 
-    ttinfo = %TorrentTrackingInfo{ ttinfo | piece_table: %{3 => {:found, <<>>}}}
+    ttinfo = %TorrentTrackingInfo{ttinfo | piece_table: %{3 => {:found, <<>>}}}
 
     assert length(TorrentTrackingInfo.get_known_pieces(ttinfo)) == 1
   end
@@ -58,7 +60,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   test "Addition of a new found piece to piece table", context do
     some_index = 4
     ttinfo = context.example_ttinfo
-    {status, new_ttinfo} = TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, some_index)
+
+    {status, new_ttinfo} =
+      TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, some_index)
+
     assert status == :ok
     known_indexes = TorrentTrackingInfo.get_known_pieces(new_ttinfo)
     assert length(known_indexes) == 1
@@ -66,28 +71,48 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
     ttinfo = new_ttinfo
 
     another_index = 0
-    {status, _new_ttinfo} = TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, some_index)
+
+    {status, _new_ttinfo} =
+      TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, some_index)
+
     assert status == :error
-    {status, new_ttinfo} = TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, another_index)
+
+    {status, new_ttinfo} =
+      TorrentTrackingInfo.add_found_piece_index(:ok, ttinfo, another_index)
+
     assert status == :ok
-    known_indexes = TorrentTrackingInfo.get_known_pieces(new_ttinfo)
-    |> Enum.sort()
+
+    known_indexes =
+      TorrentTrackingInfo.get_known_pieces(new_ttinfo)
+      |> Enum.sort()
+
     assert length(known_indexes) == 2
     assert List.last(known_indexes) == some_index
     assert List.first(known_indexes) == another_index
 
     ttinfo = new_ttinfo
     another_index_2 = 6
-    {status, new_ttinfo} = TorrentTrackingInfo.add_found_piece_index(:error, ttinfo, another_index_2)
+
+    {status, new_ttinfo} =
+      TorrentTrackingInfo.add_found_piece_index(:error, ttinfo, another_index_2)
+
     assert status == :ok
     assert ttinfo == new_ttinfo
   end
 
   test "Populate a single piece reference with torrent process", context do
     some_index = 82
-    some_peer_id = 1000 # this is an number from peer data
+    # this is an number from peer data
+    some_peer_id = 1000
     ttinfo = context.example_ttinfo
-    {status, new_ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, some_peer_id, some_index)
+
+    {status, new_ttinfo} =
+      TorrentTrackingInfo.populate_single_piece(
+        ttinfo,
+        some_peer_id,
+        some_index
+      )
+
     assert status == :ok
 
     assert Map.has_key?(new_ttinfo.piece_table, some_index) == true

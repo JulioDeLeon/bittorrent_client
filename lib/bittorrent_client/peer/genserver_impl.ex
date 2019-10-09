@@ -46,7 +46,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       piece_hashes: parsed_piece_hashes,
       piece_table: %{},
       bytes_received: 0,
-      need_piece: true # TODO is this logic duped?
+      # TODO is this logic duped?
+      need_piece: true
     }
 
     peer_data = %PeerData{
@@ -76,6 +77,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     handle_successful_connection = fn socket ->
       timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+
       case setup_handshake(socket, timer, peer_data) do
         {:ok, new_peer_data} ->
           {:ok, new_peer_data}
@@ -617,7 +619,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message({peer_data, buff}, anything) do
-    Logger.error("#{peer_data.name} : is trying to create message : #{anything}")
+    Logger.error(
+      "#{peer_data.name} : is trying to create message : #{anything}"
+    )
 
     {peer_data, buff}
   end
