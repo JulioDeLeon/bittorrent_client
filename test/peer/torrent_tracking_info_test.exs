@@ -39,6 +39,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   end
 
   setup do
+    _ret = @server_impl.delete_all_torrents(@server_name)
     on_exit(fn ->
       _ret = @server_impl.delete_all_torrents(@server_name)
     end)
@@ -101,7 +102,6 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   end
 
   test "Populate a single piece reference with torrent process", context do
-    _ret = @server_impl.delete_torrent_by_id(@server_name, context.example_ttinfo.id)
     some_index = 82
     # this is an number from peer data
     some_peer_id = 1000
@@ -123,6 +123,5 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
     assert status == :ok
 
-    _ret = @server_impl.delete_torrent_by_id(@server_name, new_ttinfo.id)
   end
 end
