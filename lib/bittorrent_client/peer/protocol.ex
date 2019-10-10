@@ -47,6 +47,8 @@ defmodule BittorrentClient.Peer.Protocol do
   @holepunch_id 4
   @dont_have_id 7
   @share_mode_id 8
+
+  @piece_length_offset 9
   @doc """
   Decode a binary of peer protocol messages and return a list of messages and
   any remaining bytes.
@@ -172,6 +174,7 @@ defmodule BittorrentClient.Peer.Protocol do
     ])
   end
 
+  # TODO: check if the negative case for this guard clause is needed as well...
   defp decode_type(
          <<
            length::size(32),
@@ -181,7 +184,8 @@ defmodule BittorrentClient.Peer.Protocol do
            n_block::bytes
          >>,
          acc
-       ) do
+       )
+       when length - @piece_length_offset >= byte_size(n_block) do
     block_length = calculate_block_length(length)
 
     Logger.debug(fn ->
@@ -276,6 +280,8 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        ) do
+    Logger.debug(fn -> "DECODE : ALLOWED_FAST piece index #{piece_index}" end)
+
     decode_type(rest, [
       %{
         type: :allowed_fast,
@@ -286,16 +292,22 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(
-    <<
-      @reject_piece_len::size(32),
-      @reject_piece_id,
-      piece_index,
-      sub_piece_index,
-      block_length,
-      rest::bytes
-    >>,
-    acc
-    ) do
+         <<
+           @reject_piece_len::size(32),
+           @reject_piece_id,
+           piece_index,
+           sub_piece_index,
+           block_length,
+           rest::bytes
+         >>,
+         acc
+       ) do
+    Logger.debug(fn ->
+      "DECODE : REJECT_PIECE piece index #{piece_index} sub piece index #{
+        sub_piece_index
+      }"
+    end)
+
     decode_type(rest, [
       %{
         type: :reject_piece,
@@ -308,13 +320,15 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(
-    <<
-      @no_payload_len::size(32),
-      @have_all_id,
-      rest::bytes
-    >>,
-    acc
-    ) do
+         <<
+           @no_payload_len::size(32),
+           @have_all_id,
+           rest::bytes
+         >>,
+         acc
+       ) do
+    Logger.debug(fn -> "DECODE : HAVE_ALL" end)
+
     decode_type(rest, [
       %{
         type: :have_all
@@ -324,13 +338,15 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(
-    <<
-      @no_payload_len::size(32),
-      @have_none_id,
-      rest::bytes
-    >>,
-    acc
-    ) do
+         <<
+           @no_payload_len::size(32),
+           @have_none_id,
+           rest::bytes
+         >>,
+         acc
+       ) do
+    Logger.debug(fn -> "DECODE : HAVE_NONE" end)
+
     decode_type(rest, [
       %{
         type: :have_none
@@ -341,8 +357,8 @@ defmodule BittorrentClient.Peer.Protocol do
 
   # Decode Extended Messages
   defp decode_type(
-         <<@dont_have_len::size(32), @message_extended, @dont_have_id, piece_index::size(32),
-           rest::bytes>>,
+         <<@dont_have_len::size(32), @message_extended, @dont_have_id,
+           piece_index::size(32), rest::bytes>>,
          acc
        ) do
     Logger.debug(fn ->
@@ -359,12 +375,8 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(
-         <<
-          @share_mode_len::size(32),
-          @message_extended,
-          @share_mode_id,
-          shared,
-          rest::bytes>>,
+         <<@share_mode_len::size(32), @message_extended, @share_mode_id, shared,
+           rest::bytes>>,
          acc
        ) do
     Logger.debug(fn -> "DECODE : SHARE_MODE MESSAGE : #{shared}" end)
@@ -379,15 +391,17 @@ defmodule BittorrentClient.Peer.Protocol do
   end
 
   defp decode_type(
-    <<
-      @upload_only_len::size(32),
-      @message_extended,
-      @upload_only_id,
-      upload_only_mode,
-      rest::bytes
-    >>,
-    acc
-    ) do
+         <<
+           @upload_only_len::size(32),
+           @message_extended,
+           @upload_only_id,
+           upload_only_mode,
+           rest::bytes
+         >>,
+         acc
+       ) do
+    Logger.debug(fn -> "DECODE : UPLOAD_ONLY MESSAGE" end)
+
     decode_type(rest, [
       %{
         type: :upload_only,
@@ -519,7 +533,6 @@ defmodule BittorrentClient.Peer.Protocol do
     <<>>
   end
 
-  @piece_length_offset 9
   defp calculate_block_length(length_field),
     do: length_field - @piece_length_offset
 end

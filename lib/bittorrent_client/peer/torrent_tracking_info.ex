@@ -1,10 +1,12 @@
 defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @moduledoc """
   TorrentTrackingInfo manages the tracking of torrent download progress
+  The purpose of this struct to contain info to coordinate with parent torrent process.
   """
   require Logger
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @derive {Poison.Encoder, except: []}
+  @enforce_keys [:id]
   defstruct [
     :id,
     :infohash,
@@ -68,35 +70,49 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           piece_index()
         ) :: any()
   def populate_single_piece(ttinfo, peer_id, piece_index) do
-    {status, _} =
-      @torrent_impl.add_new_piece_index(ttinfo.id, peer_id, piece_index)
+    callback = fn ->
+      {status, _} =
+        @torrent_impl.add_new_piece_index(ttinfo.id, peer_id, piece_index)
 
-    add_found_piece_index(status, ttinfo, piece_index)
+      add_found_piece_index(status, ttinfo, piece_index)
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec populate_multiple_pieces(__MODULE__.t(), peer_id, [piece_index]) ::
           {:ok, __MODULE__.t()} | {:error, reason}
   def populate_multiple_pieces(ttinfo, peer_id, piece_indexes) do
-    case @torrent_impl.add_multi_pieces(ttinfo.id, peer_id, piece_indexes) do
-      {:error, msg} ->
-        {:error, msg}
+    update_own_table = fn indexes ->
+      new_ttinfo =
+        Enum.reduce(indexes, ttinfo, fn index, acc ->
+          {check, ret} = add_found_piece_index(:ok, acc, index)
 
-      {:ok, indexes} ->
-        {:ok,
-         Enum.reduce(indexes, ttinfo, fn index, acc ->
-           {check, ret} = add_found_piece_index(:ok, acc, index)
+          if check == :ok do
+            ret
+          else
+            Logger.error(
+              "#{peer_id} could not add #{index} to piece_table : #{ret}"
+            )
 
-           if check == :ok do
-             ret
-           else
-             Logger.error(
-               "#{peer_id} could not add #{index} to piece_tablttinfoe : #{ret}"
-             )
+            acc
+          end
+        end)
 
-             acc
-           end
-         end)}
+      {:ok, new_ttinfo}
     end
+
+    callback = fn ->
+      case @torrent_impl.add_multi_pieces(ttinfo.id, peer_id, piece_indexes) do
+        {:error, msg} ->
+          {:error, msg}
+
+        {:ok, indexes} ->
+          update_own_table.(indexes)
+      end
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec get_piece_entry(__MODULE__.t(), piece_index) ::
@@ -125,6 +141,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   def change_piece_progress(ttinfo, piece_index, progress) do
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_, buff}} ->
+        # TODO: if piece is complete empty out the buffer
         update_piece_entry(ttinfo, piece_index, {progress, buff})
 
       {:error, msg} ->
@@ -135,21 +152,28 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec mark_piece_done(__MODULE__.t(), piece_index) ::
           {:ok, __MODULE__.t()} | {:error, reason}
   def mark_piece_done(ttinfo, piece_index) do
-    case get_piece_entry(ttinfo, piece_index) do
-      {:ok, {_, buff}} ->
-        {status, ret} =
-          @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff)
-
-        if status == :ok do
+    handle_valid_piece_buff = fn buff ->
+      case @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff) do
+        {:ok, _ret} ->
           change_piece_progress(ttinfo, piece_index, :completed)
-        else
-          {:error,
-           "#{ttinfo.id} could not mark #{piece_index} as done : #{ret}"}
-        end
 
-      {:error, msg} ->
-        {:error, msg}
+        {:error, msg} ->
+          {:error,
+           "#{ttinfo.id} could not mark #{piece_index} as done : #{msg}"}
+      end
     end
+
+    callback = fn ->
+      case get_piece_entry(ttinfo, piece_index) do
+        {:ok, {_, buff}} ->
+          handle_valid_piece_buff.(buff)
+
+        {:error, msg} ->
+          {:error, msg}
+      end
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec mark_piece_needed(__MODULE__.t()) :: {:ok, __MODULE__.t()}
@@ -209,21 +233,25 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       } block length #{block_length}"
     end)
 
+    handle_valid_piece_entry = fn data ->
+      case append_piece_buff(data, block, block_offset) do
+        {:ok, new_buff} ->
+          handle_new_piece_block(
+            ttinfo,
+            piece_index,
+            block_offset,
+            block_length,
+            new_buff
+          )
+
+        {:error, msg} ->
+          {:error, msg}
+      end
+    end
+
     case get_piece_entry(ttinfo, piece_index) do
       {:ok, {_progress, data}} ->
-        case append_piece_buff(data, block, block_offset) do
-          {:ok, new_buff} ->
-            handle_new_piece_block(
-              ttinfo,
-              piece_index,
-              block_offset,
-              block_length,
-              new_buff
-            )
-
-          {:error, msg} ->
-            {:error, msg}
-        end
+        handle_valid_piece_entry.(data)
 
       {:error, msg} ->
         {:error, msg}
@@ -239,6 +267,47 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
        ) do
     total_received = ttinfo.bytes_received + block_length
 
+    handle_incomplete_piece = fn ->
+      total_length = ttinfo.piece_length
+      actual_length = byte_size(new_buffer)
+
+      percent = Float.floor(actual_length / total_length * 100, 2)
+
+      Logger.debug(fn ->
+        "PIECE PROGRESS : index #{piece_index} : #{percent}%"
+      end)
+
+      new_piece_table =
+        ttinfo.piece_table
+        |> Map.put(piece_index, {:in_progress, new_buffer})
+
+      # TODO: calculate expected length for non byte sizes
+      new_ttinfo =
+        ttinfo
+        |> Map.put(:bytes_received, total_received)
+        |> Map.put(:need_piece, false)
+        |> Map.put(:expected_piece_index, piece_index)
+        |> Map.put(:expected_sub_piece_index, block_offset + block_length)
+        |> Map.put(:expected_piece_length, block_length)
+        |> Map.put(:piece_table, new_piece_table)
+
+      {:ok, new_ttinfo}
+    end
+
+    handle_complete_piece = fn ->
+      new_piece_table =
+        ttinfo.piece_table
+        |> Map.put(piece_index, {:complete, <<>>})
+
+      new_ttinfo =
+        ttinfo
+        |> Map.put(:piece_table, new_piece_table)
+        |> Map.put(:need_piece, true)
+        |> Map.put(:bytes_received, 0)
+
+      {:ok, new_ttinfo}
+    end
+
     case check_piece_completed(
            ttinfo,
            piece_index,
@@ -246,43 +315,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
            new_buffer
          ) do
       {:ok, :incomplete} ->
-        total_length = ttinfo.piece_length
-        actual_length = byte_size(new_buffer)
-
-        percent =
-          (actual_length / total_length * 100)
-          |> Float.floor(2)
-
-        Logger.debug("PIECE PROGRESS : index #{piece_index} : #{percent}%")
-
-        new_piece_table =
-          ttinfo.piece_table
-          |> Map.put(piece_index, {:in_progress, new_buffer})
-
-        # TODO: calculate expected length for non byte sizes
-        new_ttinfo =
-          ttinfo
-          |> Map.put(:bytes_received, total_received)
-          |> Map.put(:need_piece, false)
-          |> Map.put(:expected_piece_index, piece_index)
-          |> Map.put(:expected_sub_piece_index, block_offset + block_length)
-          |> Map.put(:expected_piece_length, block_length)
-          |> Map.put(:piece_table, new_piece_table)
-
-        {:ok, new_ttinfo}
+        handle_incomplete_piece.()
 
       {:ok, :complete} ->
-        new_piece_table =
-          ttinfo.piece_table
-          |> Map.put(piece_index, {:complete, <<>>})
-
-        new_ttinfo =
-          ttinfo
-          |> Map.put(:piece_table, new_piece_table)
-          |> Map.put(:need_piece, true)
-          |> Map.put(:bytes_received, 0)
-
-        {:ok, new_ttinfo}
+        handle_complete_piece.()
 
       {:error, msg} ->
         {:error, msg}
@@ -304,7 +340,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec check_piece_completed(__MODULE__.t(), integer(), integer(), binary()) ::
           {:ok, atom()} | {:error, reason}
   defp check_piece_completed(ttinfo, piece_index, total_received, piece_buff) do
-    if total_received == ttinfo.piece_length do
+    handle_completed_piece = fn ->
       case @torrent_impl.mark_piece_index_done(
              ttinfo.id,
              piece_index,
@@ -322,9 +358,17 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
           {:error, msg}
       end
-    else
-      {:ok, :incomplete}
     end
+
+    callback = fn ->
+      if total_received == ttinfo.piece_length do
+        handle_completed_piece.()
+      else
+        {:ok, :incomplete}
+      end
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
   @spec validate_infohash(__MODULE__.t(), binary()) :: boolean()
@@ -348,13 +392,44 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
       ttinfo.bytes_recieved < ttinfo.expected_piece_length
   end
 
-  def notify_torrent_of_connection(ttinfo, peer_id) do
-    @torrent_impl.notify_peer_is_connected(ttinfo.id, peer_id)
+  def notify_torrent_of_connection(ttinfo, peer_id, peer_ip, peer_port) do
+    callback = fn ->
+      @torrent_impl.notify_peer_is_connected(
+        ttinfo.id,
+        peer_id,
+        peer_ip,
+        peer_port
+      )
+    end
+
+    perform_torrent_callback(ttinfo, callback)
   end
 
-  def notify_torrent_of_disconnection(ttinfo, peer_id) do
+  def notify_torrent_of_disconnection(ttinfo, peer_id, peer_ip, peer_port) do
     known_indexes = get_known_pieces(ttinfo)
 
-    @torrent_impl.notify_peer_is_disconnected(ttinfo.id, peer_id, known_indexes)
+    callback = fn ->
+      @torrent_impl.notify_peer_is_disconnected(
+        ttinfo.id,
+        peer_id,
+        peer_ip,
+        peer_port,
+        known_indexes
+      )
+    end
+
+    perform_torrent_callback(ttinfo, callback)
+  end
+
+  @spec perform_torrent_callback(__MODULE__.t(), function()) ::
+          {:error, reason} | any()
+  defp perform_torrent_callback(ttinfo, callback) do
+    case @torrent_impl.whereis(ttinfo.id) do
+      :undefined ->
+        {:error, "The given torrent is not running, did it die?: #{ttinfo.id}"}
+
+      _ ->
+        callback.()
+    end
   end
 end

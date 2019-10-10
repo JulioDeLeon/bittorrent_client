@@ -92,6 +92,13 @@ defmodule BittorrentClient.Server.Test do
 
     assert deletion_status == :ok
 
+    deleted_id =
+      ret_data
+      |> Map.get("data")
+      |> Map.get(:id)
+
+    assert deleted_id == torrent_id
+
     pid = @torrent_impl.whereis(torrent_id)
     assert pid == :undefined
 
@@ -122,7 +129,7 @@ defmodule BittorrentClient.Server.Test do
     assert Map.has_key?(torrent_table, torrent_id)
     assert Map.has_key?(torrent_table, torrent_id_2)
 
-    {delete_all_status, data} = @server_impl.delete_all_torrents(@server_name)
+    {delete_all_status, _data} = @server_impl.delete_all_torrents(@server_name)
     assert delete_all_status == :ok
     assert @torrent_impl.whereis(torrent_id) == :undefined
     assert @torrent_impl.whereis(torrent_id_2) == :undefined
@@ -153,7 +160,15 @@ defmodule BittorrentClient.Server.Test do
     curr_status =
       torrent_info
       |> Map.get("data")
-      |> Map.get("status")
+      |> Map.get(:status)
+
+    curr_id =
+      torrent_info
+      |> Map.get("data")
+      |> Map.get(:id)
+
+    assert curr_status == :initial
+    assert curr_id == torrent_id
 
     metadata = Map.get(torrent_info, "metadata")
 
@@ -170,6 +185,19 @@ defmodule BittorrentClient.Server.Test do
       )
 
     assert update_status == :ok
+
+    new_status =
+      ret_data
+      |> Map.get("data")
+      |> Map.get(:status)
+
+    curr_id =
+      ret_data
+      |> Map.get("data")
+      |> Map.get(:id)
+
+    assert new_status == expected_status
+    assert curr_id == torrent_id
 
     {second_torrent_info_status, new_torrent_info} =
       @server_impl.get_torrent_info_by_id(@server_name, torrent_id)
@@ -190,7 +218,7 @@ defmodule BittorrentClient.Server.Test do
   end
 
   test "Addition of the same torrent file will fail from the Server Layer",
-       context do
+       _context do
     {add_torrent_status, _resp_map} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
 
@@ -215,7 +243,7 @@ defmodule BittorrentClient.Server.Test do
 
   test "Add a torrent file that does not exist from the Server layer" do
     {add_status, _msg} = @server_impl.add_new_torrent(@server_name, "some_file")
-    assert add_status = :error
+    assert add_status == :error
   end
 
   test "Deletion of a torrent process that does not exist" do

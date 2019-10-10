@@ -8,6 +8,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
   @torrent_file "priv/ubuntu.torrent"
   @torrent_file_2 "priv/arch.torrent"
+  @opts []
 
   setup do
     file_1_bento_content =
@@ -49,12 +50,12 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
       {status, _data} =
         @server_impl.get_torrent_info_by_id("GenericName", torrent_id)
 
-      assert status = :ok
+      assert status == :ok
     end
 
     @opts WebRouter.init([])
     test "status of a nonexistent torrent process should return 400 from Web layer",
-         context do
+         _context do
       fake_id = "superfake"
       conn = conn(:get, "#{@api_root}/#{fake_id}/status")
       conn = WebRouter.call(conn, @opts)
@@ -64,7 +65,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
     end
   end
 
-  test "deletion of a torrent from Web Layer", context do
+  test "deletion of a torrent from Web Layer", _context do
     json_body = %{"filename" => @torrent_file}
 
     conn = create_json_request("#{@api_root}/addFile", json_body)
@@ -112,7 +113,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
     assert Map.has_key?(returned_table, torrent_id) != true
   end
 
-  test "deletion of all torrents from Web Layer", context do
+  test "deletion of all torrents from Web Layer", _context do
     json_body = %{"filename" => @torrent_file}
 
     conn = create_json_request("#{@api_root}/addFile", json_body)
@@ -178,7 +179,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   end
 
   test "addition of a nonexistent torrent file should return 403 from Web layer",
-       context do
+       _context do
     fake_file = "superfakefile"
 
     json_body = %{"filename" => fake_file}
@@ -191,7 +192,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
   end
 
   test "deletion of a nonexistent torrent should return 403 from Web ayer",
-       context do
+       _context do
     fake_id = "superfake"
     conn = conn(:delete, "#{@api_root}/#{fake_id}/remove")
     conn = WebRouter.call(conn, @opts)

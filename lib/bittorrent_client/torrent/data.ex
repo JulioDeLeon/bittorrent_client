@@ -27,6 +27,7 @@ defmodule BittorrentClient.Torrent.Data do
     :no_peer_id,
     :ip,
     :numwant,
+    :numallowed,
     :key,
     :trackerid,
     :tracker_info,
@@ -49,6 +50,7 @@ defmodule BittorrentClient.Torrent.Data do
           no_peer_id: boolean,
           ip: String.t(),
           numwant: integer,
+          numallowed: integer,
           key: String.t(),
           trackerid: String.t(),
           # tracker_info:
@@ -63,5 +65,20 @@ defmodule BittorrentClient.Torrent.Data do
 
   def get_connected_peers(data) do
     data |> Map.get(:connected_peers)
+  end
+
+  def remove_bad_ip_from_peers(data, ip, port) do
+    tinfo = Map.get(data, :tracker_info)
+
+    new_peers =
+      tinfo
+      |> Map.get(:peers)
+      |> Enum.filter(fn peer -> peer != {ip, port} end)
+
+    new_tinfo =
+      tinfo
+      |> Map.put(:peers, new_peers)
+
+    data |> Map.put(:tracker_info, new_tinfo)
   end
 end

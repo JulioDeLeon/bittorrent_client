@@ -6,7 +6,6 @@ defmodule BittorrentClient.Torrent.Test do
   @server_name Application.get_env(:bittorrent_client, :server_name)
   @file_name_1 "priv/ubuntu.torrent"
   @file_name_2 "priv/arch.torrent"
-  alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
 
   setup_all do
     file_1_bento_contents =
@@ -32,7 +31,7 @@ defmodule BittorrentClient.Torrent.Test do
     end)
   end
 
-  test "whereis should return a valid pid from Torrent layer", context do
+  test "whereis should return a valid pid from Torrent layer", _context do
     {add_status, data} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
 
@@ -43,11 +42,11 @@ defmodule BittorrentClient.Torrent.Test do
   end
 
   test "whereis should return undefined when given invalid id from Torrent layer",
-       context do
+       _context do
     assert @torrent_impl.whereis("fake id") == :undefined
   end
 
-  test "Return expected torrent data on an exisiting torrent process from Torrent Layer",
+  test "Return expected torrent data on an existing torrent process from Torrent Layer",
        context do
     {add_status, data} =
       @server_impl.add_new_torrent(@server_name, @file_name_1)
