@@ -40,6 +40,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
   setup do
     _ret = @server_impl.delete_all_torrents(@server_name)
+
     on_exit(fn ->
       _ret = @server_impl.delete_all_torrents(@server_name)
     end)
@@ -117,11 +118,19 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
     assert status == :error
 
     {:ok, resp} = @server_impl.add_new_torrent(@server_name, @file_name_1)
-    ttinfo = %TorrentTrackingInfo{context.example_ttinfo | id: Map.get(resp, "torrent id")}
 
-    {status, new_ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, some_peer_id, some_index)
+    ttinfo = %TorrentTrackingInfo{
+      context.example_ttinfo
+      | id: Map.get(resp, "torrent id")
+    }
+
+    {status, new_ttinfo} =
+      TorrentTrackingInfo.populate_single_piece(
+        ttinfo,
+        some_peer_id,
+        some_index
+      )
 
     assert status == :ok
-
   end
 end

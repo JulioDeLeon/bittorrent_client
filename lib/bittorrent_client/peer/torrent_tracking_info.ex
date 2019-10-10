@@ -421,11 +421,15 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     perform_torrent_callback(ttinfo, callback)
   end
 
-  @spec perform_torrent_callback(__MODULE__.t(), function()) :: {:error, reason} | any()
+  @spec perform_torrent_callback(__MODULE__.t(), function()) ::
+          {:error, reason} | any()
   defp perform_torrent_callback(ttinfo, callback) do
     case @torrent_impl.whereis(ttinfo.id) do
-      :undefined -> {:error, "The given torrent is not running, did it die?: #{ttinfo.id}"}
-      _ -> callback.()
+      :undefined ->
+        {:error, "The given torrent is not running, did it die?: #{ttinfo.id}"}
+
+      _ ->
+        callback.()
     end
   end
 end
