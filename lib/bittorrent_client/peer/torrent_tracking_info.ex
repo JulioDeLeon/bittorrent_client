@@ -379,10 +379,12 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   @spec piece_operation(__MODULE__.t(), piece_index, function()) ::
           any() | {:error, reason}
   defp piece_operation(ttinfo, piece_index, operation) do
-    if Map.has_key?(ttinfo.piece_table, piece_index) do
+    if ttinfo.piece_table != nil &&
+         Map.has_key?(ttinfo.piece_table, piece_index) do
       operation.()
     else
-      {:error, "index does not exist in piece table"}
+      {:error,
+       "was not able to retrieve #{piece_index} from #{ttinfo.piece_table}"}
     end
   end
 
