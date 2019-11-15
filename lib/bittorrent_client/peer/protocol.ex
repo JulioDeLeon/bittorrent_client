@@ -150,9 +150,9 @@ defmodule BittorrentClient.Peer.Protocol do
          <<
            @request_len::size(32),
            @request_id,
-           piece_index,
-           block_offset,
-           block_length,
+           piece_index::size(32),
+           block_offset::size(32),
+           block_length::size(32),
            rest::bytes
          >>,
          acc
@@ -179,8 +179,8 @@ defmodule BittorrentClient.Peer.Protocol do
          <<
            length::size(32),
            @piece_id,
-           piece_index,
-           block_offset,
+           piece_index::size(32),
+           block_offset::size(32),
            n_block::bytes
          >>,
          acc
@@ -498,9 +498,9 @@ defmodule BittorrentClient.Peer.Protocol do
     <<
       @request_len::size(32),
       @request_id,
-      piece_index,
-      block_offset,
-      block_len
+      piece_index::size(32),
+      block_offset::size(32),
+      block_len::size(32)
     >>
   end
 

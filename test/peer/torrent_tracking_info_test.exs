@@ -28,10 +28,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
         # create a dir for byte assembly?
 
         {:ok,
-          [
-            torrent_id: id,
-            example_ttinfo: example_ttinfo
-          ]}
+         [
+           torrent_id: id,
+           example_ttinfo: example_ttinfo
+         ]}
 
       _ ->
         {:error, "could not add new torrent"}
@@ -249,7 +249,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   test "Changing state when a piece is needed", context do
     ttinfo = %TorrentTrackingInfo{
       context.example_ttinfo
-    | need_piece: false
+      | need_piece: false
     }
 
     assert TorrentTrackingInfo.is_piece_needed(ttinfo) == false
@@ -266,8 +266,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
     %TorrentTrackingInfo{
       context.example_ttinfo
-    | id: Map.get(resp, "torrent id")
+      | id: Map.get(resp, "torrent id")
     }
   end
 end
-

@@ -620,12 +620,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
+    """
     peer_list =
       data
       |> TorrentData.get_peers()
       # TODO remove bad peers from list
       |> Enum.shuffle()
       |> Enum.take(data.numallowed)
+    """
+
+    peer_list = [{{127, 0, 0, 1}, 51413}]
 
     case peer_list do
       [] ->
