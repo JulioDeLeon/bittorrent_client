@@ -177,7 +177,7 @@ defmodule BittorrentClient.Peer.Protocol do
   # TODO: check if the negative case for this guard clause is needed as well...
   defp decode_type(
          <<
-           length::size(32),
+           t_length::size(32),
            @piece_id,
            piece_index::size(32),
            block_offset::size(32),
@@ -185,16 +185,26 @@ defmodule BittorrentClient.Peer.Protocol do
          >>,
          acc
        )
-       when length - @piece_length_offset >= byte_size(n_block) do
-    block_length = calculate_block_length(length)
+       when t_length - @piece_length_offset >= byte_size(n_block) do
+    block_length = calculate_block_length(t_length)
+
+    Logger.debug(fn ->
+      "DECODE : Piece {\n\
+                  \t length: #{t_length}\n\
+                  \t piece_index: #{piece_index}\n\
+                  \t block_offset: #{block_offset}\n\
+                  ....\n\
+                  }"
+    end)
 
     Logger.debug(fn ->
       "DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{
-        block_length
-      }"
+        block_length} given length #{t_length}"
     end)
 
     block = :binary.part(n_block, 0, block_length)
+
+    Logger.debug(fn -> "DECODE : PIECE made it past part #{inspect block}" end)
 
     rest =
       :binary.part(
@@ -225,9 +235,9 @@ defmodule BittorrentClient.Peer.Protocol do
          <<
            @cancel_len::size(32),
            @cancel_id,
-           piece_index,
-           block_offset,
-           block_length,
+           piece_index::size(32),
+           block_offset::size(32),
+           block_length::size(32),
            rest::bytes
          >>,
          acc

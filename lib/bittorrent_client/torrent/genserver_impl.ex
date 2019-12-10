@@ -670,6 +670,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
   defp validate_piece(pieces_hashes, piece_index, piece_buff) do
+    Logger.debug(fn -> "Validating piece" end)
     expected = Enum.at(pieces_hashes, piece_index)
 
     actual =
