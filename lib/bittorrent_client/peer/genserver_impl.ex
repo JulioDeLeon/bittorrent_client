@@ -340,47 +340,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(:piece, msg, _socket, peer_data) do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
-    ttinfo = peer_data.torrent_tracking_info
-
-    # TODO check piece hash here or when full piece is downloaded?
-
-    if msg.piece_index == ttinfo.expected_piece_index do
-      Logger.debug(fn ->
-        "Piece MSG: #{peer_data.name} received #{inspect(msg)}"
-      end)
-
-      offset = msg.block_offset
-      length = msg.block_length
-
-      case TorrentTrackingInfo.add_piece_index_data(
-             ttinfo,
-             msg.piece_index,
-             offset,
-             length,
-             msg.block
-           ) do
-        {:ok, new_ttinfo} ->
-          Logger.debug(fn ->
-            "Piece MSG: #{peer_data.name} successfully added piece data to table"
-          end)
-
-          %PeerData{peer_data | torrent_tracking_info: new_ttinfo}
-
-        {:error, err_msg} ->
-          Logger.error(err_msg)
-          PeerSupervisor.terminate_child(peer_data.name)
-          raise err_msg
-      end
+    if is_piece_complete(msg) do
+      handle_complete_piece(msg, peer_data)
     else
-      err_msg =
-        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
-          msg.piece_index
-        }, expected: #{peer_data.piece_index}"
-
-      Logger.error(err_msg)
-
-      PeerSupervisor.terminate_child(peer_data.name)
-      raise err_msg
+      handle_incomplete_piece(msg, peer_data)
     end
   end
 
@@ -768,5 +731,65 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     @tcp_conn_impl.close(peer_data.socket)
     :ok
+  end
+
+  defp is_piece_complete(msg) do
+   msg.block_length == byte_size(msg.block)
+  end
+
+  defp handle_incomplete_piece(msg, peer_data) do
+    Logger.warn(fn -> "Piece MSG: #{peer_data.name} is handling a incomplete piece" end)
+    # TODO convert msg to byte buffer using encode?
+    buffer = PeerProtocol.encode(msg.type, msg.piece_index, msg.block_length, msg.block_offset, msg.block)
+    %PeerData{
+      peer_data
+      | running_buffer: buffer <> peer_data.running_buffer
+    }
+  end
+
+  defp handle_complete_piece(msg, peer_data) do
+    Logger.info(fn -> "Piece MSG: #{peer_data.name} is handling a complete piece" end)
+    ttinfo = peer_data.torrent_tracking_info
+
+    # TODO check piece hash here or when full piece is downloaded?
+
+    if msg.piece_index == ttinfo.expected_piece_index do
+      Logger.debug(fn ->
+        "Piece MSG: #{peer_data.name} received #{inspect(msg)}"
+      end)
+
+      offset = msg.block_offset
+      length = msg.block_length
+
+      case TorrentTrackingInfo.add_piece_index_data(
+             ttinfo,
+             msg.piece_index,
+             offset,
+             length,
+             msg.block
+           ) do
+        {:ok, new_ttinfo} ->
+          Logger.debug(fn ->
+            "Piece MSG: #{peer_data.name} successfully added piece data to table"
+          end)
+
+          %PeerData{peer_data | torrent_tracking_info: new_ttinfo}
+
+        {:error, err_msg} ->
+          Logger.error(err_msg)
+          PeerSupervisor.terminate_child(peer_data.name)
+          raise err_msg
+      end
+    else
+      err_msg =
+        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
+          msg.piece_index
+        }, expected: #{peer_data.piece_index}"
+
+      Logger.error(err_msg)
+
+      PeerSupervisor.terminate_child(peer_data.name)
+      raise err_msg
+    end
   end
 end
