@@ -743,7 +743,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     buffer = PeerProtocol.encode(msg.type, msg.piece_index, msg.block_length, msg.block_offset, msg.block)
     %PeerData{
       peer_data
-      | running_buffer: buffer <> peer_data.running_buffer
+      | piece_buffer: buffer
     }
   end
 
@@ -773,7 +773,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
             "Piece MSG: #{peer_data.name} successfully added piece data to table"
           end)
 
-          %PeerData{peer_data | torrent_tracking_info: new_ttinfo}
+          %PeerData{
+            peer_data |
+            torrent_tracking_info: new_ttinfo,
+            piece_buffer: <<>>
+          }
 
         {:error, err_msg} ->
           Logger.error(err_msg)
