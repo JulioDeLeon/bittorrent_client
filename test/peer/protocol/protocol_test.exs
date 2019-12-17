@@ -5,7 +5,8 @@ defmodule BittorrentClient.Peer.Protocol.Test do
   @piece_id 7
 
   test "Piece encoding and decoding" do
-    block = <<1,2,3,4>>
+    block = <<1, 2, 3, 4>>
+
     data = %{
       type: :piece,
       piece_index: 1,
@@ -13,9 +14,18 @@ defmodule BittorrentClient.Peer.Protocol.Test do
       block_offset: 0,
       block: block
     }
-    piece_buffer = PeerProtocol.encode(:piece, data.piece_index, data.block_length, data.block_offset, data.block)
+
+    piece_buffer =
+      PeerProtocol.encode(
+        :piece,
+        data.piece_index,
+        data.block_length,
+        data.block_offset,
+        data.block
+      )
 
     c_length = 9 + byte_size(block)
+
     e_buffer = <<
       c_length::size(32),
       @piece_id,

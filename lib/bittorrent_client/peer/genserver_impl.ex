@@ -57,6 +57,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       state: :we_choke,
       torrent_tracking_info: torrent_track_info,
       running_buffer: <<>>,
+      piece_buffer: <<>>,
       timer: nil,
       interval: interval,
       peer_ip: ip,
@@ -340,6 +341,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(:piece, msg, _socket, peer_data) do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
+
     if is_piece_complete(msg) do
       handle_complete_piece(msg, peer_data)
     else
@@ -660,10 +662,21 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_msg_buffer(peer_data, socket, buff) do
+    handle_inflight_piece_msg = fn bin ->
+      if byte_size(peer_data.piece_buffer) > 0 do
+        # append running buffer to piece message
+        peer_data.piece_buffer <> peer_data.running_buffer <> bin
+      else
+        # return running buffer
+        peer_data.running_buffer <> bin
+      end
+    end
+
     {msgs, leftovers} =
       buff
       |> PeerProtocol.tcp_buff_to_encoded_msg()
-      |> (fn bin -> peer_data.running_buffer <> bin end).()
+      # |> (fn bin -> peer_data.running_buffer <> bin end).()
+      |> handle_inflight_piece_msg.()
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
@@ -734,13 +747,24 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp is_piece_complete(msg) do
-   msg.block_length == byte_size(msg.block)
+    msg.block_length == byte_size(msg.block)
   end
 
   defp handle_incomplete_piece(msg, peer_data) do
-    Logger.warn(fn -> "Piece MSG: #{peer_data.name} is handling a incomplete piece" end)
+    Logger.warn(fn ->
+      "Piece MSG: #{peer_data.name} is handling a incomplete piece"
+    end)
+
     # TODO convert msg to byte buffer using encode?
-    buffer = PeerProtocol.encode(msg.type, msg.piece_index, msg.block_length, msg.block_offset, msg.block)
+    buffer =
+      PeerProtocol.encode(
+        msg.type,
+        msg.piece_index,
+        msg.block_length,
+        msg.block_offset,
+        msg.block
+      )
+
     %PeerData{
       peer_data
       | piece_buffer: buffer
@@ -748,10 +772,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_complete_piece(msg, peer_data) do
-    Logger.info(fn -> "Piece MSG: #{peer_data.name} is handling a complete piece" end)
-    ttinfo = peer_data.torrent_tracking_info
+    Logger.info(fn ->
+      "Piece MSG: #{peer_data.name} is handling a complete piece"
+    end)
 
-    # TODO check piece hash here or when full piece is downloaded?
+    ttinfo = peer_data.torrent_tracking_info
 
     if msg.piece_index == ttinfo.expected_piece_index do
       Logger.debug(fn ->
@@ -774,9 +799,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           end)
 
           %PeerData{
-            peer_data |
-            torrent_tracking_info: new_ttinfo,
-            piece_buffer: <<>>
+            peer_data
+            | torrent_tracking_info: new_ttinfo,
+              piece_buffer: <<>>
           }
 
         {:error, err_msg} ->
