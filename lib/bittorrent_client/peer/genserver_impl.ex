@@ -752,7 +752,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   defp handle_incomplete_piece(msg, peer_data) do
     Logger.warn(fn ->
-      "Piece MSG: #{peer_data.name} is handling a incomplete piece"
+      "Piece MSG: #{peer_data.name} is handling a incomplete piece message"
     end)
 
     # TODO convert msg to byte buffer using encode?
@@ -773,7 +773,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   defp handle_complete_piece(msg, peer_data) do
     Logger.info(fn ->
-      "Piece MSG: #{peer_data.name} is handling a complete piece"
+      "Piece MSG: #{peer_data.name} is handling a complete piece message"
     end)
 
     ttinfo = peer_data.torrent_tracking_info
