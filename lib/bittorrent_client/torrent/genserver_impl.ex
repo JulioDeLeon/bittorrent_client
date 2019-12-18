@@ -129,7 +129,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     piece_table = data.pieces
 
     is_valid? = fn ->
-      metadata.info.peers
+      metadata.info.pieces
       |> pack_piece_list()
       |> validate_piece(index, buffer)
     end
