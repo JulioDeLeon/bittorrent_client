@@ -664,19 +664,20 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   @spec pack_piece_list(binary()) :: [<<_::20>>]
   defp pack_piece_list(piece_bin) do
-    for <<single_hash::size(@piece_hash_length) <- piece_bin>>,
-      do: <<single_hash::size(@piece_hash_length)>>
+    num_bits = @piece_hash_length * 8
+    for <<single_hash::size(num_bits) <- piece_bin>>,
+      do: <<single_hash::size(num_bits)>>
   end
 
   @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
   defp validate_piece(pieces_hashes, piece_index, piece_buff) do
-    Logger.debug(fn -> "Validating piece" end)
     expected = Enum.at(pieces_hashes, piece_index)
 
     actual =
       piece_buff
       |> (fn x -> :crypto.hash(:sha, x) end).()
 
+    Logger.debug(fn -> "Validating piece: expected #{inspect expected} actual #{inspect actual}" end)
     expected == actual
   end
 end
