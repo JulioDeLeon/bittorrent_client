@@ -137,7 +137,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     handle_valid_piece = fn ->
       Logger.debug(fn -> "Current state of piece table #{inspect piece_table}" end)
       # TODO: write to file and empty buffer in piece table
-      new_piece_table = %{piece_table | index => {:complete, buffer}}
+      new_piece_table = %{piece_table | index => {:complete, 0, buffer}}
 
       Logger.debug(fn -> "New state of piece table #{inspect new_piece_table}" end)
       Logger.error(
