@@ -34,6 +34,7 @@ defmodule BittorrentClient.Application do
   # Initialize Mnesia on startup
   @spec initialize_env :: :ok | {:error, any()}
   defp initialize_env do
+    :mnesia.create_schema([node()])
     :mnesia.start()
   end
 
