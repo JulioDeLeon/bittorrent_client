@@ -15,10 +15,6 @@ defmodule BittorrentClient.Cache.Supervisor do
                         :bittorrent_client,
                         :torrent_cache_name
                       )
-  @torrent_cache_opts Application.get_env(
-                        :bittorrent_client,
-                        :torrent_cache_opts
-                      )
 
   def start_link do
     Logger.info("Starting Cache Supervisor")
@@ -39,7 +35,10 @@ defmodule BittorrentClient.Cache.Supervisor do
         id: @torrent_cache_name,
         start:
           {@torrent_cache_impl, :start_link,
-           [@torrent_cache_name, @torrent_cache_opts]},
+           [@torrent_cache_name, [
+               {:attributes, [:id, :filename, :index, :peers, :status, :buffer]},
+               {:disc_only_copies, [node()]}
+             ]]},
         restart: :permanent,
         shutdown: :infinity
       }

@@ -144,6 +144,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         "#{data.id} : has marked index #{index} as complete, not creating file yet!"
       )
 
+
+      # TODO check if the file is complete. if so assemble the file.
+
       {:reply, {:ok, index},
        {metadata, %TorrentData{data | pieces: new_piece_table}}}
     end
