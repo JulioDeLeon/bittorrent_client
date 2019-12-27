@@ -27,6 +27,9 @@ npm-debug.log
 # variables.
 /config/*.secret.exs
 
+# Mnesia stores
+Mnesia*
+
 .vscode
 .elixir_ls
 .idea

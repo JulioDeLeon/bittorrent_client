@@ -22,8 +22,16 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def init({name, opts}) do
+    # TODO if the table exist already. just import it?
     case :mnesia.create_table(name, opts) do
       {:atomic, :ok} ->
+        {:ok, {name, opts}}
+
+      {:aborted, {:already_exists, name}} ->
+        Logger.warn(fn ->
+          "Reusing existing table for #{name}, if this is not the desired behaviour, please delete table manually"
+        end)
+
         {:ok, {name, opts}}
 
       {:aborted, reason} ->

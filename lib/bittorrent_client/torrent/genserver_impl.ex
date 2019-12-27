@@ -135,15 +135,20 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
 
     handle_valid_piece = fn ->
-      Logger.debug(fn -> "Current state of piece table #{inspect piece_table}" end)
+      Logger.debug(fn ->
+        "Current state of piece table #{inspect(piece_table)}"
+      end)
+
       # TODO: write to file and empty buffer in piece table
       new_piece_table = %{piece_table | index => {:complete, 0, buffer}}
 
-      Logger.debug(fn -> "New state of piece table #{inspect new_piece_table}" end)
+      Logger.debug(fn ->
+        "New state of piece table #{inspect(new_piece_table)}"
+      end)
+
       Logger.error(
         "#{data.id} : has marked index #{index} as complete, not creating file yet!"
       )
-
 
       # TODO check if the file is complete. if so assemble the file.
 
@@ -669,6 +674,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp pack_piece_list(piece_bin) do
     num_bits = @piece_hash_length * 8
+
     for <<single_hash::size(num_bits) <- piece_bin>>,
       do: <<single_hash::size(num_bits)>>
   end
@@ -681,7 +687,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       piece_buff
       |> (fn x -> :crypto.hash(:sha, x) end).()
 
-    Logger.debug(fn -> "Validating piece: expected #{inspect expected} actual #{inspect actual}" end)
+    Logger.debug(fn ->
+      "Validating piece: expected #{inspect(expected)} actual #{inspect(actual)}"
+    end)
+
     expected == actual
   end
 end
