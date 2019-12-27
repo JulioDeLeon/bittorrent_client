@@ -12,6 +12,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
+  @torrent_cache_impl Application.get_env(:bittorrent_client, :torrent_cache_impl)
+  @torrent_cache_name Application.get_env(:bittorrent_client, :torrent_cache_name)
   @piece_hash_length 20
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
@@ -140,7 +142,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       end)
 
       # TODO: write to file and empty buffer in piece table
-      new_piece_table = %{piece_table | index => {:complete, 0, buffer}}
+      new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
+      # TODO: write completed piece to torrent cache
+      @torrent_cache_impl.set(@torrent_cache_name, )
 
       Logger.debug(fn ->
         "New state of piece table #{inspect(new_piece_table)}"
@@ -548,6 +552,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> IO.iodata_to_binary()
 
     hash = :crypto.hash(:sha, info)
+
+    # TODO read from torrent cache for file, then populate piece table
+    Logger.error(fn -> "Should be reading from torrent cache" end)
 
     {:ok,
      %TorrentData{
