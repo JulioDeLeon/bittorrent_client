@@ -140,7 +140,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       Logger.warn(fn -> "#{data.id} : marking #{index} as complete. Writing to disk cache" end)
       new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
-      @torrent_cache_impl.set(@torrent_cache_name, {data.file, index}, {:complete, buffer})
+      :mnesia.transaction(fn ->
+        :mnesia.write({@torrent_cache_name, data.file, index, :complete, buffer})
+      end)
 
       Logger.error(
         "#{data.id} : has marked index #{index} as complete, not creating file yet!"
@@ -546,8 +548,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     hash = :crypto.hash(:sha, info)
 
     # TODO read from torrent cache for file, then populate piece table
-    {:ok, existing_data} = @torrent_cache_impl.get(@torrent_cache_name, file)
-    piece_table = Enum.reduce(existing_data, %{}, fn {_table, {_file, index}, {status, _buff}}, acc ->
+  {:atomic, existing_data} = :mnesia.transaction(fn ->
+      :mnesia.read({@torrent_cache_name, file})
+    end)
+    piece_table = Enum.reduce(existing_data, %{}, fn {_table, _file, index, status, _buff}, acc ->
       if status == :complete do
         Map.put(acc, index, {:complete, 0, <<>>})
       else
