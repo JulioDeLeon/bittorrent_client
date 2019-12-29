@@ -12,8 +12,14 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
-  @torrent_cache_impl Application.get_env(:bittorrent_client, :torrent_cache_impl)
-  @torrent_cache_name Application.get_env(:bittorrent_client, :torrent_cache_name)
+  @torrent_cache_impl Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_impl
+                      )
+  @torrent_cache_name Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_name
+                      )
   @piece_hash_length 20
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
@@ -136,16 +142,28 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> validate_piece(index, buffer)
     end
 
-    handle_valid_piece = fn ->
-
-      Logger.warn(fn -> "#{data.id} : marking #{index} as complete. Writing to disk cache" end)
-      new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
-      :mnesia.transaction(fn ->
-        :mnesia.write({@torrent_cache_name, data.file, index, :complete, buffer})
+    handle_valid_piece = fn piece_id ->
+      Logger.warn(fn ->
+        "#{data.id} : marking #{index} as complete. Writing to disk cache"
       end)
 
+      new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
+
+      {status, val} =
+        :mnesia.transaction(fn ->
+          :mnesia.write(
+            {@torrent_cache_name, piece_id, data.file, index, :complete, buffer}
+          )
+        end)
+
+      if status == :aborted do
+        raise "Write was aborted! #{inspect(val)}"
+      end
+
       Logger.error(
-        "#{data.id} : has marked index #{index} as complete, not creating file yet!"
+        "#{data.id} : has marked index #{index} as complete, not creating file yet! #{
+          status
+        } -> #{val}"
       )
 
       # TODO check if the file is complete. if so assemble the file.
@@ -154,17 +172,19 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        {metadata, %TorrentData{data | pieces: new_piece_table}}}
     end
 
+    {validation, id} = is_valid?.()
+
     cond do
       Map.has_key?(piece_table, index) == false ->
         {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
 
-      is_valid?.() == false ->
+      validation == false ->
         {:reply,
          {:error, "hash did not match expected hash for index given: #{index}"},
          {metadata, data}}
 
       true ->
-        handle_valid_piece.()
+        handle_valid_piece.(id)
     end
   end
 
@@ -548,19 +568,25 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     hash = :crypto.hash(:sha, info)
 
     # TODO read from torrent cache for file, then populate piece table
-  {:atomic, existing_data} = :mnesia.transaction(fn ->
-      :mnesia.read({@torrent_cache_name, file})
-    end)
-    piece_table = Enum.reduce(existing_data, %{}, fn {_table, _file, index, status, _buff}, acc ->
-      if status == :complete do
-        Map.put(acc, index, {:complete, 0, <<>>})
-      else
-        acc
-      end
-    end)
-    completed_indexes = Map.keys(piece_table)
-    Logger.info("#{file} is starting with the following complete pieces: #{inspect completed_indexes}")
+    {:atomic, existing_data} =
+      :mnesia.transaction(fn ->
+        :mnesia.match_object({@torrent_cache_name, :_, file, :_, :complete, :_})
+      end)
 
+    piece_table =
+      Enum.reduce(existing_data, %{}, fn {_table, _id, _file, index, status,
+                                          _buff},
+                                         acc ->
+        Map.put(acc, index, {status, 0, <<>>})
+      end)
+
+    completed_indexes = Map.keys(piece_table)
+
+    Logger.info(
+      "#{file} is starting with the following complete pieces: #{
+        inspect(completed_indexes)
+      }"
+    )
 
     {:ok,
      %TorrentData{
@@ -692,7 +718,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       do: <<single_hash::size(num_bits)>>
   end
 
-  @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
+  @spec validate_piece([<<_::20>>], integer(), binary()) ::
+          {boolean(), binary()}
   defp validate_piece(pieces_hashes, piece_index, piece_buff) do
     expected = Enum.at(pieces_hashes, piece_index)
 
@@ -704,6 +731,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       "Validating piece: expected #{inspect(expected)} actual #{inspect(actual)}"
     end)
 
-    expected == actual
+    {expected == actual, actual}
   end
 end

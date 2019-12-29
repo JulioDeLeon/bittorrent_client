@@ -77,7 +77,9 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
         reason = "Does not exist"
 
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{inspect key} : #{inspect reason}"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -87,7 +89,9 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{inspect key} : #{inspect(reason)}"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -105,7 +109,9 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to set #{inspect(key)} : #{inspect(reason)}"
+          "Cache for #{inspect(name)} failed to set #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -202,7 +208,10 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
           {:aborted, reason}
 
         rst ->
-          Logger.debug(fn -> "#{inspect check} -> #{inspect ret} ++ #{inspect rst}" end)
+          Logger.debug(fn ->
+            "#{inspect(check)} -> #{inspect(ret)} ++ #{inspect(rst)}"
+          end)
+
           {check, Map.update(ret, elem, [rst], fn e -> e ++ [rst] end)}
       end
     end

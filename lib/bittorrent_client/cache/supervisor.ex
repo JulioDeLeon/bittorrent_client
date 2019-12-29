@@ -33,20 +33,19 @@ defmodule BittorrentClient.Cache.Supervisor do
       },
       %{
         id: @torrent_cache_name,
-        start:
-          {
-            @torrent_cache_impl,
-            :start_link,
-            # TODO Move this to config file? 
+        start: {
+          @torrent_cache_impl,
+          :start_link,
+          # TODO Move this to config file? 
+          [
+            @torrent_cache_name,
             [
-              @torrent_cache_name,
-              [
-                attributes: [:file, :index, :status, :buffer],
-                disc_only_copies: [node()],
-                type: :bag
-              ]
+              attributes: [:id, :file, :index, :status, :buffer],
+              disc_only_copies: [node()],
+              type: :set
             ]
-          },
+          ]
+        },
         restart: :permanent,
         shutdown: :infinity
       }
