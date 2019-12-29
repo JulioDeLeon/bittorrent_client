@@ -41,9 +41,9 @@ defmodule BittorrentClient.Cache.Supervisor do
             [
               @torrent_cache_name,
               [
-                {:attributes,
-                 [:id, :filename, :index, :peers, :status, :buffer]},
-                {:disc_only_copies, [node()]}
+                attributes: [:file, :index, :status, :buffer],
+                disc_only_copies: [node()],
+                type: :bag
               ]
             ]
           },

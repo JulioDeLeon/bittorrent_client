@@ -9,6 +9,7 @@ defmodule BittorrentClient.Application do
   alias BittorrentClient.Supervisor, as: BTCSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: BTCTorrentSupervisor
   alias BittorrentClientWeb.Endpoint, as: BTCEndpoint
+  require Logger
 
   @file_destination Application.get_env(:bittorrent_client, :file_destination)
   @server_name Application.get_env(:bittorrent_client, :server_name)

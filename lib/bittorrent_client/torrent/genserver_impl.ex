@@ -137,18 +137,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
 
     handle_valid_piece = fn ->
-      Logger.debug(fn ->
-        "Current state of piece table #{inspect(piece_table)}"
-      end)
 
-      # TODO: write to file and empty buffer in piece table
+      Logger.warn(fn -> "#{data.id} : marking #{index} as complete. Writing to disk cache" end)
       new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
-      # TODO: write completed piece to torrent cache
-      @torrent_cache_impl.set(@torrent_cache_name, )
-
-      Logger.debug(fn ->
-        "New state of piece table #{inspect(new_piece_table)}"
-      end)
+      @torrent_cache_impl.set(@torrent_cache_name, {data.file, index}, {:complete, buffer})
 
       Logger.error(
         "#{data.id} : has marked index #{index} as complete, not creating file yet!"
@@ -554,7 +546,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     hash = :crypto.hash(:sha, info)
 
     # TODO read from torrent cache for file, then populate piece table
-    Logger.error(fn -> "Should be reading from torrent cache" end)
+    {:ok, existing_data} = @torrent_cache_impl.get(@torrent_cache_name, file)
+    piece_table = Enum.reduce(existing_data, %{}, fn {_table, {_file, index}, {status, _buff}}, acc ->
+      if status == :complete do
+        Map.put(acc, index, {:complete, 0, <<>>})
+      else
+        acc
+      end
+    end)
+    completed_indexes = Map.keys(piece_table)
+    Logger.info("#{file} is starting with the following complete pieces: #{inspect completed_indexes}")
+
 
     {:ok,
      %TorrentData{
@@ -578,7 +580,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
        key: Application.fetch_env!(:bittorrent_client, :key),
        trackerid: "",
        tracker_info: %TrackerInfo{},
-       pieces: %{},
+       pieces: piece_table,
        next_piece_index: 0,
        connected_peers: %{}
      }}
