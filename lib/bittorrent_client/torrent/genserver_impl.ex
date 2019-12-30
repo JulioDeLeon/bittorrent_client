@@ -15,8 +15,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
   @torrent_cache_impl Application.get_env(
                         :bittorrent_client,
-                        :torrent_cache_impl 
-                        )
+                        :torrent_cache_impl
+                      )
   @torrent_cache_name Application.get_env(
                         :bittorrent_client,
                         :torrent_cache_name
@@ -162,10 +162,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         raise "Write was aborted! #{inspect(val)}"
       end
 
-      num_completed = new_piece_table
-      |> Map.values()
-      |> Enum.filter(fn {status, _index, _buff} -> status == :complete end)
-      |> length()
+      num_completed =
+        new_piece_table
+        |> Map.values()
+        |> Enum.filter(fn {status, _index, _buff} -> status == :complete end)
+        |> length()
 
       ret_data = %TorrentData{data | pieces: new_piece_table}
 
@@ -173,8 +174,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         handle_complete_data({metadata, ret_data})
       end
 
-      {:reply, {:ok, index},
-       {metadata, ret_data}}
+      {:reply, {:ok, index}, {metadata, ret_data}}
     end
 
     {validation, id} = is_valid?.()
@@ -571,8 +571,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> IO.iodata_to_binary()
 
     hash = :crypto.hash(:sha, info)
+
     # TODO if destination file is assembled already, parse bytes to complete table. serve from file
-    
+
     # TODO read from torrent cache for file, then populate piece table
     {:atomic, existing_data} =
       :mnesia.transaction(fn ->
@@ -616,7 +617,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
       numwant: Application.fetch_env!(:bittorrent_client, :numwant),
       numallowed:
-      Application.fetch_env!(:bittorrent_client, :allowedconnections),
+        Application.fetch_env!(:bittorrent_client, :allowedconnections),
       key: Application.fetch_env!(:bittorrent_client, :key),
       trackerid: "",
       tracker_info: %TrackerInfo{},
@@ -626,9 +627,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       connected_peers: %{}
     }
 
-
     # TODO if all pieces are complete and file is not assembled, complete file
     if length(completed_indexes) == num_pieces do
+      Logger.debug(fn -> "I am here" end)
       handle_complete_data({metadata, ret_data})
     end
 
@@ -755,9 +756,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   defp handle_complete_data({metadata, data}) do
     file = "#{@destination_dir}#{metadata.info.name}"
+
     if File.exists?(file) == false do
       Logger.info("#{file} is complete, assembling the file")
-      spawn fn -> FileAssembler.assemble_file({metadata, data}) end
+      spawn(fn -> FileAssembler.assemble_file({metadata, data}) end)
     end
   end
 end
