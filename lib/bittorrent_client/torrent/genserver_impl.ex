@@ -754,7 +754,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp handle_complete_data({metadata, data}) do
-    file = @destination_dir + metadata.info.name
+    file = "#{@destination_dir}#{metadata.info.name}"
     if File.exists?(file) == false do
       Logger.info("#{file} is complete, assembling the file")
       spawn fn -> FileAssembler.assemble_file({metadata, data}) end

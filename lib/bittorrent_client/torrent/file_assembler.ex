@@ -4,6 +4,9 @@ defmodule BittorrentClient.Torrent.FileAssembler do
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
 
   def assemble_file({metadata, data}) do
-    Logger.debug(fn -> "#{data.id} : assembling #{metadata.info.name}" end)
+    output_file = "#{@destination_dir}#{metadata.info.name}"
+    Logger.debug(fn -> "#{data.id} : assembling #{output_file}" end)
+    File.touch!(output_file)
+
   end
 end
