@@ -155,7 +155,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     handle_valid_piece_buff = fn buff ->
       case @torrent_impl.mark_piece_index_done(ttinfo.id, piece_index, buff) do
         {:ok, _ret} ->
-          change_piece_progress(ttinfo, piece_index, :completed)
+          update_piece_entry(ttinfo, piece_index, {:completed, <<>>})
 
         {:error, msg} ->
           {:error,

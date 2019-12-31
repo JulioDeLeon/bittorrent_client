@@ -150,9 +150,9 @@ defmodule BittorrentClient.Peer.Protocol do
          <<
            @request_len::size(32),
            @request_id,
-           piece_index,
-           block_offset,
-           block_length,
+           piece_index::size(32),
+           block_offset::size(32),
+           block_length::size(32),
            rest::bytes
          >>,
          acc
@@ -174,46 +174,63 @@ defmodule BittorrentClient.Peer.Protocol do
     ])
   end
 
-  # TODO: check if the negative case for this guard clause is needed as well...
   defp decode_type(
          <<
-           length::size(32),
+           t_length::size(32),
            @piece_id,
-           piece_index,
-           block_offset,
+           piece_index::size(32),
+           block_offset::size(32),
            n_block::bytes
          >>,
          acc
-       )
-       when length - @piece_length_offset >= byte_size(n_block) do
-    block_length = calculate_block_length(length)
+       ) do
+    expected_block_length = calculate_block_length(t_length)
+    actual_block_length = byte_size(n_block)
 
     Logger.debug(fn ->
-      "DECODE : PIECE actual n_b_length #{byte_size(n_block)} cal block length #{
-        block_length
+      "DECODE : Piece {\n\
+                  \t length: #{t_length}\n\
+                  \t piece_index: #{piece_index}\n\
+                  \t block_offset: #{block_offset}\n\
+                  ....\n\
+                  }"
+    end)
+
+    Logger.debug(fn ->
+      "DECODE : PIECE actual n_b_length #{actual_block_length} cal block length #{
+        expected_block_length
       }"
     end)
 
-    block = :binary.part(n_block, 0, block_length)
+    block =
+      if actual_block_length >= expected_block_length do
+        :binary.part(n_block, 0, expected_block_length)
+      else
+        n_block
+      end
 
     rest =
-      :binary.part(
-        n_block,
-        byte_size(n_block),
-        block_length - byte_size(n_block)
-      )
+      if actual_block_length >= expected_block_length do
+        :binary.part(
+          n_block,
+          expected_block_length,
+          actual_block_length - expected_block_length
+        )
+      else
+        <<>>
+      end
 
     Logger.debug(fn ->
       "DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{
-        block_length
-      } block #{block}"
+        expected_block_length
+      }"
     end)
 
     decode_type(rest, [
       %{
         type: :piece,
         piece_index: piece_index,
-        block_length: block_length,
+        block_length: expected_block_length,
         block_offset: block_offset,
         block: block
       }
@@ -225,9 +242,9 @@ defmodule BittorrentClient.Peer.Protocol do
          <<
            @cancel_len::size(32),
            @cancel_id,
-           piece_index,
-           block_offset,
-           block_length,
+           piece_index::size(32),
+           block_offset::size(32),
+           block_length::size(32),
            rest::bytes
          >>,
          acc
@@ -498,16 +515,16 @@ defmodule BittorrentClient.Peer.Protocol do
     <<
       @request_len::size(32),
       @request_id,
-      piece_index,
-      block_offset,
-      block_len
+      piece_index::size(32),
+      block_offset::size(32),
+      block_len::size(32)
     >>
   end
 
-  def encode(:piece, piece_index, block_offset, piece) do
-    msg = <<@piece_id, piece_index::size(32), block_offset::size(32)>> <> piece
-    size = 9 + byte_size(piece)
-    <<size>> <> msg
+  def encode(:piece, piece_index, piece_length, block_offset, block) do
+    msg = <<@piece_id, piece_index::size(32), block_offset::size(32)>> <> block
+    size = 9 + piece_length
+    <<size::size(32)>> <> msg
   end
 
   def encode(

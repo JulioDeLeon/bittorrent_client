@@ -11,8 +11,18 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
+  alias BittorrentClient.Torrent.FileAssembler, as: FileAssembler
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
+  @torrent_cache_impl Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_impl
+                      )
+  @torrent_cache_name Application.get_env(
+                        :bittorrent_client,
+                        :torrent_cache_name
+                      )
   @piece_hash_length 20
+  @destination_dir Application.get_env(:bittorrent_client, :file_destination)
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
@@ -129,34 +139,57 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     piece_table = data.pieces
 
     is_valid? = fn ->
-      metadata.info.peers
+      metadata.info.pieces
       |> pack_piece_list()
       |> validate_piece(index, buffer)
     end
 
-    handle_valid_piece = fn ->
-      # TODO: write to file and empty buffer in piece table
-      new_piece_table = %{piece_table | index => {:complete, buffer}}
+    handle_valid_piece = fn piece_id ->
+      Logger.warn(fn ->
+        "#{data.id} : marking #{index} as complete. Writing to disk cache"
+      end)
 
-      Logger.error(
-        "#{data.id} : has marked index #{index} as complete, not creating file yet!"
-      )
+      new_piece_table = %{piece_table | index => {:complete, 0, <<>>}}
 
-      {:reply, {:ok, index},
-       {metadata, %TorrentData{data | pieces: new_piece_table}}}
+      {status, val} =
+        :mnesia.transaction(fn ->
+          :mnesia.write(
+            {@torrent_cache_name, piece_id, data.file, index, :complete, buffer}
+          )
+        end)
+
+      if status == :aborted do
+        raise "Write was aborted! #{inspect(val)}"
+      end
+
+      num_completed =
+        new_piece_table
+        |> Map.values()
+        |> Enum.filter(fn {status, _index, _buff} -> status == :complete end)
+        |> length()
+
+      ret_data = %TorrentData{data | pieces: new_piece_table}
+
+      if num_completed == data.num_pieces do
+        handle_complete_data({metadata, ret_data})
+      end
+
+      {:reply, {:ok, index}, {metadata, ret_data}}
     end
+
+    {validation, id} = is_valid?.()
 
     cond do
       Map.has_key?(piece_table, index) == false ->
         {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
 
-      is_valid?.() == false ->
+      validation == false ->
         {:reply,
          {:error, "hash did not match expected hash for index given: #{index}"},
          {metadata, data}}
 
       true ->
-        handle_valid_piece.()
+        handle_valid_piece.(id)
     end
   end
 
@@ -539,32 +572,63 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     hash = :crypto.hash(:sha, info)
 
-    {:ok,
-     %TorrentData{
-       id: id,
-       pid: self(),
-       file: file,
-       status: :initial,
-       info_hash: hash,
-       peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
-       port: Application.fetch_env!(:bittorrent_client, :port),
-       uploaded: 0,
-       downloaded: 0,
-       left: metadata.info.length,
-       compact: Application.fetch_env!(:bittorrent_client, :compact),
-       no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
-       ip: Application.fetch_env!(:bittorrent_client, :ip),
-       # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
-       numwant: Application.fetch_env!(:bittorrent_client, :numwant),
-       numallowed:
-         Application.fetch_env!(:bittorrent_client, :allowedconnections),
-       key: Application.fetch_env!(:bittorrent_client, :key),
-       trackerid: "",
-       tracker_info: %TrackerInfo{},
-       pieces: %{},
-       next_piece_index: 0,
-       connected_peers: %{}
-     }}
+    {:atomic, existing_data} =
+      :mnesia.transaction(fn ->
+        :mnesia.match_object({@torrent_cache_name, :_, file, :_, :complete, :_})
+      end)
+
+    piece_table =
+      Enum.reduce(existing_data, %{}, fn {_table, _id, _file, index, status,
+                                          _buff},
+                                         acc ->
+        Map.put(acc, index, {status, 0, <<>>})
+      end)
+
+    completed_indexes = Map.keys(piece_table)
+
+    Logger.info(
+      "#{file} is starting with the following complete pieces: #{
+        inspect(completed_indexes)
+      }"
+    )
+
+    num_pieces =
+      metadata.info.pieces
+      |> pack_piece_list()
+      |> length()
+
+    ret_data = %TorrentData{
+      id: id,
+      pid: self(),
+      file: file,
+      status: :initial,
+      info_hash: hash,
+      peer_id: Application.fetch_env!(:bittorrent_client, :peer_id),
+      port: Application.fetch_env!(:bittorrent_client, :port),
+      uploaded: 0,
+      downloaded: 0,
+      left: metadata.info.length,
+      compact: Application.fetch_env!(:bittorrent_client, :compact),
+      no_peer_id: Application.fetch_env!(:bittorrent_client, :no_peer_id),
+      ip: Application.fetch_env!(:bittorrent_client, :ip),
+      # TODO: ALLOW THIS TO GRAB MORE PEERS THEN NECESSARY?
+      numwant: Application.fetch_env!(:bittorrent_client, :numwant),
+      numallowed:
+        Application.fetch_env!(:bittorrent_client, :allowedconnections),
+      key: Application.fetch_env!(:bittorrent_client, :key),
+      trackerid: "",
+      tracker_info: %TrackerInfo{},
+      pieces: piece_table,
+      num_pieces: num_pieces,
+      next_piece_index: 0,
+      connected_peers: %{}
+    }
+
+    if length(completed_indexes) == num_pieces do
+      handle_complete_data({metadata, ret_data})
+    end
+
+    {:ok, ret_data}
   end
 
   def parse_peers_binary(binary) do
@@ -650,7 +714,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           {TorrentMetainfo.t(), TorrentData.t()}
         ) :: [pid()]
   defp connect_to_peers(peer_list, {metadata, data}) do
-    Enum.map(peer_list, fn {ip, port} ->
+    Enum.map(peer_list, fn {ip,   port} ->
       PeerSupervisor.start_child(
         {metadata, data.id, data.info_hash, data.file,
          data.tracker_info.interval, ip, port}
@@ -658,13 +722,15 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end)
   end
 
-  @spec pack_piece_list(binary()) :: [<<_::20>>]
   defp pack_piece_list(piece_bin) do
-    for <<single_hash::size(@piece_hash_length) <- piece_bin>>,
-      do: <<single_hash::size(@piece_hash_length)>>
+    num_bits = @piece_hash_length * 8
+
+    for <<single_hash::size(num_bits) <- piece_bin>>,
+      do: <<single_hash::size(num_bits)>>
   end
 
-  @spec validate_piece([<<_::20>>], integer(), binary()) :: boolean()
+  @spec validate_piece([<<_::20>>], integer(), binary()) ::
+          {boolean(), binary()}
   defp validate_piece(pieces_hashes, piece_index, piece_buff) do
     expected = Enum.at(pieces_hashes, piece_index)
 
@@ -672,6 +738,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       piece_buff
       |> (fn x -> :crypto.hash(:sha, x) end).()
 
-    expected == actual
+    {expected == actual, actual}
+  end
+
+  defp handle_complete_data({metadata, data}) do
+    file = "#{@destination_dir}#{metadata.info.name}"
+
+    if File.exists?(file) == false do
+      Logger.info("#{file} is complete, assembling the file")
+      spawn(fn ->
+        FileAssembler.assemble_file({metadata, data})
+      end)
+    end
   end
 end

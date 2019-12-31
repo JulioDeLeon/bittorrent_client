@@ -22,8 +22,16 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def init({name, opts}) do
+    # TODO if the table exist already. just import it?
     case :mnesia.create_table(name, opts) do
       {:atomic, :ok} ->
+        {:ok, {name, opts}}
+
+      {:aborted, {:already_exists, name}} ->
+        Logger.warn(fn ->
+          "Reusing existing table for #{name}, if this is not the desired behaviour, please delete table manually"
+        end)
+
         {:ok, {name, opts}}
 
       {:aborted, reason} ->
@@ -39,7 +47,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
     trans = fn ->
       name
       |> :mnesia.all_keys()
-      |> Enum.reduce({:ok, []}, fn elem, {check, ret} ->
+      |> Enum.reduce({:ok, %{}}, fn elem, {check, ret} ->
         retrieve_key_info({name, opts}, elem, check, ret)
       end)
     end
@@ -69,17 +77,21 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
         reason = "Does not exist"
 
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{key} : #{reason}"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
 
-      {:atomic, [{_serv, key, val} | _rst]} ->
-        {:reply, {:ok, [{key, val}]}, {name, opts}}
+      {:atomic, ret} ->
+        {:reply, {:ok, ret}, {name, opts}}
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{key} : #{inspect(reason)}"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -97,7 +109,9 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to set #{key} : #{inspect(reason)}"
+          "Cache for #{inspect(name)} failed to set #{inspect(key)} : #{
+            inspect(reason)
+          }"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -193,8 +207,12 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
           {:aborted, reason}
 
-        [{_serv, key, val} | _rst] ->
-          {check, ret ++ [{key, val}]}
+        rst ->
+          Logger.debug(fn ->
+            "#{inspect(check)} -> #{inspect(ret)} ++ #{inspect(rst)}"
+          end)
+
+          {check, Map.update(ret, elem, [rst], fn e -> e ++ [rst] end)}
       end
     end
   end

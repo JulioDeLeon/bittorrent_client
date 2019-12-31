@@ -32,6 +32,7 @@ defmodule BittorrentClient.Torrent.Data do
     :trackerid,
     :tracker_info,
     :pieces,
+    :num_pieces,
     :next_piece_index,
     :connected_peers
   ]
@@ -56,6 +57,7 @@ defmodule BittorrentClient.Torrent.Data do
           # tracker_info:
           next_piece_index: integer,
           pieces: map(),
+          num_pieces: integer,
           connected_peers: map()
         }
 

@@ -9,6 +9,7 @@ defmodule BittorrentClient.Application do
   alias BittorrentClient.Supervisor, as: BTCSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: BTCTorrentSupervisor
   alias BittorrentClientWeb.Endpoint, as: BTCEndpoint
+  require Logger
 
   @file_destination Application.get_env(:bittorrent_client, :file_destination)
   @server_name Application.get_env(:bittorrent_client, :server_name)
@@ -34,6 +35,7 @@ defmodule BittorrentClient.Application do
   # Initialize Mnesia on startup
   @spec initialize_env :: :ok | {:error, any()}
   defp initialize_env do
+    :mnesia.create_schema([node()])
     :mnesia.start()
   end
 
