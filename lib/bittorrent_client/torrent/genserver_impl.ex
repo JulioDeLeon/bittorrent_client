@@ -684,12 +684,13 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    peer_list =
-      data
-      |> TorrentData.get_peers()
-      # TODO remove bad peers from list
+    peer_list_t =
+      data.tracker_info.peers
       |> Enum.shuffle()
-      |> Enum.take(data.numallowed)
+
+    peer_list = peer_list_t |> Enum.take(data.numallowed)
+    new_peer_list = peer_list_t |> Enum.drop(data.numallowed)
+    new_ttinfo = %TrackerInfo{data.tracker_info | peers: new_peer_list}
 
     case peer_list do
       [] ->
@@ -705,7 +706,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         Logger.debug(fn -> "returned pids: #{inspect(returned_pids)}" end)
 
         {:reply, {:ok, "started torrent #{id}", returned_pids},
-         {metadata, %TorrentData{data | status: :started}}}
+         {metadata,
+          %TorrentData{data | status: :started, tracker_info: new_ttinfo}}}
     end
   end
 
@@ -714,11 +716,13 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           {TorrentMetainfo.t(), TorrentData.t()}
         ) :: [pid()]
   defp connect_to_peers(peer_list, {metadata, data}) do
-    Enum.map(peer_list, fn {ip,   port} ->
-      PeerSupervisor.start_child(
-        {metadata, data.id, data.info_hash, data.file,
-         data.tracker_info.interval, ip, port}
-      )
+    Enum.map(peer_list, fn {ip, port} ->
+      spawn(fn ->
+        PeerSupervisor.start_child(
+          {metadata, data.id, data.info_hash, data.file,
+           data.tracker_info.interval, ip, port}
+        )
+      end)
     end)
   end
 
@@ -746,6 +750,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     if File.exists?(file) == false do
       Logger.info("#{file} is complete, assembling the file")
+
       spawn(fn ->
         FileAssembler.assemble_file({metadata, data})
       end)

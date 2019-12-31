@@ -24,15 +24,17 @@ defmodule BittorrentClient.Torrent.FileAssembler do
         })
       end)
 
-    r = Enum.sort(completed_data, fn ({_, _, _, i1, _, _}, {_, _, _, i2, _, _}) ->
-      i1 <= i2
-    end)
+    r =
+      Enum.sort(completed_data, fn {_, _, _, i1, _, _}, {_, _, _, i2, _, _} ->
+        i1 <= i2
+      end)
 
     File.open(output_file, [:write], fn file ->
       Enum.map(r, fn {_, _, _, index, _, buffer} ->
         IO.binwrite(file, buffer)
       end)
     end)
+
     Logger.info("Assembly of #{output_file} is complete")
   end
 end
