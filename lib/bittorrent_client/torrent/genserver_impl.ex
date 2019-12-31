@@ -572,9 +572,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     hash = :crypto.hash(:sha, info)
 
-    # TODO if destination file is assembled already, parse bytes to complete table. serve from file
-
-    # TODO read from torrent cache for file, then populate piece table
     {:atomic, existing_data} =
       :mnesia.transaction(fn ->
         :mnesia.match_object({@torrent_cache_name, :_, file, :_, :complete, :_})
@@ -627,9 +624,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       connected_peers: %{}
     }
 
-    # TODO if all pieces are complete and file is not assembled, complete file
     if length(completed_indexes) == num_pieces do
-      Logger.debug(fn -> "I am here" end)
       handle_complete_data({metadata, ret_data})
     end
 
@@ -689,16 +684,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    """
     peer_list =
       data
       |> TorrentData.get_peers()
       # TODO remove bad peers from list
       |> Enum.shuffle()
       |> Enum.take(data.numallowed)
-    """
-
-    peer_list = [{{127, 0, 0, 1}, 51413}]
 
     case peer_list do
       [] ->
@@ -747,10 +738,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       piece_buff
       |> (fn x -> :crypto.hash(:sha, x) end).()
 
-    Logger.debug(fn ->
-      "Validating piece: expected #{inspect(expected)} actual #{inspect(actual)}"
-    end)
-
     {expected == actual, actual}
   end
 
@@ -759,7 +746,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     if File.exists?(file) == false do
       Logger.info("#{file} is complete, assembling the file")
-      spawn(fn -> FileAssembler.assemble_file({metadata, data}) end)
+      spawn(fn ->
+        FileAssembler.assemble_file({metadata, data})
+      end)
     end
   end
 end
