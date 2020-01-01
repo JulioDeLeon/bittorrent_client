@@ -6,7 +6,9 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   require Logger
   alias Bento.Encoder, as: BenEncoder
   @num_wanted Application.get_env(:bittorrent_client, :numwant)
-  @arch_tracker_req_url "http://tracker.archlinux.org:6969/announce?compact=1&downloaded=0&info_hash=%8B%DE%B5Pcm;R;-+;%D4%9D%7B%0F%C71%17l&left=631242752&num_pieces=1204&numwant=#{@num_wanted}&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
+  @arch_tracker_req_url "http://tracker.archlinux.org:6969/announce?compact=1&downloaded=0&info_hash=%8B%DE%B5Pcm;R;-+;%D4%9D%7B%0F%C71%17l&left=631242752&num_pieces=1204&numwant=#{
+                          @num_wanted
+                        }&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
   @impl true
   def get(@arch_tracker_req_url, _headers, _opts) do
     Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
