@@ -15,12 +15,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
   @torrent_cache_impl Application.get_env(
                         :bittorrent_client,
-                        :torrent_cache_impl
-                      )
+    :torrent_cache_impl
+  )
   @torrent_cache_name Application.get_env(
-                        :bittorrent_client,
-                        :torrent_cache_name
-                      )
+    :bittorrent_client,
+    :torrent_cache_name
+  )
   @piece_hash_length 20
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
 
@@ -625,6 +625,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     }
 
     if length(completed_indexes) == num_pieces do
+      Logger.debug(fn -> "I am here" end)
       handle_complete_data({metadata, ret_data})
     end
 

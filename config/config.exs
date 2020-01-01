@@ -31,7 +31,7 @@ config :bittorrent_client,
   torrent_cache_impl: BittorrentClient.Cache.MnesiaImpl,
   torrent_cache_name: :torrent_cache,
   # 16KB
-  default_block_size: 16384,
+  default_block_size: 16384 * 2,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
 

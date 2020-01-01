@@ -12,27 +12,29 @@ defmodule BittorrentClient.Torrent.FileAssembler do
     src_file = data.file
     File.touch!(output_file)
 
-    {:atomic, completed_data} =
-      :mnesia.transaction(fn ->
-        :mnesia.match_object({
-          @torrent_cache_name,
-          :_,
-          src_file,
-          :_,
-          :complete,
-          :_
-        })
-      end)
+    perform_assembly = fn file_h, i ->
+      {:atomic, _} =
+        :mnesia.transaction(fn ->
+          [{p0, p1, p2, p3, p4, buffer}] = :mnesia.match_object({
+            @torrent_cache_name,
+            :_,
+            src_file,
+            i,
+            :complete,
+            :_
+          })
 
-    r =
-      Enum.sort(completed_data, fn {_, _, _, i1, _, _}, {_, _, _, i2, _, _} ->
-        i1 <= i2
-      end)
+          IO.binwrite(file_h, buffer)
 
-    File.open(output_file, [:write], fn file ->
-      Enum.map(r, fn {_, _, _, index, _, buffer} ->
-        IO.binwrite(file, buffer)
-      end)
+          :mnesia.delete_object({p0, p1, p2, p3, p4, buffer})
+        end)
+      :ok
+    end
+
+    File.open(output_file, [:write], fn file_h ->
+      for i <- (0..data.num_pieces-1) do
+        perform_assembly.(file_h, i)
+      end
     end)
 
     Logger.info("Assembly of #{output_file} is complete")
