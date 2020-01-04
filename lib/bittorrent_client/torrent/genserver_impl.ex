@@ -10,17 +10,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Peer.Supervisor, as: PeerSupervisor
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
-  alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   alias BittorrentClient.Torrent.FileAssembler, as: FileAssembler
+  alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
   @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
   @torrent_cache_impl Application.get_env(
                         :bittorrent_client,
-    :torrent_cache_impl
-  )
+                        :torrent_cache_impl
+                      )
   @torrent_cache_name Application.get_env(
-    :bittorrent_client,
-    :torrent_cache_name
-  )
+                        :bittorrent_client,
+                        :torrent_cache_name
+                      )
   @piece_hash_length 20
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
 
@@ -107,6 +107,13 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       _ ->
         start_torrent_helper(id, {metadata, data})
+    end
+  end
+
+  def handle_call({:stop_torrent, id}, _from, {metadata, data}) do
+    case data.status do
+      _ ->
+        raise "This function is not implemented yet!"
     end
   end
 
@@ -328,6 +335,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
       {:start_torrent, id},
+      :infinity
+    )
+  end
+
+  def stop_torrent(id) do
+    Logger.info("Stopping torrent: #{id}")
+
+    GenServer.call(
+      :global.whereis_name({:btc_torrentworker, id}),
+      {:stop_torrent, id},
       :infinity
     )
   end

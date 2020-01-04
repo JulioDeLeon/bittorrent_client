@@ -22,7 +22,6 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
   end
 
   def init({name, opts}) do
-    # TODO if the table exist already. just import it?
     case :mnesia.create_table(name, opts) do
       {:atomic, :ok} ->
         {:ok, {name, opts}}

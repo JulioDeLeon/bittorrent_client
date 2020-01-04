@@ -23,6 +23,11 @@ defmodule BittorrentClient.Torrent do
               {atom(), {atom(), String.t(), any()}, tuple()}
 
   @doc """
+  stop_torrent stops communication between peers, stopping the sharing of the relative torrent file.
+  """
+  @callback stop_torrent(torrentID) :: {atom(), any(), tuple()}
+
+  @doc """
   get_torrent_data retrieves the metadata and data of torrent process
   """
   @type reason :: bitstring()
