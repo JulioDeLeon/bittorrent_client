@@ -17,7 +17,7 @@ config :bittorrent_client,
   no_peer_id: 0,
   ip: "127.0.0.1",
   numwant: 40,
-  allowedconnections: 1,
+  allowedconnections: 40,
   key: "",
   trackerid: "",
   server_impl: BittorrentClient.Server.GenServerImpl,
@@ -50,7 +50,7 @@ config :logger, :console,
   format: "$time [$level] [$metadata] $message\n",
   metadata: [:module, :function, :line, :pid],
   colors: [warn: :yellow, error: :red],
-  level: :debug
+  level: :info
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

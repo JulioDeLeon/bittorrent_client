@@ -173,7 +173,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
 
     handle_valid_piece = fn piece_id ->
-      Logger.warn(fn ->
+      Logger.debug(fn ->
         "#{data.id} : marking #{index} as complete. Writing to disk cache"
       end)
 
@@ -197,6 +197,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         |> length()
 
       ret_data = %TorrentData{data | pieces: new_piece_table}
+
+      prog = (num_completed / data.num_pieces) * 10
+      Logger.info("#{data.id} : #{prog}% complete")
 
       if num_completed == data.num_pieces do
         handle_complete_data({metadata, ret_data})
@@ -621,10 +624,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           _ ->
             # update data
             parsed_peers =
-             # tracker_info
-             # |> Map.get(:peers)
-             # |> parse_peers_binary()
-             [{{127,0,0,1}, 51413}]
+             tracker_info
+             |> Map.get(:peers)
+             |> parse_peers_binary()
+             #[{{127,0,0,1}, 51413}]
 
             new_ttinfo =
               tracker_info

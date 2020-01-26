@@ -91,7 +91,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         {:error, _} ->
           err_msg = "#{peer_data.name} failed initial handshake!"
-          Logger.error(err_msg)
+          # Logger.error(err_msg)
           raise err_msg
       end
     end
@@ -106,7 +106,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         err_msg =
           "#{peer_data.name} could not send initial handshake to peer: #{msg}"
 
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         raise err_msg
     end
   end
@@ -119,9 +119,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_info(:perform_peer_connect, {peer_data}) do
     Logger.debug("Performing connect")
-    #timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
+    timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
     {:ok, new_peer_data} = handle_peer_setup(peer_data)
-    #:erlang.cancel_timer(timer)
+    :erlang.cancel_timer(timer)
     {:noreply, {new_peer_data}}
   end
 
@@ -134,7 +134,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   # these handle_info calls come from the socket for attention
   def handle_info({:error, reason}, {peer_data}) do
     err_msg = "#{peer_data.name} has come across an error: #{reason}"
-    Logger.error(err_msg)
+    # Logger.error(err_msg)
 
     # terminate genserver gracefully?
     PeerSupervisor.terminate_child(peer_data.name)
@@ -220,7 +220,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           inspect(expected)
         }"
 
-      Logger.error(err)
+      # Logger.error(err)
 
       PeerSupervisor.terminate_child(peer_data.name)
       raise err
@@ -327,7 +327,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise err_msg
     end
@@ -353,7 +353,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise err_msg
     end
@@ -438,7 +438,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise err_msg
     end
@@ -458,7 +458,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise err_msg
     end
@@ -479,7 +479,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
+        # Logger.error(err_msg)
         PeerSupervisor.terminate_child(peer_data.name)
         raise err_msg
     end
@@ -513,7 +513,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           new_peer_data
 
         {:error, err_msg} ->
-          Logger.error(err_msg)
+          # Logger.error(err_msg)
           PeerSupervisor.terminate_child(peer_data.name)
           raise err_msg
       end
@@ -604,7 +604,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message({peer_data, buff}, anything) do
-    Logger.error(
+    Logger.debug(
       "#{peer_data.name} : is trying to create message : #{anything}"
     )
 
@@ -655,7 +655,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         {new_peer_data, buff <> msg}
 
       {:error, reason} ->
-        Logger.error("#{peer_data.name} : #{reason}")
+        # Logger.error("#{peer_data.name} : #{reason}")
         msg = PeerProtocol.encode(:not_interested)
         {peer_data, buff <> msg}
     end
@@ -775,7 +775,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_incomplete_piece(msg, peer_data) do
-    Logger.warn(fn ->
+    Logger.debug(fn ->
       "Piece MSG: #{peer_data.name} is handling a incomplete piece message"
     end)
 
@@ -796,7 +796,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_complete_piece(msg, peer_data) do
-    Logger.info(fn ->
+    Logger.debug(fn ->
       "Piece MSG: #{peer_data.name} is handling a complete piece message"
     end)
 
@@ -829,7 +829,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           }
 
         {:error, err_msg} ->
-          Logger.error(err_msg)
+          # Logger.error(err_msg)
           PeerSupervisor.terminate_child(peer_data.name)
           raise err_msg
       end
@@ -839,7 +839,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           msg.piece_index
         }, expected: #{peer_data.piece_index}"
 
-      Logger.error(err_msg)
+      # Logger.error(err_msg)
 
       PeerSupervisor.terminate_child(peer_data.name)
       raise err_msg
