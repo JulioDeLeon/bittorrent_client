@@ -22,6 +22,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
                         :bittorrent_client,
                         :default_block_size
                       )
+  @tcp_connect_timeout Application.get_env(:bittorrent_client, :tcp_connect_timeout)
   # -------------------------------------------------------------------------------
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
@@ -76,6 +77,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Process.flag(:trap_exit, true)
     Logger.info("Starting peer worker for #{peer_data.name}")
 
+    Process.send_after(self(), :perform_peer_connect, 1000)
+    {:ok, {peer_data}}
+  end
+
+  defp handle_peer_setup(peer_data) do
     handle_successful_connection = fn socket ->
       timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
@@ -109,6 +115,20 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     _ = cleanup(peer_data)
     Logger.info("Terminating peer worker for #{peer_data.name}")
     :normal
+  end
+
+  def handle_info(:perform_peer_connect, {peer_data}) do
+    Logger.debug("Performing connect")
+    timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
+    {:ok, new_peer_data} = handle_peer_setup(peer_data)
+    :erlang.cancel_timer(timer)
+    {:noreply, {new_peer_data}}
+  end
+
+  def handle_info(:tcp_connect_t, {peer_data}) do
+    Logger.warn("#{peer_data.name} took to long trying to connect")
+    Process.exit(self(), :tcp_connect_timeout)
+    {:noreply, {peer_data}}
   end
 
   # these handle_info calls come from the socket for attention
@@ -731,6 +751,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  defp cleanup({peer_data}) do
+    cleanup(peer_data)
+  end
+
   defp cleanup(peer_data) do
     ttinfo = peer_data.torrent_tracking_info
     peer_id = peer_data.name
@@ -742,7 +766,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       peer_data.peer_ip
     )
 
-    @tcp_conn_impl.close(peer_data.socket)
+    if peer_data.socket != nil, do: @tcp_conn_impl.close(peer_data.socket)
     :ok
   end
 

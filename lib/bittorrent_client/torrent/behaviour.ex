@@ -117,6 +117,5 @@ defmodule BittorrentClient.Torrent do
               peerIP,
               peerPort,
               list(integer())
-            ) ::
-              :ok | {:error, reason}
+            ) :: :ok | {:error, reason}
 end

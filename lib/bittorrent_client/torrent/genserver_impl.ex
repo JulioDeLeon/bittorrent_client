@@ -23,6 +23,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
                       )
   @piece_hash_length 20
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
+  @peer_check_interval Application.get_env(
+                         :bittorrent_client,
+                         :peer_check_interval
+                       )
 
   # @torrent_states [:initial, :connected, :started, :completed, :paused, :error]
 
@@ -110,10 +114,27 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_call({:stop_torrent, id}, _from, {metadata, data}) do
+  def handle_call({:stop_torrent}, _from, {metadata, data}) do
     case data.status do
-      _ ->
-        raise "This function is not implemented yet!"
+      # check if start is started
+      # if started, kill all pids currently working
+      # stop timer associated with check peer list
+      :started ->
+        :erlang.cancel_timer(data.peer_timer)
+        peer_list = Map.keys(data.connected_peers)
+        handle_stopping_all_peers(peer_list)
+
+        {:reply, {:ok, peer_list}, { metadata,
+          %TorrentData{
+            data |
+            peer_timer: nil,
+            status: :initial,
+            connected_peers: []
+          }
+        }}
+
+      some_state ->
+        raise "Trying to stop torrent process in #{inspect some_state}"
     end
   end
 
@@ -322,6 +343,47 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:noreply, {new_metadata, new_data}}
   end
 
+  def handle_info({:timeout, timer, :peer_check}, {metadata, data}) do
+    :erlang.cancel_timer(timer)
+
+    num_connect =
+      data.connected_peers
+      |> Map.keys()
+      |> length()
+
+    num_want = data.numwant
+
+    if num_connect < num_want do
+      # connect to tracker for new peers
+      # send peer connection requests
+      # reset timer
+      # return
+      case connect_to_tracker_helper({metadata, data}) do
+        {:reply, {:ok, _ret_state}, {n_mdata, n_data}} ->
+          peer_list =
+            data.tracker_info.peers
+            |> Enum.shuffle()
+            |> Enum.take(data.numallowed)
+
+          pids = connect_to_peers(peer_list, {n_mdata, n_data})
+          Logger.debug(fn -> "returned pids: #{inspect(pids)}" end)
+
+          timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
+
+          {:noreply,
+           {n_mdata, %TorrentData{n_data | status: :started, peer_timer: timer}}}
+
+        {:reply, {:error, msg}, {n_mdata, n_data}} ->
+          Logger.error(msg)
+
+          timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
+          {:noreply, {n_mdata, %TorrentData{n_data | peer_timer: timer}}}
+      end
+    else
+      {:noreply, {metadata, data}}
+    end
+  end
+
   # -------------------------------------------------------------------------------
   # Api Calls
   # -------------------------------------------------------------------------------
@@ -344,7 +406,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
-      {:stop_torrent, id},
+      {:stop_torrent},
       :infinity
     )
   end
@@ -524,6 +586,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :no_peer_id,
       :next_piece_index,
       :numallowed,
+      :peer_timer,
       :__struct__
     ]
 
@@ -722,10 +785,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       _ ->
         returned_pids = connect_to_peers(peer_list, {metadata, data})
         Logger.debug(fn -> "returned pids: #{inspect(returned_pids)}" end)
+        # start process callback here to continously check peer numbers
+        timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
 
         {:reply, {:ok, "started torrent #{id}", returned_pids},
          {metadata,
-          %TorrentData{data | status: :started, tracker_info: new_ttinfo}}}
+          %TorrentData{
+            data
+            | status: :started,
+              tracker_info: new_ttinfo,
+              peer_timer: timer
+          }}}
     end
   end
 
@@ -773,5 +843,19 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         FileAssembler.assemble_file({metadata, data})
       end)
     end
+  end
+
+  defp handle_stopping_all_peers([]) do
+    :ok
+  end
+
+  defp handle_stopping_all_peers([pid | rst]) do
+    if Process.alive?(pid) do
+      Process.exit(:terminate, pid)
+    else
+      Logger.warn("Somehow lost track of pid")
+    end
+
+    handle_stopping_all_peers(rst)
   end
 end

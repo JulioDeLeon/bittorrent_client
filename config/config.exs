@@ -30,7 +30,9 @@ config :bittorrent_client,
   config_cache_opts: [:set, :protected],
   torrent_cache_impl: BittorrentClient.Cache.MnesiaImpl,
   torrent_cache_name: :torrent_cache,
+  peer_check_interval: 10 * 1000,
   # 16KB
+  tcp_connect_timeout: 5 * 1000,
   default_block_size: 16384 * 2,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
