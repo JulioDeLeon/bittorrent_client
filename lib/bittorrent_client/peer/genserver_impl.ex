@@ -107,7 +107,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
     :erlang.cancel_timer(timer)
-    Logger.warn("#{peer_data.name} took too long trying to connect to tcp socket")
+    Logger.debug("#{peer_data.name} took too long trying to connect to tcp socket")
     Process.exit(self(), :tcp_connect_timeout)
     {:noreply, {peer_data}}
   end

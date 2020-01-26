@@ -206,11 +206,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       ret_data = %TorrentData{data | pieces: new_piece_table}
 
       prog =
-        (num_completed / data.num_pieces * 10)
+        (num_completed / data.num_pieces * 100)
         |> Float.round(2)
         |> Float.to_string()
 
-      Logger.info("#{data.id} : #{prog}% complete")
+      Logger.info("#{data.id} - #{inspect data.file} : #{prog}% complete")
 
       if num_completed == data.num_pieces do
         handle_complete_data({metadata, ret_data})
@@ -721,7 +721,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     }
 
     if length(completed_indexes) == num_pieces do
-      Logger.debug(fn -> "I am here" end)
       handle_complete_data({metadata, ret_data})
     end
 
@@ -792,8 +791,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     case peer_list do
       [] ->
         Logger.warn("#{id} has no available peers")
-
-        # TODO: RECONNECT TO TRACKER FOR MORE PEERS
 
         {:reply, {:error, {403, "#{id} has no available peers"}},
          {metadata, data}}
