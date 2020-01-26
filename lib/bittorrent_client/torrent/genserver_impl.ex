@@ -351,9 +351,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> Map.keys()
       |> length()
 
-    num_want = data.numwant
+    num_need = data.numallowed - num_connect
 
-    if num_connect < num_want do
+    if num_need > 0 do
+      Logger.debug("#{data.id} needs #{num_need} peers")
       # connect to tracker for new peers
       # send peer connection requests
       # reset timer
@@ -363,7 +364,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           peer_list =
             data.tracker_info.peers
             |> Enum.shuffle()
-            |> Enum.take(data.numallowed)
+            |> Enum.take(num_need)
 
           pids = connect_to_peers(peer_list, {n_mdata, n_data})
           Logger.debug(fn -> "returned pids: #{inspect(pids)}" end)
@@ -380,7 +381,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           {:noreply, {n_mdata, %TorrentData{n_data | peer_timer: timer}}}
       end
     else
-      {:noreply, {metadata, data}}
+
+      timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
+      {:noreply, {metadata, %TorrentData{data | peer_timer: timer}}}
     end
   end
 
@@ -618,9 +621,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           _ ->
             # update data
             parsed_peers =
-              tracker_info
-              |> Map.get(:peers)
-              |> parse_peers_binary()
+             # tracker_info
+             # |> Map.get(:peers)
+             # |> parse_peers_binary()
+             [{{127,0,0,1}, 51413}]
 
             new_ttinfo =
               tracker_info

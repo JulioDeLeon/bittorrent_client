@@ -119,9 +119,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_info(:perform_peer_connect, {peer_data}) do
     Logger.debug("Performing connect")
-    timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
+    #timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
     {:ok, new_peer_data} = handle_peer_setup(peer_data)
-    :erlang.cancel_timer(timer)
+    #:erlang.cancel_timer(timer)
     {:noreply, {new_peer_data}}
   end
 
@@ -743,11 +743,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       _ ->
         {:ok,
-         {%PeerData{
+         %PeerData{
             peer_data
             | socket: sock,
               timer: timer
-          }}}
+          }}
     end
   end
 
