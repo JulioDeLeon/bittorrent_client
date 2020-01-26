@@ -57,6 +57,13 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     {:ok, {torrent_metadata, torrent_data}}
   end
 
+  def terminate(_status, {_metadata, data}) do
+    # should this clear Mnesia cache as well?
+    peer_list = Map.keys(data.connected_peers)
+    handle_stopping_all_peers(peer_list)
+    :ok
+  end
+
   def handle_call({:get_data}, _from, {metadata, data}) do
     ret = %{
       "metadata" => metadata,
