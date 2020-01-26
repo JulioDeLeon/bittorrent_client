@@ -34,7 +34,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link({id, filename}) do
-    Logger.info("Starting Torrent worker for #{filename}")
+    Logger.debug("Starting Torrent worker for #{filename}")
     Logger.debug(fn -> "Using http_handle_impl: #{@http_handle_impl}" end)
 
     torrent_metadata =
@@ -124,17 +124,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         peer_list = Map.keys(data.connected_peers)
         handle_stopping_all_peers(peer_list)
 
-        {:reply, {:ok, peer_list}, { metadata,
+        {:reply, {:ok, peer_list},
+         {metadata,
           %TorrentData{
-            data |
-            peer_timer: nil,
-            status: :initial,
-            connected_peers: []
-          }
-        }}
+            data
+            | peer_timer: nil,
+              status: :initial,
+              connected_peers: []
+          }}}
 
       some_state ->
-        raise "Trying to stop torrent process in #{inspect some_state}"
+        raise "Trying to stop torrent process in #{inspect(some_state)}"
     end
   end
 
@@ -198,7 +198,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       ret_data = %TorrentData{data | pieces: new_piece_table}
 
-      prog = (num_completed / data.num_pieces) * 10
+      prog =
+        (num_completed / data.num_pieces * 10)
+        |> Float.round(2)
+        |> Float.to_string()
+
       Logger.info("#{data.id} : #{prog}% complete")
 
       if num_completed == data.num_pieces do
@@ -355,13 +359,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       |> length()
 
     num_need = data.numallowed - num_connect
+    Logger.debug("#{data.id} has #{num_connect} peers")
 
     if num_need > 0 do
       Logger.debug("#{data.id} needs #{num_need} peers")
-      # connect to tracker for new peers
-      # send peer connection requests
-      # reset timer
-      # return
+
       case connect_to_tracker_helper({metadata, data}) do
         {:reply, {:ok, _ret_state}, {n_mdata, n_data}} ->
           peer_list =
@@ -384,7 +386,6 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           {:noreply, {n_mdata, %TorrentData{n_data | peer_timer: timer}}}
       end
     else
-
       timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
       {:noreply, {metadata, %TorrentData{data | peer_timer: timer}}}
     end
@@ -609,7 +610,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         {:recv_timeout, 10_000}
       ])
 
-    Logger.warn(fn -> "Response from tracker: #{inspect(resp)}" end)
+    Logger.debug(fn -> "Response from tracker: #{inspect(resp)}" end)
 
     case status do
       :ok ->
@@ -624,10 +625,11 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           _ ->
             # update data
             parsed_peers =
-             tracker_info
-             |> Map.get(:peers)
-             |> parse_peers_binary()
-             #[{{127,0,0,1}, 51413}]
+              tracker_info
+              |> Map.get(:peers)
+              |> parse_peers_binary()
+
+            # [{{127,0,0,1}, 51413}]
 
             new_ttinfo =
               tracker_info

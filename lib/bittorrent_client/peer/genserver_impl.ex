@@ -22,7 +22,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
                         :bittorrent_client,
                         :default_block_size
                       )
-  @tcp_connect_timeout Application.get_env(:bittorrent_client, :tcp_connect_timeout)
+  @tcp_connect_timeout Application.get_env(
+                         :bittorrent_client,
+                         :tcp_connect_timeout
+                       )
   # -------------------------------------------------------------------------------
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
@@ -75,45 +78,15 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def init({peer_data}) do
     Process.flag(:trap_exit, true)
-    Logger.info("Starting peer worker for #{peer_data.name}")
+    Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 1000)
     {:ok, {peer_data}}
   end
 
-  defp handle_peer_setup(peer_data) do
-    handle_successful_connection = fn socket ->
-      timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-
-      case setup_handshake(socket, timer, peer_data) do
-        {:ok, new_peer_data} ->
-          {:ok, new_peer_data}
-
-        {:error, _} ->
-          err_msg = "#{peer_data.name} failed initial handshake!"
-          # Logger.error(err_msg)
-          raise err_msg
-      end
-    end
-
-    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
-           packet: :raw
-         ) do
-      {:ok, sock} ->
-        handle_successful_connection.(sock)
-
-      {:error, msg} ->
-        err_msg =
-          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
-
-        # Logger.error(err_msg)
-        raise err_msg
-    end
-  end
-
   def terminate(_reason, {peer_data}) do
     _ = cleanup(peer_data)
-    Logger.info("Terminating peer worker for #{peer_data.name}")
+    Logger.debug("Terminating peer worker for #{peer_data.name}")
     :normal
   end
 
@@ -192,7 +165,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   # :DONE
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
-    Logger.error("#{peer_data.name} has closed socket, should terminate")
+    Logger.debug("#{peer_data.name} has closed socket, should terminate")
 
     # Gracefully stop this peer process OR get a new peer
     PeerSupervisor.terminate_child(peer_data.name)
@@ -420,6 +393,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     @tcp_conn_impl.send(socket, msg)
   end
 
+  @spec connect(any, any) ::
+          {:error, <<_::128>>} | {:ok, BittorrentClient.TCPConn.t()}
   def connect(ip, port) do
     @tcp_conn_impl.connect(ip, port, [:binary, active: 1], 2_000)
   end
@@ -655,7 +630,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         {new_peer_data, buff <> msg}
 
       {:error, reason} ->
-        # Logger.error("#{peer_data.name} : #{reason}")
+        Logger.error("#{peer_data.name} : #{reason}")
         msg = PeerProtocol.encode(:not_interested)
         {peer_data, buff <> msg}
     end
@@ -744,10 +719,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       _ ->
         {:ok,
          %PeerData{
-            peer_data
-            | socket: sock,
-              timer: timer
-          }}
+           peer_data
+           | socket: sock,
+             timer: timer
+         }}
     end
   end
 
@@ -843,6 +818,36 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       PeerSupervisor.terminate_child(peer_data.name)
       raise err_msg
+    end
+  end
+
+  defp handle_peer_setup(peer_data) do
+    handle_successful_connection = fn socket ->
+      timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+
+      case setup_handshake(socket, timer, peer_data) do
+        {:ok, new_peer_data} ->
+          {:ok, new_peer_data}
+
+        {:error, _} ->
+          err_msg = "#{peer_data.name} failed initial handshake!"
+          # Logger.error(err_msg)
+          raise err_msg
+      end
+    end
+
+    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
+           packet: :raw
+         ) do
+      {:ok, sock} ->
+        handle_successful_connection.(sock)
+
+      {:error, msg} ->
+        err_msg =
+          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
+
+        # Logger.error(err_msg)
+        raise err_msg
     end
   end
 end
