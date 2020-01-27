@@ -87,9 +87,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:start_single_peer, {ip, port}}, _from, {metadata, data}) do
+
     {status, peer_data} =
       PeerSupervisor.start_child(
-        {metadata, Map.get(data, :id), Map.get(data, :info_hash),
+        {metadata.info."piece length", data.num_pieces, Map.get(data, :id), Map.get(data, :info_hash),
          Map.get(data, :filename),
          data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
       )
@@ -836,7 +837,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     Enum.map(peer_list, fn {ip, port} ->
       spawn(fn ->
         PeerSupervisor.start_child(
-          {metadata, data.id, data.info_hash, data.file,
+          {metadata.info."piece length", data.num_pieces, data.id, data.info_hash, data.file,
            data.tracker_info.interval, ip, port}
         )
       end)

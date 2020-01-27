@@ -30,24 +30,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(
-        {metainfo, torrent_id, info_hash, filename, interval, ip, port}
+        {piece_length, num_pieces, torrent_id, info_hash, filename, interval, ip, port}
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
-
-    parsed_piece_hashes =
-      metainfo.info.pieces
-      |> :binary.bin_to_list()
-      |> Enum.chunk_every(20)
-      |> Enum.map(fn x -> Chars.to_string(x) end)
 
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
       infohash: info_hash,
-      piece_length: metainfo.info."piece length",
+      piece_length: piece_length,
       request_queue: [],
       # TODO:  move this data out of  torrent tracking info to check against parent process
-      num_pieces: length(parsed_piece_hashes),
-      piece_hashes: parsed_piece_hashes,
+      num_pieces: num_pieces,
       piece_table: %{},
       bytes_received: 0,
       # TODO is this logic duped?
