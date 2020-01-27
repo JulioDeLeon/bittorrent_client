@@ -48,6 +48,7 @@ defmodule BittorrentClient.Peer.Data do
              :socket,
              :metainfo,
              :timer,
+             :idle_timer,
              :state,
              :running_buffer
            ]}
@@ -62,6 +63,7 @@ defmodule BittorrentClient.Peer.Data do
     :state,
     :piece_buffer,
     :timer,
+    :idle_timer,
     :interval,
     :socket,
     :peer_ip,
@@ -79,6 +81,7 @@ defmodule BittorrentClient.Peer.Data do
           state: state,
           piece_buffer: binary(),
           timer: :timer.tref(),
+          idle_timer: :timer.tref(),
           interval: integer(),
           socket: TCPConn.t(),
           peer_ip: :inet.address(),

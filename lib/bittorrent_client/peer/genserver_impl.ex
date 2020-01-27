@@ -26,6 +26,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
                          :bittorrent_client,
                          :tcp_connect_timeout
                        )
+  @idle_timeout Application.get_env(
+                  :bittorrent_client,
+                  :idle_timeout
+                )
   # -------------------------------------------------------------------------------
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
@@ -100,6 +104,13 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
   end
 
+  def handle_info({:error, reason}, {peer_data}) do
+    err_msg = "#{peer_data.name} has come across an error: #{reason}"
+    Logger.debug(err_msg)
+    Process.exit(self(), :abnormal)
+    {:noreply, {peer_data}}
+  end
+
   def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
     :erlang.cancel_timer(timer)
 
@@ -111,14 +122,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply, {peer_data}}
   end
 
-  # these handle_info calls come from the socket for attention
-  def handle_info({:error, reason}, {peer_data}) do
-    err_msg = "#{peer_data.name} has come across an error: #{reason}"
-    Logger.debug(err_msg)
-
-    # terminate genserver gracefully?
+  def handle_info({:timeout, timer, :idle_timeout}, {peer_data}) do
+    :erlang.cancel_timer(timer)
+    Logger.error("#{peer_data.name} has spent too much time idle")
     Process.exit(self(), :abnormal)
-    # raise err_msg
     {:noreply, {peer_data}}
   end
 
@@ -768,7 +775,9 @@ defmodule BittorrentClient.Peer.GenServerImpl do
          %PeerData{
            peer_data
            | socket: sock,
-             timer: timer
+             timer: timer,
+             idle_timer:
+               :erlang.start_timer(@idle_timeout, self(), :idle_timeout)
          }}
     end
   end
@@ -801,6 +810,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "Piece MSG: #{peer_data.name} is handling a incomplete piece message"
     end)
 
+    :erlang.cancel_timer(peer_data.idle_timer)
     # TODO convert msg to byte buffer using encode?
     buffer =
       PeerProtocol.encode(
@@ -813,7 +823,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     %PeerData{
       peer_data
-      | piece_buffer: buffer
+      | piece_buffer: buffer,
+        idle_timer: :erlang.start_timer(@idle_timeout, self(), :idle_timeout)
     }
   end
 
