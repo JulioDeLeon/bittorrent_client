@@ -39,7 +39,9 @@ defmodule BittorrentClient.Peer.Supervisor do
         {:error, msg}
 
       _ ->
-        Supervisor.terminate_child(__MODULE__, peer_id)
+        ret = Supervisor.terminate_child(__MODULE__, peer_id)
+        Logger.info("Return of ret #{inspect ret}")
+        ret
     end
   end
 end

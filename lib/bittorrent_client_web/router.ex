@@ -38,6 +38,7 @@ defmodule BittorrentClientWeb.Router do
     put("/torrent/:id/connect", TorrentController, :connect)
     put("/torrent/:id/connect/async", TorrentController, :connect_async)
     put("/torrent/:id/startTorrent", TorrentController, :start_torrent)
+    put("/torrent/:id/stopTorrent", TorrentController, :stop_torrent)
 
     put(
       "/torrent/:id/startTorrent/async",

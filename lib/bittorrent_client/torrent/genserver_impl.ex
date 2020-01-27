@@ -21,6 +21,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
                         :bittorrent_client,
                         :torrent_cache_name
                       )
+  @peer_impl Application.get_env(
+    :bittorrent_client,
+    :peer_impl
+  )
   @piece_hash_length 20
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
   @peer_check_interval Application.get_env(
@@ -60,7 +64,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def terminate(_status, {_metadata, data}) do
     # should this clear Mnesia cache as well?
     peer_list = Map.keys(data.connected_peers)
-    handle_stopping_all_peers(peer_list)
+    #handle_stopping_all_peers(peer_list)
+    for id <- peer_list, do: @peer_impl.kill(id)
     :ok
   end
 
@@ -106,9 +111,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   def handle_call({:start_torrent, id}, _from, {metadata, data}) do
     case data.status do
-      :initial ->
-        {:reply, {:error, {403, "#{id} has not connected to tracker"}},
-         {metadata, data}}
+      #:initial ->
+      #  {:reply, {:error, {403, "#{id} has not connected to tracker"}},
+      #   {metadata, data}}
 
       :error ->
         {:reply,
@@ -121,7 +126,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_call({:stop_torrent}, _from, {metadata, data}) do
+  def handle_call({:stop_torrent, id}, _from, {metadata, data}) do
     case data.status do
       # check if start is started
       # if started, kill all pids currently working
@@ -129,19 +134,22 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :started ->
         :erlang.cancel_timer(data.peer_timer)
         peer_list = Map.keys(data.connected_peers)
-        handle_stopping_all_peers(peer_list)
+        #handle_stopping_all_peers(peer_list)
+        for id <- peer_list, do: @peer_impl.kill(id)
 
         {:reply, {:ok, peer_list},
          {metadata,
           %TorrentData{
             data
             | peer_timer: nil,
-              status: :initial,
-              connected_peers: []
+              status: :connected,
+              # let the notifications from peers handle the cleanup of connected peers
           }}}
 
       some_state ->
-        raise "Trying to stop torrent process in #{inspect(some_state)}"
+        {:reply, {:error,
+        {403, "#{id} has experienced an error somewhere : #{inspect some_state}"},
+        {metadata, data}}}
     end
   end
 
@@ -420,7 +428,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     GenServer.call(
       :global.whereis_name({:btc_torrentworker, id}),
-      {:stop_torrent},
+      {:stop_torrent, id},
       :infinity
     )
   end
@@ -780,9 +788,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    peer_list_t =
+    peer_list_t = if data.tracker_info.peers == nil do
+      []
+    else
       data.tracker_info.peers
       |> Enum.shuffle()
+    end
 
     peer_list = peer_list_t |> Enum.take(data.numallowed)
     new_peer_list = peer_list_t |> Enum.drop(data.numallowed)
@@ -790,10 +801,15 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     case peer_list do
       [] ->
-        Logger.warn("#{id} has no available peers")
-
-        {:reply, {:error, {403, "#{id} has no available peers"}},
-         {metadata, data}}
+        Logger.warn("#{id} has no available peers, will search for peers")
+        timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
+        {:reply, {:ok, "no available pids"},
+         {metadata, %TorrentData{
+           data |
+           status: :started,
+           tracker_info: new_ttinfo,
+           peer_timer: timer
+         }}}
 
       _ ->
         returned_pids = connect_to_peers(peer_list, {metadata, data})
@@ -856,19 +872,5 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         FileAssembler.assemble_file({metadata, data})
       end)
     end
-  end
-
-  defp handle_stopping_all_peers([]) do
-    :ok
-  end
-
-  defp handle_stopping_all_peers([pid | rst]) do
-    if Process.alive?(pid) do
-      Process.exit(:terminate, pid)
-    else
-      Logger.warn("Somehow lost track of pid")
-    end
-
-    handle_stopping_all_peers(rst)
   end
 end

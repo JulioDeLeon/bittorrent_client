@@ -17,4 +17,6 @@ defmodule BittorrentClient.Peer do
   ```
   """
   @callback whereis(peer_id :: String) :: pid()
+
+  @callback kill(peer_id :: String) :: any()
 end

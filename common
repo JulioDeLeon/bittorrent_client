@@ -34,6 +34,11 @@ function startTorrentAsync {
     --connect-timeout $TO
 }
 
+function stopTorrent {
+    curl -X PUT $URL/torrent/$1/stopTorrent \
+    --connect-timeout $TO
+}
+
 function listAll {
   curl -X GET $URL/torrent \
   --connect-timeout $TO

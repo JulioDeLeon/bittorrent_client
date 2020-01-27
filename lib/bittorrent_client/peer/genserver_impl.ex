@@ -77,7 +77,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    Process.flag(:trap_exit, true)
+    #Process.flag(:trap_exit, true)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 1000)
@@ -107,7 +107,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
     :erlang.cancel_timer(timer)
-    Logger.debug("#{peer_data.name} took too long trying to connect to tcp socket")
+    Logger.debug("#{peer_data.name} took too long trying to communicate to tcp socket")
     Process.exit(self(), :tcp_connect_timeout)
     {:noreply, {peer_data}}
   end
@@ -192,9 +192,22 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     {:noreply, {peer_data}}
   end
 
+  def handle_cast({:kill_self}, {peer_data}) do
+    Logger.info("#{peer_data.name} request to kill self")
+    Process.exit(self(), :abnormal)
+    {:noreply, {peer_data}}
+  end
+
   # :DONE
   def whereis(pworker_id) do
     :global.whereis_name({:btc_peerworker, pworker_id})
+  end
+
+  def kill(pworker_id) do
+    GenServer.cast(
+      :global.whereis_name({:btc_peerworker, pworker_id}),
+      {:kill_self}
+    )
   end
 
   # :DONE
@@ -866,8 +879,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         {:ok, new_peer_data} ->
           {:ok, new_peer_data}
 
-        {:error, _} ->
-          err_msg = "#{peer_data.name} failed initial handshake!"
+        {:error, err_msg} ->
           Logger.debug(err_msg)
           #raise err_msg
           Process.exit(self(), :abnormal)
@@ -876,7 +888,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     end
 
     case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
-           packet: :raw
+           [packet: :raw], @tcp_connect_timeout
          ) do
       {:ok, sock} ->
         handle_successful_connection.(sock)
