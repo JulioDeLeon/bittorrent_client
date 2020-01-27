@@ -271,7 +271,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
       percent = Float.floor(actual_length / total_length * 100, 2)
 
-      Logger.debug(fn ->
+      Logger.info(fn ->
         "PIECE PROGRESS : index #{piece_index} : #{percent}%"
       end)
 

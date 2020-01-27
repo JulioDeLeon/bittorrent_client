@@ -330,6 +330,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         _from,
         {metadata, data}
       ) do
+    #Logger.warn("#{peer_id} has notified of disconnection")
+
     if Map.has_key?(data.connected_peers, peer_id) do
       new_connected =
         data.connected_peers
@@ -355,6 +357,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
       {:reply, {:ok, known_indexes}, {metadata, new_data}}
     else
+      Logger.warn("#{peer_id} was not on the list")
       {:reply, {:error, "Given peer id #{peer_id} does not exist"},
        {metadata, data}}
     end
@@ -392,7 +395,23 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     num_need = data.numallowed - num_connect
     Logger.debug("#{data.id} has #{num_connect} peers")
 
-    if num_need > 0 do
+    num_completed =
+        data.pieces
+        |> Map.values()
+        |> Enum.filter(fn {status, _index, _buff} -> status == :complete end)
+        |> length()
+
+
+    # if completed and file is not assembled
+    if num_completed == data.num_pieces do
+      case FileAssembler.assemble_file({metadata, data}) do
+        {:error, msg} ->
+          Process.exit(self(), :done)
+          Logger.info("#{data.id} - #{data.file} assembled already")
+      end
+    end
+
+    if num_need > 0 && num_completed != data.num_pieces do
       Logger.info("#{data.id} needs #{num_need} peers")
 
       case connect_to_tracker_helper({metadata, data}) do

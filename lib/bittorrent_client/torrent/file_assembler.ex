@@ -13,7 +13,6 @@ defmodule BittorrentClient.Torrent.FileAssembler do
   def assemble_file({metadata, data}) do
     output_file = "#{@destination_dir}#{metadata.info.name}"
     src_file = data.file
-    File.touch!(output_file)
 
     perform_assembly = fn file_h, i ->
       {:atomic, _} =
@@ -36,12 +35,17 @@ defmodule BittorrentClient.Torrent.FileAssembler do
       :ok
     end
 
-    File.open(output_file, [:write], fn file_h ->
-      for i <- 0..(data.num_pieces - 1) do
-        perform_assembly.(file_h, i)
-      end
-    end)
-
-    Logger.info("Assembly of #{output_file} is complete")
+    if File.exists?(output_file) do
+      {:error, "File already exist"}
+    else
+      File.touch!(output_file)
+      File.open(output_file, [:write], fn file_h ->
+        for i <- 0..(data.num_pieces - 1) do
+          perform_assembly.(file_h, i)
+        end
+      end)
+      Logger.info("Assembly of #{output_file} is complete")
+      :ok
+    end
   end
 end

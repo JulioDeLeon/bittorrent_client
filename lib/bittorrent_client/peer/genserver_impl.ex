@@ -75,7 +75,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    # Process.flag(:trap_exit, true)
+    #Process.flag(:trap_exit, true)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 1000)
@@ -84,7 +84,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def terminate(_reason, {peer_data}) do
     _ = cleanup(peer_data)
-    Logger.debug("Terminating peer worker for #{peer_data.name}")
+    Logger.info("Terminating peer worker for #{peer_data.name}")
     :normal
   end
 
@@ -193,9 +193,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def handle_info({:EXIT, _pid, _status}, {peer_data}) do
-    Logger.debug("#{peer_data.name} is exiting")
+    #Logger.info("#{peer_data.name} is exiting gracefully")
     cleanup(peer_data)
-    {:noreply, {peer_data}}
+    #raise "For nothing"
+    #{:noreply, {peer_data}}
+    :ok
   end
 
   def handle_cast({:kill_self}, {peer_data}) do
@@ -377,10 +379,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_message(:piece, msg, _socket, peer_data) do
     Logger.debug(fn -> "Piece MSG: #{peer_data.name}" end)
 
+    :erlang.cancel_timer(peer_data.idle_timer)
+    timer = :erlang.start_timer(@idle_timeout, self(), :idle_timeout)
+    ret = %PeerData{
+      peer_data | idle_timer: timer
+    }
+
     if is_piece_complete(msg) do
-      handle_complete_piece(msg, peer_data)
+      handle_complete_piece(msg, ret)
     else
-      handle_incomplete_piece(msg, peer_data)
+      handle_incomplete_piece(msg, ret)
     end
   end
 
