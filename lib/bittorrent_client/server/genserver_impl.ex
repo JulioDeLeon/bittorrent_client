@@ -152,7 +152,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
            {db, server_name, updated_torrents}}
       end
     else
-      {:reply, {:error, {403, "Bad ID was given\n"}}, {db, server_name, torrents}}
+      {:reply, {:error, {403, "Bad ID was given\n"}},
+       {db, server_name, torrents}}
     end
   end
 
@@ -239,7 +240,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
           {_, new_info} = @torrent_impl.get_torrent_data(id)
           updated_torrents = Map.put(torrents, id, new_info)
 
-          {:reply, {:ok, "#{id} has stopped"}, {db, server_name, updated_torrents}}
+          {:reply, {:ok, "#{id} has stopped"},
+           {db, server_name, updated_torrents}}
       end
     else
       {:reply, {:ok, {403, "bad input given"}}, {db, server_name, torrents}}
@@ -261,7 +263,6 @@ defmodule BittorrentClient.Server.GenServerImpl do
       {:noreply, {db, server_name, torrents}}
     end
   end
-
 
   def handle_cast({:connect_to_tracker_async, id}, {db, server_name, torrents}) do
     Logger.info("Entered callback of connect_to_tracker_async")

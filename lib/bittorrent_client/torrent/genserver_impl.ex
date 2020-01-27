@@ -22,9 +22,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
                         :torrent_cache_name
                       )
   @peer_impl Application.get_env(
-    :bittorrent_client,
-    :peer_impl
-  )
+               :bittorrent_client,
+               :peer_impl
+             )
   @piece_hash_length 20
   @destination_dir Application.get_env(:bittorrent_client, :file_destination)
   @peer_check_interval Application.get_env(
@@ -64,7 +64,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def terminate(_status, {_metadata, data}) do
     # should this clear Mnesia cache as well?
     peer_list = Map.keys(data.connected_peers)
-    #handle_stopping_all_peers(peer_list)
+    # handle_stopping_all_peers(peer_list)
     for id <- peer_list, do: @peer_impl.kill(id)
     :ok
   end
@@ -87,11 +87,10 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   def handle_call({:start_single_peer, {ip, port}}, _from, {metadata, data}) do
-
     {status, peer_data} =
       PeerSupervisor.start_child(
-        {metadata.info."piece length", data.num_pieces, Map.get(data, :id), Map.get(data, :info_hash),
-         Map.get(data, :filename),
+        {metadata.info."piece length", data.num_pieces, Map.get(data, :id),
+         Map.get(data, :info_hash), Map.get(data, :filename),
          data |> Map.get(:tracker_info) |> Map.get(:interval), ip, port}
       )
 
@@ -112,7 +111,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
   def handle_call({:start_torrent, id}, _from, {metadata, data}) do
     case data.status do
-      #:initial ->
+      # :initial ->
       #  {:reply, {:error, {403, "#{id} has not connected to tracker"}},
       #   {metadata, data}}
 
@@ -135,7 +134,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       :started ->
         :erlang.cancel_timer(data.peer_timer)
         peer_list = Map.keys(data.connected_peers)
-        #handle_stopping_all_peers(peer_list)
+        # handle_stopping_all_peers(peer_list)
         for id <- peer_list, do: @peer_impl.kill(id)
 
         {:reply, {:ok, peer_list},
@@ -143,14 +142,16 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           %TorrentData{
             data
             | peer_timer: nil,
-              status: :connected,
+              status: :connected
               # let the notifications from peers handle the cleanup of connected peers
           }}}
 
       some_state ->
-        {:reply, {:error,
-        {403, "#{id} has experienced an error somewhere : #{inspect some_state}"},
-        {metadata, data}}}
+        {:reply,
+         {:error,
+          {403,
+           "#{id} has experienced an error somewhere : #{inspect(some_state)}"},
+          {metadata, data}}}
     end
   end
 
@@ -219,7 +220,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         |> Float.round(2)
         |> Float.to_string()
 
-      Logger.info("#{data.id} - #{inspect data.file} : #{prog}% complete")
+      Logger.info("#{data.id} - #{inspect(data.file)} : #{prog}% complete")
 
       if num_completed == data.num_pieces do
         handle_complete_data({metadata, ret_data})
@@ -789,12 +790,13 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   end
 
   defp start_torrent_helper(id, {metadata, data}) do
-    peer_list_t = if data.tracker_info.peers == nil do
-      []
-    else
-      data.tracker_info.peers
-      |> Enum.shuffle()
-    end
+    peer_list_t =
+      if data.tracker_info.peers == nil do
+        []
+      else
+        data.tracker_info.peers
+        |> Enum.shuffle()
+      end
 
     peer_list = peer_list_t |> Enum.take(data.numallowed)
     new_peer_list = peer_list_t |> Enum.drop(data.numallowed)
@@ -804,13 +806,15 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       [] ->
         Logger.warn("#{id} has no available peers, will search for peers")
         timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
+
         {:reply, {:ok, "no available pids"},
-         {metadata, %TorrentData{
-           data |
-           status: :started,
-           tracker_info: new_ttinfo,
-           peer_timer: timer
-         }}}
+         {metadata,
+          %TorrentData{
+            data
+            | status: :started,
+              tracker_info: new_ttinfo,
+              peer_timer: timer
+          }}}
 
       _ ->
         returned_pids = connect_to_peers(peer_list, {metadata, data})
@@ -837,8 +841,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     Enum.map(peer_list, fn {ip, port} ->
       spawn(fn ->
         PeerSupervisor.start_child(
-          {metadata.info."piece length", data.num_pieces, data.id, data.info_hash, data.file,
-           data.tracker_info.interval, ip, port}
+          {metadata.info."piece length", data.num_pieces, data.id,
+           data.info_hash, data.file, data.tracker_info.interval, ip, port}
         )
       end)
     end)

@@ -185,10 +185,13 @@ defmodule BittorrentClientWeb.TorrentController do
       |> Map.delete(:pid)
       |> Map.delete(:connected_peers)
       |> Map.delete(:peer_timer)
-      |> Map.put("peers", length(Map.keys(Map.get(data_point, "data").connected_peers)))
+      |> Map.put(
+        "peers",
+        length(Map.keys(Map.get(data_point, "data").connected_peers))
+      )
 
-    Logger.info("Data #{inspect new_data}")
-    Logger.info("Mdata #{inspect new_metadata}")
+    Logger.info("Data #{inspect(new_data)}")
+    Logger.info("Mdata #{inspect(new_metadata)}")
 
     data_point
     |> Map.put("metadata", new_metadata)

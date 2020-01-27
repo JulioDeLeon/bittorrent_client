@@ -30,7 +30,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(
-        {piece_length, num_pieces, torrent_id, info_hash, filename, interval, ip, port}
+        {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
+         ip, port}
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
 
@@ -70,7 +71,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    #Process.flag(:trap_exit, true)
+    # Process.flag(:trap_exit, true)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 1000)
@@ -86,21 +87,26 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_info(:perform_peer_connect, {peer_data}) do
     Logger.debug("Performing connect")
     timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
+
     case handle_peer_setup(peer_data) do
       {:ok, new_peer_data} ->
         :erlang.cancel_timer(timer)
         {:noreply, {new_peer_data}}
+
       val ->
-        Logger.debug("#{peer_data.name} : issue setting up #{inspect val}")
+        Logger.debug("#{peer_data.name} : issue setting up #{inspect(val)}")
         Process.exit(self(), :abnormal)
         {:noreply, {peer_data}}
     end
-
   end
 
   def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
     :erlang.cancel_timer(timer)
-    Logger.debug("#{peer_data.name} took too long trying to communicate to tcp socket")
+
+    Logger.debug(
+      "#{peer_data.name} took too long trying to communicate to tcp socket"
+    )
+
     Process.exit(self(), :tcp_connect_timeout)
     {:noreply, {peer_data}}
   end
@@ -112,7 +118,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     # terminate genserver gracefully?
     Process.exit(self(), :abnormal)
-    #raise err_msg
+    # raise err_msg
     {:noreply, {peer_data}}
   end
 
@@ -330,7 +336,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(err_msg)
         Process.exit(self(), :abnormal)
         peer_data
-        #raise err_msg
+        # raise err_msg
     end
   end
 
@@ -357,7 +363,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(err_msg)
         Process.exit(self(), :abnormal)
         peer_data
-        #raise err_msg
+        # raise err_msg
     end
   end
 
@@ -445,7 +451,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(err_msg)
         Process.exit(self(), :abnormal)
         peer_data
-        #raise err_msg
+        # raise err_msg
     end
   end
 
@@ -466,7 +472,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(err_msg)
         Process.exit(self(), :abnormal)
         peer_data
-        #raise err_msg
+        # raise err_msg
     end
   end
 
@@ -488,7 +494,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(err_msg)
         Process.exit(self(), :abnormal)
         peer_data
-        #raise err_msg
+        # raise err_msg
     end
   end
 
@@ -507,7 +513,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       # no need to send a message
       Process.exit(self(), :abnormal)
       peer_data
-      #raise "terminating"
+      # raise "terminating"
     else
       init_msg = PeerProtocol.encode(:keep_alive)
 
@@ -524,7 +530,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           Logger.debug(err_msg)
           Process.exit(self(), :abnormal)
           peer_data
-          #raise err_msg
+          # raise err_msg
       end
     end
   end
@@ -621,7 +627,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message(what, this) do
-    Logger.error("Trying to create message from #{inspect what} and #{this}")
+    Logger.error("Trying to create message from #{inspect(what)} and #{this}")
     Process.exit(self(), :abnormal)
   end
 
@@ -672,8 +678,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         Logger.debug(reason)
         Process.exit(self(), :no_indexes)
         {peer_data, buff}
-        #msg = PeerProtocol.encode(:not_interested)
-        #{peer_data, buff <> msg}
+        # msg = PeerProtocol.encode(:not_interested)
+        # {peer_data, buff <> msg}
     end
   end
 
@@ -848,19 +854,21 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           Logger.debug(err_msg)
           Process.exit(self(), :abnormal)
           peer_data
-          #raise err_msg
+          # raise err_msg
       end
     else
       err_msg =
         "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
-        }, expected: #{inspect peer_data.torrent_tracking_info.expected_piece_index}"
+        }, expected: #{
+          inspect(peer_data.torrent_tracking_info.expected_piece_index)
+        }"
 
       Logger.debug(err_msg)
 
       Process.exit(self(), :abnormal)
       peer_data
-      #raise err_msg
+      # raise err_msg
     end
   end
 
@@ -874,14 +882,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         {:error, err_msg} ->
           Logger.debug(err_msg)
-          #raise err_msg
+          # raise err_msg
           Process.exit(self(), :abnormal)
           {:error, peer_data}
       end
     end
 
-    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
-           [packet: :raw], @tcp_connect_timeout
+    case @tcp_conn_impl.connect(
+           peer_data.peer_ip,
+           peer_data.peer_port,
+           [packet: :raw],
+           @tcp_connect_timeout
          ) do
       {:ok, sock} ->
         handle_successful_connection.(sock)

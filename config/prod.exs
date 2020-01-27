@@ -35,6 +35,7 @@ config :bittorrent_client,
   default_block_size: 16384 * 2,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
+
 # Do not print debug messages in production
 config :logger, level: :info
 
@@ -78,4 +79,4 @@ config :logger, level: :info
 
 # Finally import the config/prod.secret.exs
 # which should be versioned separately.
-#import_config "prod.secret.exs"
+# import_config "prod.secret.exs"
