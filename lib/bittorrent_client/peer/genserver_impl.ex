@@ -854,7 +854,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       err_msg =
         "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
-        }, expected: #{peer_data.piece_index}"
+        }, expected: #{inspect peer_data.torrent_tracking_info.expected_piece_index}"
 
       Logger.debug(err_msg)
 
