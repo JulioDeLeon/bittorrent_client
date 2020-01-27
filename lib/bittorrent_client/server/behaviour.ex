@@ -59,6 +59,14 @@ defmodule BittorrentClient.Server do
             ) :: :ok
 
   @doc """
+  Tells torrent process to kill currently running peers and stops requests data
+  """
+  @callback stop_torrent(
+              serverName :: String.t(),
+              torrentID :: String.t()
+            ) :: {:ok, reason} | {:error, {http_status, reason}}
+
+  @doc """
   Retrieves torrent information of preccess. Returns in GenServer all style.
   """
   @callback get_torrent_info_by_id(

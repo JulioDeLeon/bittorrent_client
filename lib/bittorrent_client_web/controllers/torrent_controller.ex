@@ -95,6 +95,19 @@ defmodule BittorrentClientWeb.TorrentController do
     end
   end
 
+  def stop_torrent(conn, args) do
+    id = Map.get(args, "id")
+    Logger.info("Stopping Torrent #{id}")
+
+    case @server_impl.stop_torrent(@server_name, id) do
+      {:ok, _} ->
+        send_resp(conn, 204, "")
+
+      {:error, {code, msg}} ->
+        send_resp(conn, code, msg)
+    end
+  end
+
   def start_torrent_async(conn, args) do
     id = Map.get(args, "id")
     Logger.info("Starting Torrent #{id} async")
@@ -170,6 +183,15 @@ defmodule BittorrentClientWeb.TorrentController do
       |> Map.delete(:status)
       |> Map.delete(:port)
       |> Map.delete(:pid)
+      |> Map.delete(:connected_peers)
+      |> Map.delete(:peer_timer)
+      |> Map.put(
+        "peers",
+        length(Map.keys(Map.get(data_point, "data").connected_peers))
+      )
+
+    Logger.info("Data #{inspect(new_data)}")
+    Logger.info("Mdata #{inspect(new_metadata)}")
 
     data_point
     |> Map.put("metadata", new_metadata)

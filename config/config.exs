@@ -16,8 +16,8 @@ config :bittorrent_client,
   port: 36_562,
   no_peer_id: 0,
   ip: "127.0.0.1",
-  numwant: 40,
-  allowedconnections: 2,
+  numwant: 80,
+  allowedconnections: 80,
   key: "",
   trackerid: "",
   server_impl: BittorrentClient.Server.GenServerImpl,
@@ -30,7 +30,9 @@ config :bittorrent_client,
   config_cache_opts: [:set, :protected],
   torrent_cache_impl: BittorrentClient.Cache.MnesiaImpl,
   torrent_cache_name: :torrent_cache,
+  peer_check_interval: 10 * 1000,
   # 16KB
+  tcp_connect_timeout: 3 * 1000,
   default_block_size: 16384 * 2,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
@@ -48,7 +50,7 @@ config :logger, :console,
   format: "$time [$level] [$metadata] $message\n",
   metadata: [:module, :function, :line, :pid],
   colors: [warn: :yellow, error: :red],
-  level: :debug
+  level: :info
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -1,4 +1,7 @@
 defmodule BittorrentClient.Torrent.FileAssembler do
+  @moduledoc """
+  FileAssembler examines an mnesia cache for the give torrent data to assemble the file relative to the torrent.
+  """
   require Logger
 
   @torrent_cache_name Application.get_env(
@@ -15,24 +18,26 @@ defmodule BittorrentClient.Torrent.FileAssembler do
     perform_assembly = fn file_h, i ->
       {:atomic, _} =
         :mnesia.transaction(fn ->
-          [{p0, p1, p2, p3, p4, buffer}] = :mnesia.match_object({
-            @torrent_cache_name,
-            :_,
-            src_file,
-            i,
-            :complete,
-            :_
-          })
+          [{p0, p1, p2, p3, p4, buffer}] =
+            :mnesia.match_object({
+              @torrent_cache_name,
+              :_,
+              src_file,
+              i,
+              :complete,
+              :_
+            })
 
           IO.binwrite(file_h, buffer)
 
           :mnesia.delete_object({p0, p1, p2, p3, p4, buffer})
         end)
+
       :ok
     end
 
     File.open(output_file, [:write], fn file_h ->
-      for i <- (0..data.num_pieces-1) do
+      for i <- 0..(data.num_pieces - 1) do
         perform_assembly.(file_h, i)
       end
     end)

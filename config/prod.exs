@@ -22,8 +22,19 @@ config :bittorrent_client,
   server_impl: BittorrentClient.Server.GenServerImpl,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
-  tcp_conn_impl: BittorrentClient.TCPConn.InMemoryImpl,
-  http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl
+  tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
+  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
+  config_cache_impl: BittorrentClient.Cache.ETSImpl,
+  config_cache_name: :config_cache,
+  config_cache_opts: [:set, :protected],
+  torrent_cache_impl: BittorrentClient.Cache.MnesiaImpl,
+  torrent_cache_name: :torrent_cache,
+  peer_check_interval: 10 * 1000,
+  # 16KB
+  tcp_connect_timeout: 3 * 1000,
+  default_block_size: 16384 * 2,
+  default_tcp_buffer_size: 32768,
+  default_tcp_recv_buffer_size: 32768
 
 # Do not print debug messages in production
 config :logger, level: :info
@@ -68,4 +79,4 @@ config :logger, level: :info
 
 # Finally import the config/prod.secret.exs
 # which should be versioned separately.
-import_config "prod.secret.exs"
+# import_config "prod.secret.exs"

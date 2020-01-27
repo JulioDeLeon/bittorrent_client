@@ -20,12 +20,14 @@ defmodule BittorrentClient.Peer.Supervisor do
   end
 
   def start_child(
-        {metainfo, torrent_id, info_hash, filename, interval, ip, port}
+        {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
+         ip, port}
       ) do
-    Logger.info("Starting peer connection for #{torrent_id}")
+    Logger.debug("Starting peer connection for #{torrent_id}")
     # This also looks like this can be shipped at a list
     Supervisor.start_child(__MODULE__, [
-      {metainfo, torrent_id, info_hash, filename, interval, ip, port}
+      {piece_length, num_pieces, torrent_id, info_hash, filename, interval, ip,
+       port}
     ])
   end
 
@@ -39,7 +41,9 @@ defmodule BittorrentClient.Peer.Supervisor do
         {:error, msg}
 
       _ ->
-        Supervisor.terminate_child(__MODULE__, peer_id)
+        ret = Supervisor.terminate_child(__MODULE__, peer_id)
+        Logger.info("Return of ret #{inspect(ret)}")
+        ret
     end
   end
 end

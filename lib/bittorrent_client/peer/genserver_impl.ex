@@ -22,28 +22,26 @@ defmodule BittorrentClient.Peer.GenServerImpl do
                         :bittorrent_client,
                         :default_block_size
                       )
+  @tcp_connect_timeout Application.get_env(
+                         :bittorrent_client,
+                         :tcp_connect_timeout
+                       )
   # -------------------------------------------------------------------------------
   # GenServer Callbacks
   # -------------------------------------------------------------------------------
   def start_link(
-        {metainfo, torrent_id, info_hash, filename, interval, ip, port}
+        {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
+         ip, port}
       ) do
     name = "#{torrent_id}_#{ip_to_str(ip)}_#{port}"
-
-    parsed_piece_hashes =
-      metainfo.info.pieces
-      |> :binary.bin_to_list()
-      |> Enum.chunk_every(20)
-      |> Enum.map(fn x -> Chars.to_string(x) end)
 
     torrent_track_info = %TorrentTrackingInfo{
       id: torrent_id,
       infohash: info_hash,
-      piece_length: metainfo.info."piece length",
+      piece_length: piece_length,
       request_queue: [],
       # TODO:  move this data out of  torrent tracking info to check against parent process
-      num_pieces: length(parsed_piece_hashes),
-      piece_hashes: parsed_piece_hashes,
+      num_pieces: num_pieces,
       piece_table: %{},
       bytes_received: 0,
       # TODO is this logic duped?
@@ -73,52 +71,54 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    Process.flag(:trap_exit, true)
-    Logger.info("Starting peer worker for #{peer_data.name}")
+    # Process.flag(:trap_exit, true)
+    Logger.debug("Starting peer worker for #{peer_data.name}")
 
-    handle_successful_connection = fn socket ->
-      timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
-
-      case setup_handshake(socket, timer, peer_data) do
-        {:ok, new_peer_data} ->
-          {:ok, new_peer_data}
-
-        {:error, _} ->
-          err_msg = "#{peer_data.name} failed initial handshake!"
-          Logger.error(err_msg)
-          raise err_msg
-      end
-    end
-
-    case @tcp_conn_impl.connect(peer_data.peer_ip, peer_data.peer_port,
-           packet: :raw
-         ) do
-      {:ok, sock} ->
-        handle_successful_connection.(sock)
-
-      {:error, msg} ->
-        err_msg =
-          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
-
-        Logger.error(err_msg)
-        raise err_msg
-    end
+    Process.send_after(self(), :perform_peer_connect, 1000)
+    {:ok, {peer_data}}
   end
 
   def terminate(_reason, {peer_data}) do
     _ = cleanup(peer_data)
-    Logger.info("Terminating peer worker for #{peer_data.name}")
+    Logger.debug("Terminating peer worker for #{peer_data.name}")
     :normal
+  end
+
+  def handle_info(:perform_peer_connect, {peer_data}) do
+    Logger.debug("Performing connect")
+    timer = :erlang.start_timer(@tcp_connect_timeout, self(), :tcp_connect_t)
+
+    case handle_peer_setup(peer_data) do
+      {:ok, new_peer_data} ->
+        :erlang.cancel_timer(timer)
+        {:noreply, {new_peer_data}}
+
+      val ->
+        Logger.debug("#{peer_data.name} : issue setting up #{inspect(val)}")
+        Process.exit(self(), :abnormal)
+        {:noreply, {peer_data}}
+    end
+  end
+
+  def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
+    :erlang.cancel_timer(timer)
+
+    Logger.debug(
+      "#{peer_data.name} took too long trying to communicate to tcp socket"
+    )
+
+    Process.exit(self(), :tcp_connect_timeout)
+    {:noreply, {peer_data}}
   end
 
   # these handle_info calls come from the socket for attention
   def handle_info({:error, reason}, {peer_data}) do
     err_msg = "#{peer_data.name} has come across an error: #{reason}"
-    Logger.error(err_msg)
+    Logger.debug(err_msg)
 
     # terminate genserver gracefully?
-    PeerSupervisor.terminate_child(peer_data.name)
-    raise err_msg
+    Process.exit(self(), :abnormal)
+    # raise err_msg
     {:noreply, {peer_data}}
   end
 
@@ -135,17 +135,23 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       }"
     end)
 
-    new_peer_data = send_message(peer_data.state, peer_data)
+    case send_message(peer_data.state, peer_data) do
+      true ->
+        Logger.debug("Error sending message")
+        Process.exit(self(), :abnormal)
+        {:noreply, {peer_data}}
 
-    Logger.debug(fn ->
-      "#{peer_data.name} : sent messages, new state: #{
-        inspect(new_peer_data.state)
-      }"
-    end)
+      new_peer_data ->
+        Logger.debug(fn ->
+          "#{peer_data.name} : sent messages, new state: #{
+            inspect(new_peer_data.state)
+          }"
+        end)
 
-    timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+        timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
 
-    {:noreply, {%PeerData{new_peer_data | timer: timer}}}
+        {:noreply, {%PeerData{new_peer_data | timer: timer}}}
+    end
   end
 
   # :DONE
@@ -172,16 +178,35 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   # :DONE
   def handle_info({:tcp_closed, _socket}, {peer_data}) do
-    Logger.error("#{peer_data.name} has closed socket, should terminate")
+    Logger.debug("#{peer_data.name} has closed socket, should terminate")
 
     # Gracefully stop this peer process OR get a new peer
-    PeerSupervisor.terminate_child(peer_data.name)
+    Process.exit(self(), :abnormal)
+    {:noreply, {peer_data}}
+  end
+
+  def handle_info({:EXIT, _pid, _status}, {peer_data}) do
+    Logger.debug("#{peer_data.name} is exiting")
+    cleanup(peer_data)
+    {:noreply, {peer_data}}
+  end
+
+  def handle_cast({:kill_self}, {peer_data}) do
+    Logger.info("#{peer_data.name} request to kill self")
+    Process.exit(self(), :abnormal)
     {:noreply, {peer_data}}
   end
 
   # :DONE
   def whereis(pworker_id) do
     :global.whereis_name({:btc_peerworker, pworker_id})
+  end
+
+  def kill(pworker_id) do
+    GenServer.cast(
+      :global.whereis_name({:btc_peerworker, pworker_id}),
+      {:kill_self}
+    )
   end
 
   # :DONE
@@ -200,10 +225,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           inspect(expected)
         }"
 
-      Logger.error(err)
+      Logger.debug(err)
 
-      PeerSupervisor.terminate_child(peer_data.name)
-      raise err
+      Process.exit(self(), :abnormal)
+      peer_data
+      # raise err
     else
       Logger.debug(fn -> "Handshake MSG: #{peer_data.name}" end)
 
@@ -307,9 +333,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
-        PeerSupervisor.terminate_child(peer_data.name)
-        raise err_msg
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        peer_data
+        # raise err_msg
     end
   end
 
@@ -333,9 +360,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         |> Map.put(:torrent_tracking_info, new_ttinfo_state)
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
-        PeerSupervisor.terminate_child(peer_data.name)
-        raise err_msg
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        peer_data
+        # raise err_msg
     end
   end
 
@@ -400,6 +428,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     @tcp_conn_impl.send(socket, msg)
   end
 
+  @spec connect(any, any) ::
+          {:error, <<_::128>>} | {:ok, BittorrentClient.TCPConn.t()}
   def connect(ip, port) do
     @tcp_conn_impl.connect(ip, port, [:binary, active: 1], 2_000)
   end
@@ -418,9 +448,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
-        PeerSupervisor.terminate_child(peer_data.name)
-        raise err_msg
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        peer_data
+        # raise err_msg
     end
   end
 
@@ -438,9 +469,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
-        PeerSupervisor.terminate_child(peer_data.name)
-        raise err_msg
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        peer_data
+        # raise err_msg
     end
   end
 
@@ -459,9 +491,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         new_peer_data
 
       {:error, err_msg} ->
-        Logger.error(err_msg)
-        PeerSupervisor.terminate_child(peer_data.name)
-        raise err_msg
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        peer_data
+        # raise err_msg
     end
   end
 
@@ -472,14 +505,15 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     req_indexes = peer_data.torrent_tracking_info.request_queue
 
     if known_indexes == [] && req_indexes == [] do
-      Logger.info(
+      Logger.debug(
         "#{peer_data.name} is not leeching or seeding pieces, terminating connection."
       )
 
       # terminating child here will gracefully close tcp connection with peer,
       # no need to send a message
-      PeerSupervisor.terminate_child(peer_data.name)
-      raise "terminating"
+      Process.exit(self(), :abnormal)
+      peer_data
+      # raise "terminating"
     else
       init_msg = PeerProtocol.encode(:keep_alive)
 
@@ -493,9 +527,10 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           new_peer_data
 
         {:error, err_msg} ->
-          Logger.error(err_msg)
-          PeerSupervisor.terminate_child(peer_data.name)
-          raise err_msg
+          Logger.debug(err_msg)
+          Process.exit(self(), :abnormal)
+          peer_data
+          # raise err_msg
       end
     end
   end
@@ -575,7 +610,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
         # terminating child here will gracefully close tcp connection with peer,
         # no need to send a message
-        PeerSupervisor.terminate_child(peer_data.name)
+        Process.exit(self(), :abnormal)
       else
         PeerProtocol.encode(:keep_alive)
       end
@@ -584,11 +619,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def create_message({peer_data, buff}, anything) do
-    Logger.error(
+    Logger.debug(
       "#{peer_data.name} : is trying to create message : #{anything}"
     )
 
     {peer_data, buff}
+  end
+
+  def create_message(what, this) do
+    Logger.error("Trying to create message from #{inspect(what)} and #{this}")
+    Process.exit(self(), :abnormal)
   end
 
   @spec handle_new_piece_request({PeerData.t(), binary()}) ::
@@ -635,9 +675,11 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         {new_peer_data, buff <> msg}
 
       {:error, reason} ->
-        Logger.error("#{peer_data.name} : #{reason}")
-        msg = PeerProtocol.encode(:not_interested)
-        {peer_data, buff <> msg}
+        Logger.debug(reason)
+        Process.exit(self(), :no_indexes)
+        {peer_data, buff}
+        # msg = PeerProtocol.encode(:not_interested)
+        # {peer_data, buff <> msg}
     end
   end
 
@@ -723,12 +765,16 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       _ ->
         {:ok,
-         {%PeerData{
-            peer_data
-            | socket: sock,
-              timer: timer
-          }}}
+         %PeerData{
+           peer_data
+           | socket: sock,
+             timer: timer
+         }}
     end
+  end
+
+  defp cleanup({peer_data}) do
+    cleanup(peer_data)
   end
 
   defp cleanup(peer_data) do
@@ -742,7 +788,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       peer_data.peer_ip
     )
 
-    @tcp_conn_impl.close(peer_data.socket)
+    if peer_data.socket != nil, do: @tcp_conn_impl.close(peer_data.socket)
     :ok
   end
 
@@ -751,7 +797,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_incomplete_piece(msg, peer_data) do
-    Logger.warn(fn ->
+    Logger.debug(fn ->
       "Piece MSG: #{peer_data.name} is handling a incomplete piece message"
     end)
 
@@ -772,7 +818,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   defp handle_complete_piece(msg, peer_data) do
-    Logger.info(fn ->
+    Logger.debug(fn ->
       "Piece MSG: #{peer_data.name} is handling a complete piece message"
     end)
 
@@ -805,20 +851,59 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           }
 
         {:error, err_msg} ->
-          Logger.error(err_msg)
-          PeerSupervisor.terminate_child(peer_data.name)
-          raise err_msg
+          Logger.debug(err_msg)
+          Process.exit(self(), :abnormal)
+          peer_data
+          # raise err_msg
       end
     else
       err_msg =
         "Piece MSG: #{peer_data.name} has received the wrong piece: #{
           msg.piece_index
-        }, expected: #{peer_data.piece_index}"
+        }, expected: #{
+          inspect(peer_data.torrent_tracking_info.expected_piece_index)
+        }"
 
-      Logger.error(err_msg)
+      Logger.debug(err_msg)
 
-      PeerSupervisor.terminate_child(peer_data.name)
-      raise err_msg
+      Process.exit(self(), :abnormal)
+      peer_data
+      # raise err_msg
+    end
+  end
+
+  defp handle_peer_setup(peer_data) do
+    handle_successful_connection = fn socket ->
+      timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
+
+      case setup_handshake(socket, timer, peer_data) do
+        {:ok, new_peer_data} ->
+          {:ok, new_peer_data}
+
+        {:error, err_msg} ->
+          Logger.debug(err_msg)
+          # raise err_msg
+          Process.exit(self(), :abnormal)
+          {:error, peer_data}
+      end
+    end
+
+    case @tcp_conn_impl.connect(
+           peer_data.peer_ip,
+           peer_data.peer_port,
+           [packet: :raw],
+           @tcp_connect_timeout
+         ) do
+      {:ok, sock} ->
+        handle_successful_connection.(sock)
+
+      {:error, msg} ->
+        err_msg =
+          "#{peer_data.name} could not send initial handshake to peer: #{msg}"
+
+        Logger.debug(err_msg)
+        Process.exit(self(), :abnormal)
+        {:error, peer_data}
     end
   end
 end

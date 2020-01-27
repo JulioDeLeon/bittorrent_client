@@ -11,7 +11,13 @@ defmodule BittorrentClient.Torrent.Data do
   @type torrent_state ::
           :initial | :connected | :started | :completed | :paused | :error
   @derive {Poison.Encoder,
-           except: [:pid, :tracker_info, :info_hash, :conected_peers]}
+           except: [
+             :pid,
+             :tracker_info,
+             :info_hash,
+             :conected_peers,
+             :peer_timer
+           ]}
   defstruct [
     :id,
     :pid,
@@ -34,7 +40,8 @@ defmodule BittorrentClient.Torrent.Data do
     :pieces,
     :num_pieces,
     :next_piece_index,
-    :connected_peers
+    :connected_peers,
+    :peer_timer
   ]
 
   @type t :: %__MODULE__{

@@ -6,31 +6,36 @@ defmodule BittorrentClient.TCPConn.GenTCPImpl do
   alias BittorrentClient.TCPConn, as: TCPConn
 
   def connect(ip, port, opts \\ []) do
-    {status, ret} = :gen_tcp.connect(ip, port, opts)
-
-    case status do
-      :ok ->
-        {:ok,
-         %TCPConn{
-           socket: ret,
-           parent_pid: self()
-         }}
-
-      _ ->
-        {status, ret}
-    end
-  end
-
-  def connect(ip, port, opts, timeout) do
-    {status, socket} = :gen_tcp.connect(ip, port, opts, timeout)
-
-    case status do
-      :ok ->
+    case :gen_tcp.connect(ip, port, opts) do
+      {:ok, socket} ->
         {:ok,
          %TCPConn{
            socket: socket,
            parent_pid: self()
          }}
+
+      error ->
+        {:error,
+         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{
+           inspect(error)
+         }"}
+    end
+  end
+
+  def connect(ip, port, opts, timeout) do
+    case :gen_tcp.connect(ip, port, opts, timeout) do
+      {:ok, socket} ->
+        {:ok,
+         %TCPConn{
+           socket: socket,
+           parent_pid: self()
+         }}
+
+      error ->
+        {:error,
+         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{
+           inspect(error)
+         }"}
     end
   end
 

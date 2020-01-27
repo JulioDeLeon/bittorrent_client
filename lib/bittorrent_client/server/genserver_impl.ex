@@ -152,7 +152,8 @@ defmodule BittorrentClient.Server.GenServerImpl do
            {db, server_name, updated_torrents}}
       end
     else
-      {:reply, {:error, "Bad ID was given\n"}, {db, server_name, torrents}}
+      {:reply, {:error, {403, "Bad ID was given\n"}},
+       {db, server_name, torrents}}
     end
   end
 
@@ -222,6 +223,24 @@ defmodule BittorrentClient.Server.GenServerImpl do
           updated_torrents = Map.put(torrents, id, new_info)
 
           {:reply, {:ok, "#{id} has started"},
+           {db, server_name, updated_torrents}}
+      end
+    else
+      {:reply, {:ok, {403, "bad input given"}}, {db, server_name, torrents}}
+    end
+  end
+
+  def handle_call({:stop_torrent, id}, _from, {db, server_name, torrents}) do
+    if Map.has_key?(torrents, id) do
+      case @torrent_impl.stop_torrent(id) do
+        {:error, msg} ->
+          {:reply, {:error, msg}, {db, server_name, torrents}}
+
+        _ ->
+          {_, new_info} = @torrent_impl.get_torrent_data(id)
+          updated_torrents = Map.put(torrents, id, new_info)
+
+          {:reply, {:ok, "#{id} has stopped"},
            {db, server_name, updated_torrents}}
       end
     else
@@ -326,6 +345,15 @@ defmodule BittorrentClient.Server.GenServerImpl do
     GenServer.cast(
       :global.whereis_name({:btc_server, server_name}),
       {:start_torrent_async, id}
+    )
+  end
+
+  def stop_torrent(server_name, id) do
+    Logger.info("Entered stop_torrent")
+
+    GenServer.call(
+      :global.whereis_name({:btc_server, server_name}),
+      {:stop_torrent, id}
     )
   end
 
