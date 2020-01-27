@@ -17,7 +17,6 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
           expected_piece_index: 0,
           expected_piece_length: 0,
           num_pieces: 0,
-          piece_hashes: [],
           piece_length: 0,
           request_queue: [],
           bytes_received: 0,
