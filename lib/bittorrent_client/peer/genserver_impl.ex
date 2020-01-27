@@ -114,7 +114,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   def handle_info({:timeout, timer, :tcp_connect_t}, {peer_data}) do
     :erlang.cancel_timer(timer)
 
-    Logger.debug(
+    Logger.error(
       "#{peer_data.name} took too long trying to communicate to tcp socket"
     )
 
@@ -810,7 +810,6 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "Piece MSG: #{peer_data.name} is handling a incomplete piece message"
     end)
 
-    :erlang.cancel_timer(peer_data.idle_timer)
     # TODO convert msg to byte buffer using encode?
     buffer =
       PeerProtocol.encode(
@@ -823,8 +822,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     %PeerData{
       peer_data
-      | piece_buffer: buffer,
-        idle_timer: :erlang.start_timer(@idle_timeout, self(), :idle_timeout)
+      | piece_buffer: buffer
     }
   end
 
@@ -833,6 +831,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       "Piece MSG: #{peer_data.name} is handling a complete piece message"
     end)
 
+    :erlang.cancel_timer(peer_data.idle_timer)
     ttinfo = peer_data.torrent_tracking_info
 
     if msg.piece_index == ttinfo.expected_piece_index do
@@ -858,7 +857,8 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           %PeerData{
             peer_data
             | torrent_tracking_info: new_ttinfo,
-              piece_buffer: <<>>
+              piece_buffer: <<>>,
+              idle_timer: :erlang.start_timer(@idle_timeout, self(), :idle_timeout)
           }
 
         {:error, err_msg} ->

@@ -370,16 +370,30 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def handle_info({:timeout, timer, :peer_check}, {metadata, data}) do
     :erlang.cancel_timer(timer)
 
+    a_alive = data.connected_peers
+    |> Map.keys()
+    |> Enum.reduce(%{}, fn id, acc ->
+      if @peer_impl.whereis(id) != :undefined do
+        Map.put(acc, id, Map.get(data.connected_peers, id))
+      else
+        acc
+      end
+    end)
+
+    if length(Map.keys(a_alive)) != length(Map.keys(data.connected_peers)) do
+      Logger.error("#{data.id} lost track of some peers")
+    end
+
     num_connect =
-      data.connected_peers
-      |> Map.keys()
-      |> length()
+    a_alive
+    |> Map.keys()
+    |> length()
 
     num_need = data.numallowed - num_connect
     Logger.debug("#{data.id} has #{num_connect} peers")
 
     if num_need > 0 do
-      Logger.debug("#{data.id} needs #{num_need} peers")
+      Logger.info("#{data.id} needs #{num_need} peers")
 
       case connect_to_tracker_helper({metadata, data}) do
         {:reply, {:ok, _ret_state}, {n_mdata, n_data}} ->
@@ -394,17 +408,19 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
           timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
 
           {:noreply,
-           {n_mdata, %TorrentData{n_data | status: :started, peer_timer: timer}}}
+           {n_mdata, %TorrentData{n_data | status: :started, peer_timer: timer,
+           connected_peers: a_alive}}}
 
         {:reply, {:error, msg}, {n_mdata, n_data}} ->
           Logger.error(msg)
 
           timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
-          {:noreply, {n_mdata, %TorrentData{n_data | peer_timer: timer}}}
+          {:noreply, {n_mdata, %TorrentData{n_data | peer_timer: timer,
+          connected_peers: a_alive}}}
       end
     else
       timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
-      {:noreply, {metadata, %TorrentData{data | peer_timer: timer}}}
+      {:noreply, {metadata, %TorrentData{data | peer_timer: timer, connected_peers: a_alive}}}
     end
   end
 
@@ -645,7 +661,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
               tracker_info
               |> Map.get(:peers)
               |> parse_peers_binary()
-
+            Logger.warn("#{data.id} tracker returned #{length(parsed_peers)} peers")
             # [{{127,0,0,1}, 51413}]
 
             new_ttinfo =
