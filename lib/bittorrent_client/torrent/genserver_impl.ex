@@ -654,7 +654,9 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         Map.delete(acc, elem)
       end)
 
+    # TODO: adjust numwant for every request since this is now dynamic
     url = create_tracker_request(metadata.announce, params)
+    Logger.debug("request being sent to tracker #{inspect url}")
     # connect to tracker, respond based on what the http response is
     {status, resp} =
       @http_handle_impl.get(url, [], [

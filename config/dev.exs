@@ -48,7 +48,7 @@ config :bittorrent_client, BittorrentClientWeb.Endpoint,
   ]
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+#config :logger, :console, format: "[$level] $message\n"
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -68,7 +68,4 @@ config :bittorrent_client,
   torrent_impl: BittorrentClient.Torrent.GenServerImpl,
   peer_impl: BittorrentClient.Peer.GenServerImpl,
   tcp_conn_impl: BittorrentClient.TCPConn.GenTCPImpl,
-  http_handle_impl: BittorrentClient.HTTPHandle.HTTPoisonImpl,
-  upload_check: false,
-  use_local_server: true,
-  test_server_loc: {{127, 0, 0, 1}, 51410}
+  http_handle_impl: BittorrentClient.HTTPHandle.InMemoryImpl

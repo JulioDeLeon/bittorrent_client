@@ -9,6 +9,9 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
   @arch_tracker_req_url "http://tracker.archlinux.org:6969/announce?compact=1&downloaded=0&info_hash=%8B%DE%B5Pcm;R;-+;%D4%9D%7B%0F%C71%17l&left=631242752&num_pieces=1204&numwant=#{
                           @num_wanted
                         }&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
+  @debian_tracker_url "http://bttracker.debian.org:6969/announce?compact=1&downloaded=0&info_hash=%0F*:%DF%E8.%1C%92%B3%90%CD%CA%AE%C3%CD%C0%DD%3E%BF%D7&left=351272960&num_pieces=1340&numwant=#{
+    @num_wanted
+  }&peer_id=-ET0001-aaaaaaaaaaaa&port=36562&uploaded=0"
   @impl true
   def get(@arch_tracker_req_url, _headers, _opts) do
     Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
@@ -23,7 +26,39 @@ defmodule BittorrentClient.HTTPHandle.InMemoryImpl do
 
     bento_body = %{
       "interval" => 900,
-      "peers" => <<79, 95, 107, 22, 192, 180>>,
+      # points to a localhost transmission client if needed
+      "peers" => <<127, 0, 0, 1, 200, 213>>,
+      "peers6" => ""
+    }
+
+    bento_body_resp =
+      bento_body
+      |> BenEncoder.encode()
+      |> IO.iodata_to_binary()
+
+    {:ok,
+     %HTTPoison.Response{
+       body: bento_body_resp,
+       headers: resp_headers,
+       status_code: 200
+     }}
+  end
+
+  def get(@debian_tracker_url, _headers, _opts) do
+    Logger.warn("Using #{__MODULE__} implementation for HTTPoison.get")
+
+    # simulating response from Arch Linux servers
+    resp_headers = [
+      {"Server", "mimosa"},
+      {"Connection", "Close"},
+      {"Content-Length", "518"},
+      {"Content-Type", "text/plain"}
+    ]
+
+    bento_body = %{
+      "interval" => 900,
+      # points to a localhost transmission client if needed
+      "peers" => <<127, 0, 0, 1, 200, 213>>,
       "peers6" => ""
     }
 
