@@ -75,7 +75,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    #Process.flag(:trap_exit, true)
+    Process.flag(:trap_exit, true)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 1000)
@@ -98,7 +98,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
         {:noreply, {new_peer_data}}
 
       val ->
-        Logger.debug("#{peer_data.name} : issue setting up #{inspect(val)}")
+        Logger.error("#{peer_data.name} : issue setting up #{inspect(val)}")
         Process.exit(self(), :abnormal)
         {:noreply, {peer_data}}
     end
@@ -106,7 +106,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_info({:error, reason}, {peer_data}) do
     err_msg = "#{peer_data.name} has come across an error: #{reason}"
-    Logger.debug(err_msg)
+    Logger.error(err_msg)
     Process.exit(self(), :abnormal)
     {:noreply, {peer_data}}
   end

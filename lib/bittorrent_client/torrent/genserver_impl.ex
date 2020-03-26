@@ -220,7 +220,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         |> Float.round(2)
         |> Float.to_string()
 
-      Logger.info("#{data.id} - #{inspect(data.file)} : #{prog}% complete")
+      Logger.info("#{data.id} - #{inspect(data.file)} : #{prog}% complete -------------------------")
 
       if num_completed == data.num_pieces do
         handle_complete_data({metadata, ret_data})
@@ -330,7 +330,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         _from,
         {metadata, data}
       ) do
-    #Logger.warn("#{peer_id} has notified of disconnection")
+    Logger.warn("#{peer_id} has notified of disconnection")
 
     if Map.has_key?(data.connected_peers, peer_id) do
       new_connected =
@@ -653,6 +653,29 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
       List.foldl(unwanted_params, data, fn elem, acc ->
         Map.delete(acc, elem)
       end)
+
+    # add :downloaded to map
+    # calculate by length of complete keys
+
+    downloaded =
+      Map.get(data, :pieces)
+      |> Map.keys()
+      |> Enum.filter(fn e ->
+        case Map.get(data.pieces, e) do
+          {:complete, _, _} ->
+            true
+          _ ->
+            false
+        end
+      end)
+      |> length()
+
+
+    len = metadata
+    |> Map.get(:info)
+    |> Map.get(:"piece length")
+
+    params = Map.put(params, :downloaded, downloaded * len)
 
     # TODO: adjust numwant for every request since this is now dynamic
     url = create_tracker_request(metadata.announce, params)
