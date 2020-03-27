@@ -78,14 +78,17 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     Process.flag(:trap_exit, true)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
-    Process.send_after(self(), :perform_peer_connect, 1000)
+    Process.send_after(self(), :perform_peer_connect, 500)
     {:ok, {peer_data}}
   end
 
-  def terminate(_reason, {peer_data}) do
-    _ = cleanup(peer_data)
+  def terminate(reason, {peer_data}) do
+
+    st = Process.info(self(), :current_stacktrace)
+    Logger.error("#{peer_data.name} is terminating for #{inspect reason}: #{inspect st}")
+    cleanup(peer_data)
     Logger.info("Terminating peer worker for #{peer_data.name}")
-    :normal
+    {peer_data}
   end
 
   def handle_info(:perform_peer_connect, {peer_data}) do
@@ -196,8 +199,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     #Logger.info("#{peer_data.name} is exiting gracefully")
     cleanup(peer_data)
     #raise "For nothing"
-    #{:noreply, {peer_data}}
-    :ok
+    {:noreply, {peer_data}}
   end
 
   def handle_cast({:kill_self}, {peer_data}) do

@@ -41,7 +41,14 @@ defmodule BittorrentClient.Torrent.DownloadStrategies do
       [] ->
         {:error, "no indexes available"}
 
-      [ret | _rst] ->
+      [hd | _rst] ->
+        [ret | _rst] =
+          possible_indexes
+          |> Enum.take_while(fn e ->
+            get_ref_count.(e) == get_ref_count.(hd)
+          end)
+          |> Enum.shuffle()
+
         {:ok, ret}
     end
   end

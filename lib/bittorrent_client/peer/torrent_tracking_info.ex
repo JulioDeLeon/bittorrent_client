@@ -348,7 +348,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           {:ok, :complete}
 
         {:error, msg} ->
-          Logger.error(
+          Logger.debug(
             "#{ttinfo.id} could not mark piece index #{piece_index} as complete : #{
               msg
             }"
