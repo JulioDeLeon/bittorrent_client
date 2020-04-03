@@ -176,9 +176,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     end
   end
 
-  def handle_call(
+  def handle_cast(
         {:mark_piece_index_done, index, buffer},
-        from,
         {metadata, data}
       ) do
     piece_table = data.pieces
@@ -226,18 +225,17 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
         handle_complete_data({metadata, ret_data})
       end
 
-      {:reply, {:ok, index}, {metadata, ret_data}}
+      {:noreply, {metadata, ret_data}}
     end
 
     {validation, id} = is_valid?.()
 
     cond do
       Map.has_key?(piece_table, index) == false ->
-        {:reply, {:error, "invalid index given: #{index}"}, {metadata, data}}
+        {:noreply,  {metadata, data}}
 
       validation == false ->
-        {:reply,
-         {:error, "hash did not match expected hash for index given: #{index} from #{inspect from}"},
+        {:noreply,
          {metadata, data}}
 
       true ->
@@ -522,10 +520,12 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   def mark_piece_index_done(id, index, buffer) do
     Logger.debug(fn -> "#{id}'s peerworker has marked #{index} as done!" end)
 
-    GenServer.call(
+    GenServer.cast(
       :global.whereis_name({:btc_torrentworker, id}),
       {:mark_piece_index_done, index, buffer}
     )
+    #peer does not care of correctness of piece
+    {:ok, :complete}
   end
 
   def add_new_piece_index(id, peer_id, index) do

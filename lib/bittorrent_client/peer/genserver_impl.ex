@@ -75,7 +75,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   end
 
   def init({peer_data}) do
-    Process.flag(:trap_exit, true)
+    Process.flag(:trap_exit, false)
     Logger.debug("Starting peer worker for #{peer_data.name}")
 
     Process.send_after(self(), :perform_peer_connect, 500)
@@ -800,12 +800,12 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     ttinfo = peer_data.torrent_tracking_info
     peer_id = peer_data.name
 
-    TorrentTrackingInfo.notify_torrent_of_disconnection(
-      ttinfo,
-      peer_id,
-      peer_data.peer_ip,
-      peer_data.peer_ip
-    )
+#    TorrentTrackingInfo.notify_torrent_of_disconnection(
+#      ttinfo,
+#      peer_id,
+#      peer_data.peer_ip,
+#      peer_data.peer_ip
+#    )
 
     if peer_data.socket != nil, do: @tcp_conn_impl.close(peer_data.socket)
     :ok

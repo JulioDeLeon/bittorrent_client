@@ -31,6 +31,7 @@ defmodule BittorrentClient.Peer.Supervisor do
     ])
   end
 
+  @spec terminate_child(any) :: :ok | {:error, :not_found | <<_::64, _::_*8>>}
   def terminate_child(peer_id) do
     pid = @peer_impl.whereis(peer_id)
 
