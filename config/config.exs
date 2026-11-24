@@ -33,7 +33,7 @@ config :bittorrent_client,
   peer_check_interval: 10 * 1000,
   # 16KB
   tcp_connect_timeout: 3 * 1000,
-  default_block_size: 16384 * 2,
+  default_block_size: 16384,
   default_tcp_buffer_size: 32768,
   default_tcp_recv_buffer_size: 32768
 

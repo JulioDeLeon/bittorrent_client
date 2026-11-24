@@ -260,6 +260,70 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
 
   # TODO test for addition to piece data blocks
 
+  test "actual_piece_length and next_block_length clamp the final piece and block", context do
+    ttinfo = %TorrentTrackingInfo{
+      context.example_ttinfo
+      | piece_length: 32_768,
+        num_pieces: 3,
+        total_length: 70_000
+    }
+
+    assert TorrentTrackingInfo.actual_piece_length(ttinfo, 0) == 32_768
+    assert TorrentTrackingInfo.actual_piece_length(ttinfo, 1) == 32_768
+    # Last piece is 70_000 - 2 * 32_768 = 4_464 bytes
+    assert TorrentTrackingInfo.actual_piece_length(ttinfo, 2) == 4_464
+
+    assert TorrentTrackingInfo.next_block_length(ttinfo, 0, 0, 16_384) == 16_384
+    assert TorrentTrackingInfo.next_block_length(ttinfo, 0, 16_384, 16_384) == 16_384
+    assert TorrentTrackingInfo.next_block_length(ttinfo, 2, 0, 16_384) == 4_464
+    assert TorrentTrackingInfo.next_block_length(ttinfo, 2, 4_000, 16_384) == 464
+  end
+
+  test "is_piece_in_progress? checks bytes_received against actual_piece_length", context do
+    ttinfo = %TorrentTrackingInfo{
+      context.example_ttinfo
+      | piece_length: 32_768,
+        num_pieces: 2,
+        total_length: 40_000,
+        expected_piece_index: 1,
+        bytes_received: 4_000,
+        need_piece: false
+    }
+
+    assert TorrentTrackingInfo.is_piece_in_progress?(ttinfo) == true
+
+    done_ttinfo = %TorrentTrackingInfo{ttinfo | bytes_received: 7_232}
+    assert TorrentTrackingInfo.is_piece_in_progress?(done_ttinfo) == false
+  end
+
+  test "add_piece_index_data keeps multi-block piece in progress until full piece length", context do
+    ttinfo = setup_torrent(context)
+    piece_len = 32_768
+
+    ttinfo = %TorrentTrackingInfo{
+      ttinfo
+      | piece_length: piece_len,
+        num_pieces: 2,
+        total_length: 50_000,
+        expected_piece_index: 0,
+        expected_sub_piece_index: 0,
+        expected_piece_length: 16_384,
+        need_piece: false
+    }
+
+    {:ok, ttinfo} = TorrentTrackingInfo.populate_single_piece(ttinfo, 1, 0)
+    block1 = :binary.copy(<<1>>, 16_384)
+
+    {:ok, after_block1} =
+      TorrentTrackingInfo.add_piece_index_data(ttinfo, 0, 0, 16_384, block1)
+
+    assert after_block1.need_piece == false
+    assert after_block1.bytes_received == 16_384
+    assert after_block1.expected_sub_piece_index == 16_384
+    assert after_block1.expected_piece_length == 16_384
+    assert {:in_progress, ^block1} = Map.get(after_block1.piece_table, 0)
+  end
+
   defp setup_torrent(context) do
     {:ok, resp} = @server_impl.add_new_torrent(@server_name, @file_name_1)
 

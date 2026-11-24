@@ -62,6 +62,43 @@ defmodule BittorrentClient.Torrent.Test do
            )
   end
 
+  test "resets :started piece back to :found when owning peer process exits" do
+    {:ok, data} = @server_impl.add_new_torrent(@server_name, @file_name_1)
+    torrent_id = Map.get(data, "torrent id")
+
+    {:ok, _} = @torrent_impl.add_new_piece_index(torrent_id, "peer_1", 0)
+    {:ok, _} = @torrent_impl.add_new_piece_index(torrent_id, "peer_2", 0)
+
+    parent = self()
+
+    peer_pid =
+      spawn(fn ->
+        {:ok, 0} = @torrent_impl.get_next_piece_index(torrent_id, [0])
+        send(parent, :acquired)
+
+        receive do
+          :exit -> :ok
+        end
+      end)
+
+    assert_receive :acquired, 1_000
+
+    # While peer_pid holds piece 0 (:started), another peer cannot acquire it
+    assert {:error, _} = @torrent_impl.get_next_piece_index(torrent_id, [0])
+
+    send(peer_pid, :exit)
+    Process.sleep(50)
+
+    # After peer_pid exits, piece 0 is reset to :found and can be acquired again
+    assert {:ok, 0} = @torrent_impl.get_next_piece_index(torrent_id, [0])
+  end
+
+  test "get_completed_piece_list returns completed pieces" do
+    {:ok, data} = @server_impl.add_new_torrent(@server_name, @file_name_1)
+    torrent_id = Map.get(data, "torrent id")
+    {:ok, []} = @torrent_impl.get_completed_piece_list(torrent_id)
+  end
+
   defp compare_bento_data_to_metadata(bento_data, metadata) do
     Enum.reduce(Map.keys(bento_data), true, fn key, acc ->
       bento_field_val = Map.get(bento_data, key)

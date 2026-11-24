@@ -21,6 +21,16 @@ defmodule BittorrentClient.Peer.Supervisor do
         {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
          ip, port}
       ) do
+    start_child(
+      {piece_length, num_pieces, nil, torrent_id, info_hash, filename, interval,
+       ip, port}
+    )
+  end
+
+  def start_child(
+        {piece_length, num_pieces, total_length, torrent_id, info_hash,
+         filename, interval, ip, port}
+      ) do
     Logger.debug("Starting peer connection for #{torrent_id}")
 
     child_spec = %{
@@ -28,8 +38,8 @@ defmodule BittorrentClient.Peer.Supervisor do
       start:
         {@peer_impl, :start_link,
          [
-           {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
-            ip, port}
+           {piece_length, num_pieces, total_length, torrent_id, info_hash,
+            filename, interval, ip, port}
          ]},
       restart: :temporary
     }
