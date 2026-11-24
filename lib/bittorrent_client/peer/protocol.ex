@@ -141,7 +141,7 @@ defmodule BittorrentClient.Peer.Protocol do
     end
 
     # if length != byte_size(rest)
-    <<bitfield::bytes-size(length), rest::bytes>> = rest
+    <<bitfield::bytes-size(^length), rest::bytes>> = rest
 
     decode_type(rest, [%{type: :bitfield, bitfield: bitfield} | acc])
   end
@@ -158,9 +158,7 @@ defmodule BittorrentClient.Peer.Protocol do
          acc
        ) do
     Logger.debug(fn ->
-      "DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{
-        block_length
-      }"
+      "DECODE : REQUEST piece index #{piece_index} block offset #{block_offset} block length #{block_length}"
     end)
 
     decode_type(rest, [
@@ -197,9 +195,7 @@ defmodule BittorrentClient.Peer.Protocol do
     end)
 
     Logger.debug(fn ->
-      "DECODE : PIECE actual n_b_length #{actual_block_length} cal block length #{
-        expected_block_length
-      }"
+      "DECODE : PIECE actual n_b_length #{actual_block_length} cal block length #{expected_block_length}"
     end)
 
     block =
@@ -221,9 +217,7 @@ defmodule BittorrentClient.Peer.Protocol do
       end
 
     Logger.debug(fn ->
-      "DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{
-        expected_block_length
-      }"
+      "DECODE : PIECE index #{piece_index} block offset #{block_offset} block length #{expected_block_length}"
     end)
 
     decode_type(rest, [
@@ -250,9 +244,7 @@ defmodule BittorrentClient.Peer.Protocol do
          acc
        ) do
     Logger.debug(fn ->
-      "DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{
-        block_length
-      }"
+      "DECODE : CANCEL piece index #{piece_index} block_offset #{block_offset} block_length #{block_length}"
     end)
 
     decode_type(rest, [
@@ -320,9 +312,7 @@ defmodule BittorrentClient.Peer.Protocol do
          acc
        ) do
     Logger.debug(fn ->
-      "DECODE : REJECT_PIECE piece index #{piece_index} sub piece index #{
-        sub_piece_index
-      }"
+      "DECODE : REJECT_PIECE piece index #{piece_index} sub piece index #{sub_piece_index}"
     end)
 
     decode_type(rest, [
@@ -521,12 +511,6 @@ defmodule BittorrentClient.Peer.Protocol do
     >>
   end
 
-  def encode(:piece, piece_index, piece_length, block_offset, block) do
-    msg = <<@piece_id, piece_index::size(32), block_offset::size(32)>> <> block
-    size = 9 + piece_length
-    <<size::size(32)>> <> msg
-  end
-
   def encode(
         :cancel,
         piece_index,
@@ -540,6 +524,12 @@ defmodule BittorrentClient.Peer.Protocol do
       block_offset,
       block_length
     >>
+  end
+
+  def encode(:piece, piece_index, piece_length, block_offset, block) do
+    msg = <<@piece_id, piece_index::size(32), block_offset::size(32)>> <> block
+    size = 9 + piece_length
+    <<size::size(32)>> <> msg
   end
 
   def tcp_buff_to_encoded_msg([x | rst]) do

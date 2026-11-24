@@ -12,22 +12,29 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
   alias BittorrentClient.Torrent.DownloadStrategies, as: DownloadStrategies
   alias BittorrentClient.Torrent.FileAssembler, as: FileAssembler
   alias BittorrentClient.Torrent.TrackerInfo, as: TrackerInfo
-  @http_handle_impl Application.get_env(:bittorrent_client, :http_handle_impl)
-  @torrent_cache_impl Application.get_env(
+
+  @http_handle_impl Application.compile_env(
+                      :bittorrent_client,
+                      :http_handle_impl
+                    )
+  @torrent_cache_impl Application.compile_env(
                         :bittorrent_client,
                         :torrent_cache_impl
                       )
-  @torrent_cache_name Application.get_env(
+  @torrent_cache_name Application.compile_env(
                         :bittorrent_client,
                         :torrent_cache_name
                       )
-  @peer_impl Application.get_env(
+  @peer_impl Application.compile_env(
                :bittorrent_client,
                :peer_impl
              )
   @piece_hash_length 20
-  @destination_dir Application.get_env(:bittorrent_client, :file_destination)
-  @peer_check_interval Application.get_env(
+  @destination_dir Application.compile_env(
+                     :bittorrent_client,
+                     :file_destination
+                   )
+  @peer_check_interval Application.compile_env(
                          :bittorrent_client,
                          :peer_check_interval
                        )
@@ -100,9 +107,8 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
         {:reply,
          {:error,
-          "Failed to start peer connection for #{inspect(ip)}:#{inspect(port)}: #{
-            inspect(peer_data)
-          }"}, {metadata, data}}
+          "Failed to start peer connection for #{inspect(ip)}:#{inspect(port)}: #{inspect(peer_data)}"},
+         {metadata, data}}
 
       :ok ->
         {:reply, {:ok, peer_data}, {metadata, data}}
@@ -693,9 +699,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
     completed_indexes = Map.keys(piece_table)
 
     Logger.info(
-      "#{file} is starting with the following complete pieces: #{
-        inspect(completed_indexes)
-      }"
+      "#{file} is starting with the following complete pieces: #{inspect(completed_indexes)}"
     )
 
     num_pieces =
@@ -804,7 +808,7 @@ defmodule BittorrentClient.Torrent.GenServerImpl do
 
     case peer_list do
       [] ->
-        Logger.warn("#{id} has no available peers, will search for peers")
+        Logger.warning("#{id} has no available peers, will search for peers")
         timer = :erlang.start_timer(@peer_check_interval, self(), :peer_check)
 
         {:reply, {:ok, "no available pids"},

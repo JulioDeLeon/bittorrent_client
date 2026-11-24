@@ -1,8 +1,8 @@
 defmodule BittorrentClient.Peer.TorrentTrackingInfo.Test do
   use ExUnit.Case, async: true
   doctest BittorrentClient.Peer.TorrentTrackingInfo
-  @server_impl Application.get_env(:bittorrent_client, :server_impl)
-  @server_name Application.get_env(:bittorrent_client, :server_name)
+  @server_impl Application.compile_env(:bittorrent_client, :server_impl)
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
   @file_name_1 "priv/ubuntu_2.torrent"
   alias BittorrentClient.Peer.TorrentTrackingInfo, as: TorrentTrackingInfo
 

@@ -1,8 +1,8 @@
 defmodule BittorrentClient.Server.Test do
   use ExUnit.Case
-  @server_impl Application.get_env(:bittorrent_client, :server_impl)
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @server_name Application.get_env(:bittorrent_client, :server_name)
+  @server_impl Application.compile_env(:bittorrent_client, :server_impl)
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
   @file_name_1 "priv/ubuntu.torrent"
   @file_name_2 "priv/arch.torrent"
 

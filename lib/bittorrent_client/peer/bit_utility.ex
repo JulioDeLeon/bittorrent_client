@@ -2,7 +2,6 @@ defmodule BittorrentClient.Peer.BitUtility do
   @moduledoc """
   Bitutility provides functions which handle the encoding of bitstrings to bitfields.
   """
-  require Bitwise
   require Logger
   @byte_size 8
   # 0b10000000 since in bitfield, starting position is leftmost bit

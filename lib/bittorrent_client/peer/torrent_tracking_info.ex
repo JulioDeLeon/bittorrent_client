@@ -4,8 +4,8 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   The purpose of this struct to contain info to coordinate with parent torrent process.
   """
   require Logger
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @derive {Poison.Encoder, except: []}
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
+  @derive {Jason.Encoder, except: []}
   @enforce_keys [:id]
   defstruct [
     :id,
@@ -226,9 +226,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
          block
        ) do
     Logger.debug(fn ->
-      "ADDITION TO PIECE BUFF : index #{piece_index} block offset #{
-        block_offset
-      } block length #{block_length}"
+      "ADDITION TO PIECE BUFF : index #{piece_index} block offset #{block_offset} block length #{block_length}"
     end)
 
     handle_valid_piece_entry = fn data ->
@@ -349,9 +347,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
         {:error, msg} ->
           Logger.error(
-            "#{ttinfo.id} could not mark piece index #{piece_index} as complete : #{
-              msg
-            }"
+            "#{ttinfo.id} could not mark piece index #{piece_index} as complete : #{msg}"
           )
 
           {:error, msg}

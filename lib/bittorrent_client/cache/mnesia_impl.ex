@@ -27,7 +27,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
         {:ok, {name, opts}}
 
       {:aborted, {:already_exists, name}} ->
-        Logger.warn(fn ->
+        Logger.warning(fn ->
           "Reusing existing table for #{name}, if this is not the desired behaviour, please delete table manually"
         end)
 
@@ -57,9 +57,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to get all elements : #{
-            inspect(reason)
-          }"
+          "Cache for #{inspect(name)} failed to get all elements : #{inspect(reason)}"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -76,9 +74,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
         reason = "Does not exist"
 
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
-            inspect(reason)
-          }"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{inspect(reason)}"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -88,9 +84,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{
-            inspect(reason)
-          }"
+          "Cache for #{inspect(name)} failed to get #{inspect(key)} : #{inspect(reason)}"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -108,9 +102,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to set #{inspect(key)} : #{
-            inspect(reason)
-          }"
+          "Cache for #{inspect(name)} failed to set #{inspect(key)} : #{inspect(reason)}"
         )
 
         {:reply, {:error, reason}, {name, opts}}
@@ -128,9 +120,7 @@ defmodule BittorrentClient.Cache.MnesiaImpl do
 
       {:aborted, reason} ->
         Logger.error(
-          "Cache for #{inspect(name)} failed to delete #{key} : #{
-            inspect(reason)
-          }"
+          "Cache for #{inspect(name)} failed to delete #{key} : #{inspect(reason)}"
         )
 
         {:reply, {:error, reason}, {name, opts}}

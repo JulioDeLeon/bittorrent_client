@@ -2,21 +2,19 @@ defmodule BittorrentClient.Peer.Supervisor do
   @moduledoc """
   Peer supervisor which is created when a new torrent is created to mange peer connections
   """
-  use Supervisor
+  use DynamicSupervisor
   require Logger
 
-  @peer_impl Application.get_env(:bittorrent_client, :peer_impl)
+  @peer_impl Application.compile_env(:bittorrent_client, :peer_impl)
 
   def start_link do
     Logger.info("Starting Peer supervisor")
-    Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
+    DynamicSupervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
+  @impl true
   def init(_) do
-    supervise(
-      [worker(@peer_impl, [], restart: :temporary)],
-      strategy: :simple_one_for_one
-    )
+    DynamicSupervisor.init(strategy: :one_for_one)
   end
 
   def start_child(
@@ -24,11 +22,19 @@ defmodule BittorrentClient.Peer.Supervisor do
          ip, port}
       ) do
     Logger.debug("Starting peer connection for #{torrent_id}")
-    # This also looks like this can be shipped at a list
-    Supervisor.start_child(__MODULE__, [
-      {piece_length, num_pieces, torrent_id, info_hash, filename, interval, ip,
-       port}
-    ])
+
+    child_spec = %{
+      id: @peer_impl,
+      start:
+        {@peer_impl, :start_link,
+         [
+           {piece_length, num_pieces, torrent_id, info_hash, filename, interval,
+            ip, port}
+         ]},
+      restart: :temporary
+    }
+
+    DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
   def terminate_child(peer_id) do
@@ -41,7 +47,7 @@ defmodule BittorrentClient.Peer.Supervisor do
         {:error, msg}
 
       _ ->
-        ret = Supervisor.terminate_child(__MODULE__, peer_id)
+        ret = DynamicSupervisor.terminate_child(__MODULE__, pid)
         Logger.info("Return of ret #{inspect(ret)}")
         ret
     end
