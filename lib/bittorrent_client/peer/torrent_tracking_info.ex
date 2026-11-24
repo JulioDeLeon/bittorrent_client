@@ -5,6 +5,10 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
   """
   require Logger
   @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
+  @default_block_size Application.compile_env(
+                        :bittorrent_client,
+                        :default_block_size
+                      ) || 16_384
   @derive {Jason.Encoder, except: []}
   @enforce_keys [:id]
   defstruct [
@@ -15,6 +19,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     :expected_piece_length,
     :num_pieces,
     :piece_length,
+    :total_length,
     :request_queue,
     :bytes_received,
     :piece_table,
@@ -36,6 +41,7 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
           expected_piece_length: integer(),
           num_pieces: integer(),
           piece_length: integer(),
+          total_length: integer() | nil,
           request_queue: [piece_index_request],
           bytes_received: integer(),
           piece_table: map(),
@@ -264,10 +270,17 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     total_received = ttinfo.bytes_received + block_length
 
     handle_incomplete_piece = fn ->
-      total_length = ttinfo.piece_length
+      total_length = actual_piece_length(ttinfo, piece_index)
       actual_length = byte_size(new_buffer)
+      next_offset = block_offset + block_length
+      next_block_len = next_block_length(ttinfo, piece_index, next_offset)
 
-      percent = Float.floor(actual_length / total_length * 100, 2)
+      percent =
+        if total_length > 0 do
+          Float.floor(actual_length / total_length * 100, 2)
+        else
+          0.0
+        end
 
       Logger.debug(fn ->
         "PIECE PROGRESS : index #{piece_index} : #{percent}%"
@@ -277,14 +290,13 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
         ttinfo.piece_table
         |> Map.put(piece_index, {:in_progress, new_buffer})
 
-      # TODO: calculate expected length for non byte sizes
       new_ttinfo =
         ttinfo
         |> Map.put(:bytes_received, total_received)
         |> Map.put(:need_piece, false)
         |> Map.put(:expected_piece_index, piece_index)
-        |> Map.put(:expected_sub_piece_index, block_offset + block_length)
-        |> Map.put(:expected_piece_length, block_length)
+        |> Map.put(:expected_sub_piece_index, next_offset)
+        |> Map.put(:expected_piece_length, next_block_len)
         |> Map.put(:piece_table, new_piece_table)
 
       {:ok, new_ttinfo}
@@ -355,7 +367,9 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     end
 
     callback = fn ->
-      if total_received == ttinfo.piece_length do
+      expected_len = actual_piece_length(ttinfo, piece_index)
+
+      if total_received >= expected_len and byte_size(piece_buff) >= expected_len do
         handle_completed_piece.()
       else
         {:ok, :incomplete}
@@ -363,6 +377,37 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
     end
 
     perform_torrent_callback(ttinfo, callback)
+  end
+
+  @doc """
+  Returns the exact byte length of the piece at `piece_index`, accounting for
+  the final piece being shorter than `piece_length` when `total_length` is known.
+  """
+  @spec actual_piece_length(__MODULE__.t(), integer()) :: integer()
+  def actual_piece_length(ttinfo, piece_index) do
+    if is_integer(ttinfo.total_length) and ttinfo.total_length > 0 and
+         is_integer(ttinfo.num_pieces) and ttinfo.num_pieces > 0 and
+         piece_index == ttinfo.num_pieces - 1 do
+      max(ttinfo.total_length - piece_index * ttinfo.piece_length, 0)
+    else
+      ttinfo.piece_length
+    end
+  end
+
+  @doc """
+  Computes the byte length to request for the next block at `offset` within
+  `piece_index`, clamped to the remaining bytes of that piece.
+  """
+  @spec next_block_length(__MODULE__.t(), integer(), integer(), integer()) ::
+          integer()
+  def next_block_length(
+        ttinfo,
+        piece_index,
+        offset,
+        max_block_size \\ @default_block_size
+      ) do
+    remaining = max(actual_piece_length(ttinfo, piece_index) - offset, 0)
+    min(remaining, max_block_size)
   end
 
   @spec validate_infohash(__MODULE__.t(), binary()) :: boolean()
@@ -384,8 +429,12 @@ defmodule BittorrentClient.Peer.TorrentTrackingInfo do
 
   @spec is_piece_in_progress?(__MODULE__.t()) :: boolean()
   def is_piece_in_progress?(ttinfo) do
-    ttinfo.need_piece == false &&
-      ttinfo.bytes_recieved < ttinfo.expected_piece_length
+    if ttinfo.need_piece == false and is_integer(ttinfo.expected_piece_index) do
+      ttinfo.bytes_received <
+        actual_piece_length(ttinfo, ttinfo.expected_piece_index)
+    else
+      false
+    end
   end
 
   def notify_torrent_of_connection(ttinfo, peer_id, peer_ip, peer_port) do
