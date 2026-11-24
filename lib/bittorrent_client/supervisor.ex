@@ -8,7 +8,7 @@ defmodule BittorrentClient.Supervisor do
   alias BittorrentClient.Server.Supervisor, as: ServerSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
   alias BittorrentClient.Web.Supervisor, as: WebSupervisor
-  @server_name Application.get_env(:bittorrent_client, :server_name)
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
 
   def start_link do
     Supervisor.start_link(__MODULE__, :ok)
@@ -16,12 +16,28 @@ defmodule BittorrentClient.Supervisor do
 
   def init(:ok) do
     children = [
-      worker(ServerSupervisor, [@server_name]),
-      worker(WebSupervisor, []),
-      worker(TorrentSupervisor, []),
-      worker(PeerSupervisor, [])
+      %{
+        id: ServerSupervisor,
+        start: {ServerSupervisor, :start_link, ["priv/output/", @server_name]},
+        type: :supervisor
+      },
+      %{
+        id: WebSupervisor,
+        start: {WebSupervisor, :start_link, []},
+        type: :supervisor
+      },
+      %{
+        id: TorrentSupervisor,
+        start: {TorrentSupervisor, :start_link, []},
+        type: :supervisor
+      },
+      %{
+        id: PeerSupervisor,
+        start: {PeerSupervisor, :start_link, []},
+        type: :supervisor
+      }
     ]
 
-    supervise(children, strategy: :one_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

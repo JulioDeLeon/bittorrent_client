@@ -10,12 +10,12 @@ defmodule BittorrentClient.Torrent.Data do
   """
   @type torrent_state ::
           :initial | :connected | :started | :completed | :paused | :error
-  @derive {Poison.Encoder,
+  @derive {Jason.Encoder,
            except: [
              :pid,
              :tracker_info,
              :info_hash,
-             :conected_peers,
+             :connected_peers,
              :peer_timer
            ]}
   defstruct [

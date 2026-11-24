@@ -6,7 +6,7 @@ defmodule BittorrentClient.TCPConn do
   @doc """
   TCPConn struct wraps :gen_tcp socket
   """
-  @derive {Poison.Encoder, except: []}
+  @derive {Jason.Encoder, except: []}
   defstruct [
     :socket,
     :parent_pid

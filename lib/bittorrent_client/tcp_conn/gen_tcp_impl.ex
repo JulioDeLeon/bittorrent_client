@@ -16,9 +16,7 @@ defmodule BittorrentClient.TCPConn.GenTCPImpl do
 
       error ->
         {:error,
-         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{
-           inspect(error)
-         }"}
+         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{inspect(error)}"}
     end
   end
 
@@ -33,9 +31,7 @@ defmodule BittorrentClient.TCPConn.GenTCPImpl do
 
       error ->
         {:error,
-         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{
-           inspect(error)
-         }"}
+         "could not connect to #{inspect(ip)}:#{inspect(port)} - #{inspect(error)}"}
     end
   end
 

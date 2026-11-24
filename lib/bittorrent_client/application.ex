@@ -9,10 +9,12 @@ defmodule BittorrentClient.Application do
   alias BittorrentClient.Supervisor, as: BTCSupervisor
   alias BittorrentClient.Torrent.Supervisor, as: BTCTorrentSupervisor
   alias BittorrentClientWeb.Endpoint, as: BTCEndpoint
-  require Logger
 
-  @file_destination Application.get_env(:bittorrent_client, :file_destination)
-  @server_name Application.get_env(:bittorrent_client, :server_name)
+  @file_destination Application.compile_env(
+                      :bittorrent_client,
+                      :file_destination
+                    )
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
@@ -40,22 +42,31 @@ defmodule BittorrentClient.Application do
   end
 
   defp startup do
-    import Supervisor.Spec
     # Define workers and child supervisors to be supervised
     children = [
-      # Start the Ecto repository
-      # supervisor(BittorrentClient.Repo, []),
-      # Start the endpoint when the application starts
-      supervisor(BTCEndpoint, []),
-      # Start your own worker by calling: BittorrentClient.Worker.start_link(arg1, arg2, arg3)
-      # worker(BittorrentClient.Worker, [arg1, arg2, arg3]),
-      supervisor(BTCServerSupervisor, [
-        @file_destination,
-        @server_name
-      ]),
-      supervisor(BTCTorrentSupervisor, []),
-      supervisor(BTCPeerSupervisor, []),
-      supervisor(BTCCacheSupervisor, [])
+      {Phoenix.PubSub, name: BittorrentClient.PubSub},
+      BTCEndpoint,
+      %{
+        id: BTCServerSupervisor,
+        start:
+          {BTCServerSupervisor, :start_link, [@file_destination, @server_name]},
+        type: :supervisor
+      },
+      %{
+        id: BTCTorrentSupervisor,
+        start: {BTCTorrentSupervisor, :start_link, []},
+        type: :supervisor
+      },
+      %{
+        id: BTCPeerSupervisor,
+        start: {BTCPeerSupervisor, :start_link, []},
+        type: :supervisor
+      },
+      %{
+        id: BTCCacheSupervisor,
+        start: {BTCCacheSupervisor, :start_link, []},
+        type: :supervisor
+      }
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

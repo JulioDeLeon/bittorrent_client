@@ -15,14 +15,14 @@ defmodule BittorrentClient.Peer.GenServerImpl do
   alias BittorrentClient.TCPConn, as: TCPConn
   alias String.Chars, as: Chars
 
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
-  @tcp_conn_impl Application.get_env(:bittorrent_client, :tcp_conn_impl)
-  @peer_id Application.get_env(:bittorrent_client, :peer_id)
-  @default_block_size Application.get_env(
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
+  @tcp_conn_impl Application.compile_env(:bittorrent_client, :tcp_conn_impl)
+  @peer_id Application.compile_env(:bittorrent_client, :peer_id)
+  @default_block_size Application.compile_env(
                         :bittorrent_client,
                         :default_block_size
                       )
-  @tcp_connect_timeout Application.get_env(
+  @tcp_connect_timeout Application.compile_env(
                          :bittorrent_client,
                          :tcp_connect_timeout
                        )
@@ -130,9 +130,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     :erlang.cancel_timer(timer)
 
     Logger.debug(fn ->
-      "#{peer_data.name} : timer ended, current state: #{
-        inspect(peer_data.state)
-      }"
+      "#{peer_data.name} : timer ended, current state: #{inspect(peer_data.state)}"
     end)
 
     case send_message(peer_data.state, peer_data) do
@@ -143,9 +141,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
       new_peer_data ->
         Logger.debug(fn ->
-          "#{peer_data.name} : sent messages, new state: #{
-            inspect(new_peer_data.state)
-          }"
+          "#{peer_data.name} : sent messages, new state: #{inspect(new_peer_data.state)}"
         end)
 
         timer = :erlang.start_timer(peer_data.interval, self(), :send_message)
@@ -221,9 +217,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
     if actual != expected do
       err =
-        "INFO HASH did not match actual: #{inspect(actual)} != expected: #{
-          inspect(expected)
-        }"
+        "INFO HASH did not match actual: #{inspect(actual)} != expected: #{inspect(expected)}"
 
       Logger.debug(err)
 
@@ -395,9 +389,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
 
   def handle_message(unknown_type, msg, _socket, peer_data) do
     Logger.error(
-      "#{unknown_type} MSG: #{peer_data.name} could not handle this message: #{
-        inspect(msg)
-      }"
+      "#{unknown_type} MSG: #{peer_data.name} could not handle this message: #{inspect(msg)}"
     )
 
     peer_data
@@ -560,9 +552,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
     else
       # else continue with current piece
       Logger.debug(fn ->
-        "#{peer_data.name} : currently working on a piece #{
-          peer_data.torrent_tracking_info.expected_piece_index
-        } offset #{peer_data.torrent_tracking_info.expected_sub_piece_index}"
+        "#{peer_data.name} : currently working on a piece #{peer_data.torrent_tracking_info.expected_piece_index} offset #{peer_data.torrent_tracking_info.expected_sub_piece_index}"
       end)
 
       handle_current_piece_request({peer_data, buff})
@@ -687,9 +677,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
           {PeerData.t(), binary()}
   defp handle_current_piece_request({peer_data, buff}) do
     Logger.debug(fn ->
-      "#{peer_data.name} : will continue working on #{
-        peer_data.torrent_tracking_info.expected_piece_index
-      }"
+      "#{peer_data.name} : will continue working on #{peer_data.torrent_tracking_info.expected_piece_index}"
     end)
 
     msg =
@@ -722,9 +710,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       |> PeerProtocol.decode()
 
     Logger.debug(fn ->
-      "#{peer_data.name} has received the following message buff #{
-        inspect(msgs)
-      }"
+      "#{peer_data.name} has received the following message buff #{inspect(msgs)}"
     end)
 
     new_peer_data =
@@ -858,11 +844,7 @@ defmodule BittorrentClient.Peer.GenServerImpl do
       end
     else
       err_msg =
-        "Piece MSG: #{peer_data.name} has received the wrong piece: #{
-          msg.piece_index
-        }, expected: #{
-          inspect(peer_data.torrent_tracking_info.expected_piece_index)
-        }"
+        "Piece MSG: #{peer_data.name} has received the wrong piece: #{msg.piece_index}, expected: #{inspect(peer_data.torrent_tracking_info.expected_piece_index)}"
 
       Logger.debug(err_msg)
 

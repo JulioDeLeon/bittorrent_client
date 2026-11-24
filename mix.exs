@@ -5,12 +5,16 @@ defmodule BittorrentClient.Mixfile do
     [
       app: :bittorrent_client,
       version: "0.1.1",
-      elixir: "~> 1.7",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      releases: [
+        bittorrent_client: [
+          include_executables_for: [:unix]
+        ]
+      ]
     ]
   end
 
@@ -20,7 +24,8 @@ defmodule BittorrentClient.Mixfile do
   def application do
     [
       mod: {BittorrentClient.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools],
+      included_applications: [:mnesia]
     ]
   end
 
@@ -33,20 +38,20 @@ defmodule BittorrentClient.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:distillery, "~> 2.1"},
-      {:phoenix, "~> 1.3.2"},
-      {:phoenix_pubsub, "~> 1.0"},
-      #      {:phoenix_ecto, "~> 3.2"},
-      #      {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 2.10"},
-      {:phoenix_live_reload, "~> 1.0", only: :dev},
-      {:gettext, "~> 0.11"},
-      #      {:cowboy, "~> 1.0"},
-      {:plug_cowboy, "~> 1.0"},
-      {:httpoison, "~> 1.0.0"},
-      {:bento, "~> 0.9"},
-      {:dialyxir, "~> 0.5.0", only: [:dev], runtime: false},
-      {:credo, "~> 1.0.0", only: [:dev], runtime: false}
+      {:phoenix, "~> 1.8"},
+      {:phoenix_pubsub, "~> 2.4"},
+      {:phoenix_view, "~> 2.0"},
+      {:phoenix_html, "~> 4.4"},
+      {:phoenix_html_helpers, "~> 1.0"},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
+      {:gettext, "~> 1.0"},
+      {:bandit, "~> 1.15"},
+      {:jason, "~> 1.4"},
+      {:httpoison, "~> 3.0"},
+      {:bento, "~> 1.0"},
+      {:esbuild, "~> 0.10.1", runtime: Mix.env() == :dev},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -58,9 +63,13 @@ defmodule BittorrentClient.Mixfile do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"]
-      #      test: ["ecto.create --quiet", "ecto.migrate", "test"]
+      setup: ["deps.get", "assets.setup", "assets.build"],
+      "assets.setup": ["esbuild.install --if-missing"],
+      "assets.build": ["esbuild bittorrent_client"],
+      "assets.deploy": [
+        "esbuild bittorrent_client --minify",
+        "phx.digest"
+      ]
     ]
   end
 end

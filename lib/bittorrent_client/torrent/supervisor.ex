@@ -2,26 +2,30 @@ defmodule BittorrentClient.Torrent.Supervisor do
   @moduledoc """
   Torrent Supervisor will supervise torrent handler threads dynamically.
   """
-  use Supervisor
+  use DynamicSupervisor
   require Logger
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
 
   def start_link do
     Logger.info("Starting Torrent Supervisor")
-    Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
+    DynamicSupervisor.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
+  @impl true
   def init(_) do
-    supervise(
-      [worker(@torrent_impl, [], restart: :temporary)],
-      strategy: :simple_one_for_one
-    )
+    DynamicSupervisor.init(strategy: :one_for_one)
   end
 
   def start_child({torrent_id, filename}) do
     Logger.info("Adding torrent id for: #{torrent_id} for #{__MODULE__}")
 
-    Supervisor.start_child(__MODULE__, [{torrent_id, filename}])
+    child_spec = %{
+      id: @torrent_impl,
+      start: {@torrent_impl, :start_link, [{torrent_id, filename}]},
+      restart: :temporary
+    }
+
+    DynamicSupervisor.start_child(__MODULE__, child_spec)
   end
 
   def terminate_child(torrent_id) do

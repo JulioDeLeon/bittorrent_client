@@ -1,6 +1,7 @@
 defmodule BittorrentClientTest do
   use ExUnit.Case
-  use Plug.Test
+  import Plug.Test
+  import Plug.Conn
   doctest BittorrentClient
 
   test "the truth" do

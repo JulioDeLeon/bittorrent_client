@@ -1,11 +1,12 @@
 defmodule BittorrentClientWeb.TorrentControllerTest do
   use ExUnit.Case, async: false
-  use Plug.Test
+  import Plug.Test
+  import Plug.Conn
   alias BittorrentClientWeb.Router, as: WebRouter
   @api_root "/api/v1/torrent"
-  @server_name Application.get_env(:bittorrent_client, :server_name)
-  @server_impl Application.get_env(:bittorrent_client, :server_impl)
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
+  @server_impl Application.compile_env(:bittorrent_client, :server_impl)
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
   @torrent_file "priv/ubuntu.torrent"
   @torrent_file_2 "priv/arch.torrent"
   @opts []
@@ -41,7 +42,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
       returned_data =
         conn.resp_body
-        |> Poison.decode!()
+        |> Jason.decode!()
 
       torrent_id = Map.get(returned_data, "torrent id")
       torrent_pid = @torrent_impl.whereis(torrent_id)
@@ -76,7 +77,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_data =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     torrent_id = Map.get(returned_data, "torrent id")
     torrent_pid = @torrent_impl.whereis(torrent_id)
@@ -90,7 +91,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_table =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     assert Map.has_key?(returned_table, torrent_id) == true
 
@@ -108,7 +109,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_table =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     assert Map.has_key?(returned_table, torrent_id) != true
   end
@@ -123,7 +124,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_data =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     torrent_id = Map.get(returned_data, "torrent id")
 
@@ -135,7 +136,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_table =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     assert Map.has_key?(returned_table, torrent_id) == true
 
@@ -153,7 +154,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_table =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     assert returned_table == %{}
   end
@@ -168,7 +169,7 @@ defmodule BittorrentClientWeb.TorrentControllerTest do
 
     returned_data =
       conn.resp_body
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     torrent_id = Map.get(returned_data, "torrent id")
 

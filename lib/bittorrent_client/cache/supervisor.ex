@@ -4,14 +4,24 @@ defmodule BittorrentClient.Cache.Supervisor do
   """
   use Supervisor
   require Logger
-  @config_cache_impl Application.get_env(:bittorrent_client, :config_cache_impl)
-  @config_cache_name Application.get_env(:bittorrent_client, :config_cache_name)
-  @config_cache_opts Application.get_env(:bittorrent_client, :config_cache_opts)
-  @torrent_cache_impl Application.get_env(
+
+  @config_cache_impl Application.compile_env(
+                       :bittorrent_client,
+                       :config_cache_impl
+                     )
+  @config_cache_name Application.compile_env(
+                       :bittorrent_client,
+                       :config_cache_name
+                     )
+  @config_cache_opts Application.compile_env(
+                       :bittorrent_client,
+                       :config_cache_opts
+                     )
+  @torrent_cache_impl Application.compile_env(
                         :bittorrent_client,
                         :torrent_cache_impl
                       )
-  @torrent_cache_name Application.get_env(
+  @torrent_cache_name Application.compile_env(
                         :bittorrent_client,
                         :torrent_cache_name
                       )

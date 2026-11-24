@@ -20,5 +20,5 @@ defmodule BittorrentClientWeb.Gettext do
 
   See the [Gettext Docs](https://hexdocs.pm/gettext) for detailed usage.
   """
-  use Gettext, otp_app: :bittorrent_client
+  use Gettext.Backend, otp_app: :bittorrent_client
 end

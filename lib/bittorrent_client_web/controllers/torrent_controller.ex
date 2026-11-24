@@ -2,8 +2,8 @@ defmodule BittorrentClientWeb.TorrentController do
   use BittorrentClientWeb, :controller
   require Logger
 
-  @server_impl Application.get_env(:bittorrent_client, :server_impl)
-  @server_name Application.get_env(:bittorrent_client, :server_name)
+  @server_impl Application.compile_env(:bittorrent_client, :server_impl)
+  @server_name Application.compile_env(:bittorrent_client, :server_name)
 
   def ping(conn, _args) do
     send_resp(conn, 200, "pong")
@@ -26,7 +26,7 @@ defmodule BittorrentClientWeb.TorrentController do
             "downloaded" => Map.get(data, :downloaded),
             "uploaded" => Map.get(data, :uploaded)
           }
-          |> Poison.encode!()
+          |> Jason.encode!()
         )
 
       {:error, {code, msg}} ->
@@ -41,7 +41,7 @@ defmodule BittorrentClientWeb.TorrentController do
     case @server_impl.get_torrent_info_by_id(@server_name, id) do
       {:ok, msg} ->
         put_resp_content_type(conn, "application/json")
-        send_resp(conn, 200, msg |> entry_to_encodable() |> Poison.encode!())
+        send_resp(conn, 200, msg |> entry_to_encodable() |> Jason.encode!())
 
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
@@ -75,7 +75,7 @@ defmodule BittorrentClientWeb.TorrentController do
     case @server_impl.add_new_torrent(@server_name, filename) do
       {:ok, data} ->
         put_resp_content_type(conn, "application/json")
-        send_resp(conn, 200, Poison.encode!(data))
+        send_resp(conn, 200, Jason.encode!(data))
 
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
@@ -122,7 +122,7 @@ defmodule BittorrentClientWeb.TorrentController do
     case @server_impl.delete_torrent_by_id(@server_name, id) do
       {:ok, data} ->
         put_resp_content_type(conn, "application/json")
-        send_resp(conn, 200, Poison.encode!(data))
+        send_resp(conn, 200, Jason.encode!(data))
 
       {:error, {code, msg}} ->
         send_resp(conn, code, msg)
@@ -140,7 +140,7 @@ defmodule BittorrentClientWeb.TorrentController do
             val = Map.get(data, key)
             Map.put(acc, key, entry_to_encodable(val))
           end)
-          |> Poison.encode!()
+          |> Jason.encode!()
 
         put_resp_content_type(conn, "application/json")
         send_resp(conn, 200, ret)

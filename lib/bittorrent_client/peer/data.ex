@@ -42,11 +42,9 @@ defmodule BittorrentClient.Peer.Data do
           | :me_interest_it_choke
           | :we_interest
 
-  @derive {Poison.Encoder,
+  @derive {Jason.Encoder,
            except: [
-             :torrent_id,
              :socket,
-             :metainfo,
              :timer,
              :state,
              :running_buffer

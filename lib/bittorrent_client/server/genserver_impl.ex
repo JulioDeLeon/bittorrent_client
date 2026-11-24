@@ -8,7 +8,7 @@ defmodule BittorrentClient.Server.GenServerImpl do
   require Logger
   alias BittorrentClient.Torrent.Data, as: TorrentData
   alias BittorrentClient.Torrent.Supervisor, as: TorrentSupervisor
-  @torrent_impl Application.get_env(:bittorrent_client, :torrent_impl)
+  @torrent_impl Application.compile_env(:bittorrent_client, :torrent_impl)
 
   # -------------------------------------------------------------------------------
   # GenServer Callbacks
@@ -112,7 +112,9 @@ defmodule BittorrentClient.Server.GenServerImpl do
       Logger.debug(fn -> "TorrentData: #{inspect(torrent_data)}" end)
       {stop_status, ret} = TorrentSupervisor.terminate_child(id)
 
-      Logger.debug(fn -> "TorrentSupervisor.stop_child ret: #{inspect(ret)}" end)
+      Logger.debug(fn ->
+        "TorrentSupervisor.stop_child ret: #{inspect(ret)}"
+      end)
 
       case stop_status do
         :error ->

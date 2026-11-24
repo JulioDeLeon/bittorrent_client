@@ -19,10 +19,14 @@ defmodule BittorrentClientWeb do
 
   def controller do
     quote do
-      use Phoenix.Controller, namespace: BittorrentClientWeb
+      use Phoenix.Controller,
+        namespace: BittorrentClientWeb,
+        formats: [html: "View", json: "View"],
+        layouts: [html: {BittorrentClientWeb.LayoutView, :app}]
+
       import Plug.Conn
       import BittorrentClientWeb.Router.Helpers
-      import BittorrentClientWeb.Gettext
+      use Gettext, backend: BittorrentClientWeb.Gettext
     end
   end
 
@@ -33,14 +37,23 @@ defmodule BittorrentClientWeb do
         namespace: BittorrentClientWeb
 
       # Import convenience functions from controllers
-      import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
+      import Phoenix.Controller,
+        only: [view_module: 1, view_template: 1]
 
-      # Use all HTML functionality (forms, tags, etc)
-      use Phoenix.HTML
+      # Include shared imports and aliases for views
+      unquote(view_helpers())
+    end
+  end
+
+  defp view_helpers do
+    quote do
+      import Phoenix.HTML
+      import Phoenix.HTML.Form
+      use PhoenixHTMLHelpers
 
       import BittorrentClientWeb.Router.Helpers
       import BittorrentClientWeb.ErrorHelpers
-      import BittorrentClientWeb.Gettext
+      use Gettext, backend: BittorrentClientWeb.Gettext
     end
   end
 
@@ -55,7 +68,7 @@ defmodule BittorrentClientWeb do
   def channel do
     quote do
       use Phoenix.Channel
-      import BittorrentClientWeb.Gettext
+      use Gettext, backend: BittorrentClientWeb.Gettext
     end
   end
 
